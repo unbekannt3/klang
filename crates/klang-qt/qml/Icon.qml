@@ -17,6 +17,26 @@ Item {
 
     readonly property real u: Math.min(width, height) / 24
 
+    /// Scales path data written on the 24px grid to the current size.
+    ///
+    /// An arc's seven parameters include a rotation and two flags that are not
+    /// lengths; scaling those turns the flags into non-integers and Qt's parser
+    /// then reads the arc as malformed, so they pass through untouched.
+    function scaled(d) {
+        const u = root.u
+        return d.replace(/([a-zA-Z])([^a-zA-Z]*)/g, (match, command, args) => {
+            const numbers = args.match(/-?[\d.]+/g)
+            if (!numbers)
+                return command
+            const isArc = command === "a" || command === "A"
+            const scaledArgs = numbers.map((n, i) => {
+                const isFlagOrRotation = isArc && i % 7 >= 2 && i % 7 <= 4
+                return isFlagOrRotation ? n : (parseFloat(n) * u).toFixed(2)
+            })
+            return command + " " + scaledArgs.join(" ")
+        })
+    }
+
     Shape {
         anchors.fill: parent
         preferredRendererType: Shape.CurveRenderer
@@ -29,8 +49,7 @@ Item {
             strokeWidth: -1
             PathSvg {
                 path: {
-                    const u = root.u
-                    const s = (d) => d.replace(/([\d.-]+)/g, (m) => (parseFloat(m) * u).toFixed(2))
+                    const s = root.scaled
                     switch (root.name) {
                     case "play":
                         return s("M 8 5 L 19 12 L 8 19 Z")
@@ -57,8 +76,7 @@ Item {
             joinStyle: ShapePath.RoundJoin
             PathSvg {
                 path: {
-                    const u = root.u
-                    const s = (d) => d.replace(/([\d.-]+)/g, (m) => (parseFloat(m) * u).toFixed(2))
+                    const s = root.scaled
                     switch (root.name) {
                     case "shuffle":
                         return s("M 4 7 L 8 7 L 16 17 L 20 17 M 4 17 L 8 17 L 11 13 M 15 9 L 16 7 L 20 7 M 17.5 4.5 L 20 7 L 17.5 9.5 M 17.5 14.5 L 20 17 L 17.5 19.5")
@@ -102,8 +120,10 @@ Item {
                         return s("M 12 3 A 4 4 0 1 0 12 11 A 4 4 0 1 0 12 3 M 5 21 C 5 17 8 15 12 15 C 16 15 19 17 19 21")
                     case "playlist":
                         return s("M 4 6 L 14 6 M 4 11 L 14 11 M 4 16 L 10 16 M 17 8 L 17 19 M 17 8 L 21 7 L 21 18")
+                    case "block":
+                        return s("M 12 3 A 9 9 0 1 0 12 21 A 9 9 0 1 0 12 3 M 5.6 5.6 L 18.4 18.4")
                     case "radio":
-                        return s("M 12 12 m -1.8 0 a 1.8 1.8 0 1 0 3.6 0 a 1.8 1.8 0 1 0 -3.6 0 M 7 7.5 A 6.5 6.5 0 0 0 7 16.5 M 17 7.5 A 6.5 6.5 0 0 1 17 16.5")
+                        return s("M 12 12 m -1.8 0 a 1.8 1.8 0 1 0 3.6 0 a 1.8 1.8 0 1 0 -3.6 0 M 7 7.5 A 6.5 6.5 0 0 0 7 16.5 M 17 16.5 A 6.5 6.5 0 0 0 17 7.5")
                     }
                     return ""
                 }

@@ -1475,3 +1475,43 @@ pub async fn get_playlist_recommendations(
         .get_playlist_recommendations(&playlist_id, offset, limit)
         .await
 }
+
+// ---- Blocking -----------------------------------------------------------
+
+pub async fn get_blocked_ids(
+    state: &AppState,
+    user_id: u64,
+    kind: String,
+) -> Result<Vec<u64>, SoneError> {
+    let kind = crate::tidal_api::BlockKind::parse(&kind)
+        .ok_or_else(|| SoneError::NotConfigured(format!("unknown block kind {kind:?}")))?;
+    log::debug!("[get_blocked_ids]: kind={kind:?}");
+    let mut client = state.tidal_client.lock().await;
+    client.get_blocked_ids(user_id, kind).await
+}
+
+pub async fn block_item(
+    state: &AppState,
+    user_id: u64,
+    kind: String,
+    item_id: u64,
+) -> Result<(), SoneError> {
+    let kind = crate::tidal_api::BlockKind::parse(&kind)
+        .ok_or_else(|| SoneError::NotConfigured(format!("unknown block kind {kind:?}")))?;
+    log::debug!("[block_item]: kind={kind:?}, id={item_id}");
+    let client = state.tidal_client.lock().await;
+    client.block_item(user_id, kind, item_id).await
+}
+
+pub async fn unblock_item(
+    state: &AppState,
+    user_id: u64,
+    kind: String,
+    item_id: u64,
+) -> Result<(), SoneError> {
+    let kind = crate::tidal_api::BlockKind::parse(&kind)
+        .ok_or_else(|| SoneError::NotConfigured(format!("unknown block kind {kind:?}")))?;
+    log::debug!("[unblock_item]: kind={kind:?}, id={item_id}");
+    let client = state.tidal_client.lock().await;
+    client.unblock_item(user_id, kind, item_id).await
+}

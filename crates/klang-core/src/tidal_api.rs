@@ -1324,6 +1324,42 @@ pub struct DeviceAuthResponse {
     pub interval: u64,
 }
 
+/// What can be blocked. TIDAL keys the routes on the plural.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BlockKind {
+    Track,
+    Artist,
+    Video,
+}
+
+impl BlockKind {
+    pub fn plural(self) -> &'static str {
+        match self {
+            BlockKind::Track => "tracks",
+            BlockKind::Artist => "artists",
+            BlockKind::Video => "videos",
+        }
+    }
+
+    fn id_field(self) -> &'static str {
+        match self {
+            BlockKind::Track => "trackId",
+            BlockKind::Artist => "artistId",
+            BlockKind::Video => "videoId",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "track" => Some(BlockKind::Track),
+            "artist" => Some(BlockKind::Artist),
+            "video" => Some(BlockKind::Video),
+            _ => None,
+        }
+    }
+}
+
 /// Invoked with freshly refreshed tokens so the caller can persist them.
 pub type TokenPersist = Arc<dyn Fn(&AuthTokens) + Send + Sync>;
 
@@ -3176,6 +3212,101 @@ impl TidalClient {
         }
 
         Ok(())
+    }
+
+    // ---- Blocking -------------------------------------------------------
+    //
+    // TIDAL hides blocked content from mixes and radio. The routes were read
+    // out of the web client's own bundle: GET and POST on
+    // `/users/{id}/blocks/{kind}s`, DELETE on `.../{kind}s/{itemId}`. The POST
+    // body key follows the favourites convention (`artistId`, `trackId`), which
+    // is inferred rather than observed — the bundle would not give it up.
+
+    /// Ids the user has blocked, for one kind of item.
+    pub async fn get_blocked_ids(
+        &mut self,
+        user_id: u64,
+        kind: BlockKind,
+    ) -> Result<Vec<u64>, SoneError> {
+        // The endpoint caps a page at 100, so walk until it runs dry.
+        let path = format!("/users/{}/blocks/{}", user_id, kind.plural());
+        let mut ids = Vec::new();
+        let mut offset = 0usize;
+        loop {
+            let body = self
+                .api_get_body(
+                    &path,
+                    &[("offset", &offset.to_string()), ("limit", "100")],
+                )
+                .await?;
+            let parsed: serde_json::Value = serde_json::from_str(&body)?;
+            let page: Vec<u64> = parsed
+                .get("items")
+                .and_then(|v| v.as_array())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| {
+                            item.get("id")
+                                .or_else(|| item.get("item").and_then(|i| i.get("id")))
+                                .and_then(|v| v.as_u64())
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            let count = page.len();
+            ids.extend(page);
+            if count < 100 {
+                return Ok(ids);
+            }
+            offset += 100;
+        }
+    }
+
+    pub async fn block_item(&self, user_id: u64, kind: BlockKind, item_id: u64) -> Result<(), SoneError> {
+        let tokens = self.tokens.as_ref().ok_or(SoneError::NotAuthenticated)?;
+        let id = item_id.to_string();
+        let req = self
+            .client
+            .post(format!(
+                "{}/users/{}/blocks/{}",
+                TIDAL_API_URL,
+                user_id,
+                kind.plural()
+            ))
+            .header("Authorization", format!("Bearer {}", tokens.access_token))
+            .query(&[("countryCode", self.country_code.as_str())])
+            .form(&[(kind.id_field(), id.as_str())]);
+        self.expect_success(req).await
+    }
+
+    pub async fn unblock_item(&self, user_id: u64, kind: BlockKind, item_id: u64) -> Result<(), SoneError> {
+        let tokens = self.tokens.as_ref().ok_or(SoneError::NotAuthenticated)?;
+        let req = self
+            .client
+            .delete(format!(
+                "{}/users/{}/blocks/{}/{}",
+                TIDAL_API_URL,
+                user_id,
+                kind.plural(),
+                item_id
+            ))
+            .header("Authorization", format!("Bearer {}", tokens.access_token))
+            .query(&[("countryCode", self.country_code.as_str())]);
+        self.expect_success(req).await
+    }
+
+    /// Send and discard the body, failing on a non-2xx.
+    async fn expect_success(&self, req: reqwest::RequestBuilder) -> Result<(), SoneError> {
+        let response = self.send(req).await?;
+        let status = response.status();
+        if status.is_success() {
+            return Ok(());
+        }
+        Err(SoneError::Api {
+            status: status.as_u16(),
+            body: response.text().await.unwrap_or_default(),
+        })
     }
 
     pub async fn remove_favorite_artist(

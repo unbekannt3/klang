@@ -59,6 +59,7 @@ QQC2.ApplicationWindow {
                 return
             playlistsCtl.load_all(authCtl.user_id)
             favoritesCtl.load(authCtl.user_id)
+            favoritesCtl.load_blocks(authCtl.user_id)
         }
     }
 

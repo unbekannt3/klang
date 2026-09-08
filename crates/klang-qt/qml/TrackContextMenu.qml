@@ -25,8 +25,17 @@ ContextMenu {
 
     // `revision` is read only so this re-evaluates when the favourite sets
     // change; `is_track` itself is a plain invokable, not a tracked property.
-    readonly property bool loved: !!favorites && favorites.revision >= 0
-        && favorites.is_track(track.id)
+    // The `track.id` guard matters at startup, before any row is opened, when
+    // callers seed `track` with an empty placeholder object.
+    readonly property bool loved: !!favorites && !!track && !!track.id
+        && favorites.revision >= 0 && favorites.is_track(track.id)
+
+    // Blocking keeps a track out of mixes and radio; it is separate from
+    // loving it, and TIDAL exposes it per track and per artist.
+    readonly property bool blocked: !!favorites && !!track && !!track.id
+        && favorites.revision >= 0 && favorites.is_blocked("track", track.id)
+    readonly property bool artistBlocked: !!favorites && !!track && !!track.artistId
+        && favorites.revision >= 0 && favorites.is_blocked("artist", track.artistId)
 
     function trackJson() {
         return JSON.stringify(track)
@@ -51,8 +60,7 @@ ContextMenu {
               onTriggered: () => favorites.toggle_track(track.id) },
         ]
 
-        // rows.rs carries only the album/artist *names*, not their ids, so
-        // these only appear once a caller enriches the row with them.
+        // Only shown once the row actually carries these ids.
         if (track.albumId)
             items.push({ label: "Go to album", onTriggered: () => root.goToAlbumRequested(track.albumId) })
         if (track.artistId)
@@ -61,6 +69,13 @@ ContextMenu {
         items.push({ separator: true })
         items.push({ label: "Track radio", icon: "radio",
                      onTriggered: () => root.radioRequested(track.id) })
+
+        items.push({ separator: true })
+        items.push({ label: root.blocked ? "Unblock track" : "Block track", icon: "block",
+                     onTriggered: () => favorites.toggle_block("track", track.id) })
+        if (track.artistId)
+            items.push({ label: root.artistBlocked ? "Unblock artist" : "Block artist", icon: "block",
+                         onTriggered: () => favorites.toggle_block("artist", track.artistId) })
         return items
     }
 

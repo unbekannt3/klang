@@ -43,6 +43,15 @@ ContextMenu {
         }
     }
 
+    // Only artists (and videos, which klang does not surface as cards yet)
+    // can be blocked — albums and playlists have no blocks endpoint.
+    readonly property bool blocked: {
+        if (!favorites || !item || item.kind !== "artist")
+            return false
+        const _r = favorites.revision
+        return favorites.is_blocked("artist", numericId())
+    }
+
     function toggleFavorite() {
         switch (item.kind) {
         case "album": favorites.toggle_album(numericId()); break
@@ -80,6 +89,12 @@ ContextMenu {
         // carousel/search album card does not carry it.
         if (item.kind === "album" && item.artistId)
             items.push({ label: "Go to artist", onTriggered: () => root.goToArtistRequested(item.artistId) })
+
+        if (item.kind === "artist") {
+            items.push({ separator: true })
+            items.push({ label: root.blocked ? "Unblock artist" : "Block artist", icon: "block",
+                         onTriggered: () => favorites.toggle_block("artist", numericId()) })
+        }
 
         if (item.kind === "playlist") {
             items.push({ separator: true })

@@ -29,6 +29,17 @@ pub mod qobject {
         #[qproperty(i32, revision)]
         type FavoritesController = super::FavoritesControllerRust;
 
+        /// Load the blocked-content lists alongside the favourites.
+        #[qinvokable]
+        fn load_blocks(self: Pin<&mut FavoritesController>, user_id: i64);
+
+        #[qinvokable]
+        fn is_blocked(self: &FavoritesController, kind: &QString, id: i64) -> bool;
+
+        /// Blocking hides an item from mixes and radio, not from the library.
+        #[qinvokable]
+        fn toggle_block(self: Pin<&mut FavoritesController>, kind: &QString, id: i64);
+
         /// Load every favourite id for the signed-in user. Call once at start.
         #[qinvokable]
         fn load(self: Pin<&mut FavoritesController>, user_id: i64);
@@ -62,6 +73,9 @@ struct Sets {
     albums: HashSet<i64>,
     artists: HashSet<i64>,
     playlists: HashSet<String>,
+    blocked_tracks: HashSet<i64>,
+    blocked_artists: HashSet<i64>,
+    blocked_videos: HashSet<i64>,
 }
 
 #[derive(Default)]
@@ -108,6 +122,103 @@ impl qobject::FavoritesController {
                     Err(e) => obj.as_mut().set_error(QString::from(&e.to_string())),
                 }
             });
+        });
+    }
+
+pub fn load_blocks(mut self: Pin<&mut Self>, user_id: i64) {
+        if user_id == 0 {
+            return;
+        }
+        self.as_mut().rust_mut().user_id = user_id;
+        let qt = self.qt_thread();
+
+        klang_core::runtime::spawn(async move {
+            let mut loaded: Vec<(String, Vec<u64>)> = Vec::new();
+            for kind in ["track", "artist", "video"] {
+                match library::get_blocked_ids(app::state(), user_id as u64, kind.into()).await {
+                    Ok(ids) => loaded.push((kind.to_string(), ids)),
+                    Err(e) => log::warn!("blocks: could not load {kind}: {e}"),
+                }
+            }
+            let _ = qt.queue(move |mut obj| {
+                {
+                    let mut sets = obj.rust().sets.lock().unwrap();
+                    for (kind, ids) in loaded {
+                        let target = match kind.as_str() {
+                            "track" => &mut sets.blocked_tracks,
+                            "artist" => &mut sets.blocked_artists,
+                            _ => &mut sets.blocked_videos,
+                        };
+                        *target = ids.into_iter().map(|i| i as i64).collect();
+                    }
+                }
+                obj.bump();
+            });
+        });
+    }
+
+    pub fn is_blocked(&self, kind: &QString, id: i64) -> bool {
+        let sets = self.rust().sets.lock().unwrap();
+        match kind.to_string().as_str() {
+            "track" => sets.blocked_tracks.contains(&id),
+            "artist" => sets.blocked_artists.contains(&id),
+            "video" => sets.blocked_videos.contains(&id),
+            _ => false,
+        }
+    }
+
+    pub fn toggle_block(mut self: Pin<&mut Self>, kind: &QString, id: i64) {
+        let kind = kind.to_string();
+        let user_id = self.rust().user_id;
+        if user_id == 0 || id == 0 || !matches!(kind.as_str(), "track" | "artist" | "video") {
+            return;
+        }
+
+        let blocking = {
+            let mut sets = self.rust().sets.lock().unwrap();
+            let set = match kind.as_str() {
+                "track" => &mut sets.blocked_tracks,
+                "artist" => &mut sets.blocked_artists,
+                _ => &mut sets.blocked_videos,
+            };
+            if set.remove(&id) {
+                false
+            } else {
+                set.insert(id);
+                true
+            }
+        };
+        self.as_mut().bump();
+        let qt = self.qt_thread();
+
+        klang_core::runtime::spawn(async move {
+            let state = app::state();
+            let user = user_id as u64;
+            let result = if blocking {
+                library::block_item(state, user, kind.clone(), id as u64).await
+            } else {
+                library::unblock_item(state, user, kind.clone(), id as u64).await
+            };
+            if let Err(e) = result {
+                let msg = e.to_string();
+                let _ = qt.queue(move |mut obj| {
+                    {
+                        let mut sets = obj.rust().sets.lock().unwrap();
+                        let set = match kind.as_str() {
+                            "track" => &mut sets.blocked_tracks,
+                            "artist" => &mut sets.blocked_artists,
+                            _ => &mut sets.blocked_videos,
+                        };
+                        if blocking {
+                            set.remove(&id);
+                        } else {
+                            set.insert(id);
+                        }
+                    }
+                    obj.as_mut().set_error(QString::from(&msg));
+                    obj.bump();
+                });
+            }
         });
     }
 
