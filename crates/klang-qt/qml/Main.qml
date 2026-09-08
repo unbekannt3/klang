@@ -72,6 +72,13 @@ QQC2.ApplicationWindow {
         TitleBar {
             Layout.fillWidth: true
             window: root
+            canGoBack: root.history.length > 0
+            searchQuery: root.page.params.query || ""
+            onBackRequested: root.back()
+            onSearchSubmitted: (q) => {
+                if (q.length > 0)
+                    root.go("search", { query: q })
+            }
         }
 
         RowLayout {

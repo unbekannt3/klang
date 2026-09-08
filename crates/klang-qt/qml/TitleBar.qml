@@ -10,6 +10,11 @@ Rectangle {
     id: root
 
     required property var window
+    property bool canGoBack: false
+    property string searchQuery: ""
+
+    signal backRequested()
+    signal searchSubmitted(string query)
 
     implicitHeight: 38
     color: Theme.sidebar
@@ -17,7 +22,6 @@ Rectangle {
     // The whole bar is the drag handle, except where a button sits on top.
     DragHandler {
         target: null
-        grabPermissions: PointerHandler.CanTakeOverFromAnything
         onActiveChanged: if (active) root.window.startSystemMove()
     }
 
@@ -55,7 +59,7 @@ Rectangle {
         spacing: 0
 
         Image {
-            Layout.leftMargin: Theme.space
+            Layout.leftMargin: Theme.spaceSm
             Layout.preferredWidth: 18
             Layout.preferredHeight: 18
             source: "qrc:/qt/qml/me/unbk/klang/qml/klang.png"
@@ -64,14 +68,56 @@ Rectangle {
             smooth: true
         }
 
-        Text {
-            Layout.leftMargin: Theme.spaceSm
-            text: "klang"
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeSm
-            font.weight: Font.DemiBold
-            font.letterSpacing: 0.8
-            color: Theme.textSecondary
+        WindowButton {
+            glyph: "‹"
+            enabled: root.canGoBack
+            opacity: root.canGoBack ? 1 : 0.3
+            onActivated: root.backRequested()
+        }
+
+        Item { Layout.fillWidth: true }
+
+        Rectangle {
+            Layout.preferredWidth: Math.min(360, root.width * 0.32)
+            Layout.preferredHeight: 26
+            radius: Theme.radiusFull
+            color: search.activeFocus ? Theme.elevated : Theme.inset
+            border.color: search.activeFocus ? Theme.accent : "transparent"
+            border.width: 1
+
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: Theme.spaceSm
+                anchors.verticalCenter: parent.verticalCenter
+                text: "⌕"
+                font.pixelSize: Theme.fontSize
+                color: Theme.textFaint
+            }
+
+            TextInput {
+                id: search
+                anchors.fill: parent
+                anchors.leftMargin: Theme.space + Theme.spaceSm
+                anchors.rightMargin: Theme.spaceSm
+                verticalAlignment: TextInput.AlignVCenter
+                clip: true
+                text: root.searchQuery
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeSm
+                color: Theme.textPrimary
+                selectionColor: Theme.accent
+                selectedTextColor: Theme.onAccent
+                onAccepted: root.searchSubmitted(text)
+
+                Text {
+                    anchors.fill: parent
+                    verticalAlignment: Text.AlignVCenter
+                    visible: !search.text && !search.activeFocus
+                    text: "Search"
+                    font: search.font
+                    color: Theme.textFaint
+                }
+            }
         }
 
         Item { Layout.fillWidth: true }
