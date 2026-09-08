@@ -26,6 +26,10 @@ fn main() {
             QmlFile::from("qml/ThemePicker.qml"),
             QmlFile::from("qml/SettingsPage.qml"),
             QmlFile::from("qml/NowPlayingView.qml"),
+            QmlFile::from("qml/ContextMenu.qml"),
+            QmlFile::from("qml/TrackContextMenu.qml"),
+            QmlFile::from("qml/MediaContextMenu.qml"),
+            QmlFile::from("qml/AddToPlaylistDialog.qml"),
             QmlFile::from("qml/SettingRow.qml"),
             QmlFile::from("qml/PlaybackSettings.qml"),
             QmlFile::from("qml/ScrobbleSettings.qml"),
@@ -43,6 +47,7 @@ fn main() {
     .files([
         "src/bridge/auth.rs",
         "src/bridge/catalog.rs",
+        "src/bridge/favorites.rs",
         "src/bridge/home.rs",
         "src/bridge/library.rs",
         "src/bridge/player.rs",
