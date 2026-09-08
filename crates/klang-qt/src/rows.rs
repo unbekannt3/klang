@@ -7,6 +7,15 @@ use klang_core::camelot;
 use klang_core::tidal_api::TidalTrack;
 use serde_json::{json, Value};
 
+/// Artist id, from the same fallback chain as the name.
+fn artist_id(track: &TidalTrack) -> Option<u64> {
+    track
+        .artist
+        .as_ref()
+        .map(|a| a.id)
+        .or_else(|| track.artists.as_ref().and_then(|list| list.first().map(|a| a.id)))
+}
+
 /// Artist name, from `artist` or the first of `artists` — endpoints differ in
 /// which of the two they populate.
 fn artist_name(track: &TidalTrack) -> String {
@@ -34,7 +43,9 @@ pub fn track(index: usize, t: &TidalTrack) -> Value {
         "id": t.id,
         "title": t.title,
         "artist": artist_name(t),
+        "artistId": artist_id(t),
         "album": t.album.as_ref().map(|a| a.title.clone()).unwrap_or_default(),
+        "albumId": t.album.as_ref().map(|a| a.id),
         "duration": t.duration,
         "quality": t.audio_quality.clone().unwrap_or_default(),
         "bpm": t.bpm,

@@ -9,6 +9,9 @@ Item {
 
     required property var player
     property var favorites: null
+
+    /// Bubbles a row's right-click up to the window's shared menu.
+    signal trackContextRequested(var track, real x, real y)
     required property int userId
 
     LibraryController { id: library }
@@ -87,6 +90,11 @@ Item {
             loading: library.loading
             activeId: root.player.track_id
             favorites: root.favorites
+            onContextRequested: (index, x, y) => {
+                const rows = JSON.parse(library.tracks_json || "[]")
+                if (rows[index])
+                    root.trackContextRequested(rows[index], x, y)
+            }
             emptyText: library.error.length > 0 ? library.error : "No loved tracks yet"
             onTrackActivated: (index) =>
                 root.player.play_context(library.tracks_json, index, "favorites")

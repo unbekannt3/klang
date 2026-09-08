@@ -161,7 +161,15 @@ QQC2.ApplicationWindow {
     // so no page needs to know about any other.
     Component {
         id: favoritesPage
-        FavoritesPage { player: playerCtl; userId: authCtl.user_id; favorites: favoritesCtl }
+        FavoritesPage {
+            player: playerCtl
+            userId: authCtl.user_id
+            favorites: favoritesCtl
+            onTrackContextRequested: (track, x, y) => {
+                trackMenu.track = track
+                trackMenu.openAt(Qt.point(x, y), content)
+            }
+        }
     }
 
     Component {
@@ -189,6 +197,10 @@ QQC2.ApplicationWindow {
         SearchPage {
             player: playerCtl
             favorites: favoritesCtl
+            onTrackContextRequested: (track, x, y) => {
+                trackMenu.track = track
+                trackMenu.openAt(Qt.point(x, y), content)
+            }
             query: root.page.params.query || ""
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
@@ -201,6 +213,10 @@ QQC2.ApplicationWindow {
         AlbumPage {
             player: playerCtl
             favorites: favoritesCtl
+            onTrackContextRequested: (track, x, y) => {
+                trackMenu.track = track
+                trackMenu.openAt(Qt.point(x, y), content)
+            }
             albumId: root.page.params.albumId || 0
             onOpenArtist: (id) => root.go("artist", { artistId: id })
         }
@@ -211,6 +227,10 @@ QQC2.ApplicationWindow {
         ArtistPage {
             player: playerCtl
             favorites: favoritesCtl
+            onTrackContextRequested: (track, x, y) => {
+                trackMenu.track = track
+                trackMenu.openAt(Qt.point(x, y), content)
+            }
             artistId: root.page.params.artistId || 0
             onOpenAlbum: (id) => root.go("album", { albumId: id })
         }
@@ -226,9 +246,35 @@ QQC2.ApplicationWindow {
         PlaylistPage {
             player: playerCtl
             favorites: favoritesCtl
+            onTrackContextRequested: (track, x, y) => {
+                trackMenu.track = track
+                trackMenu.openAt(Qt.point(x, y), content)
+            }
             playlistUuid: root.page.params.uuid || ""
             playlistTitle: root.page.params.title || ""
         }
+    }
+
+    TrackContextMenu {
+        id: trackMenu
+        property int rowIndex: -1
+        track: ({})
+        player: playerCtl
+        favorites: favoritesCtl
+        onAddToPlaylistRequested: (trackId) => {
+            playlistPicker.trackId = trackId
+            playlistPicker.open = true
+        }
+        onGoToAlbumRequested: (albumId) => root.go("album", { albumId: albumId })
+        onGoToArtistRequested: (artistId) => root.go("artist", { artistId: artistId })
+        onRadioRequested: (trackId) => console.log("track radio not wired yet", trackId)
+    }
+
+    AddToPlaylistDialog {
+        id: playlistPicker
+        anchors.fill: parent
+        playlists: playlistsCtl
+        onCloseRequested: open = false
     }
 
     NowPlayingView {

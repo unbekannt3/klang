@@ -7,6 +7,7 @@ no capturing whatever else is on screen.
 
     scripts/klang-drive.py run wait 5 shot out.png
     scripts/klang-drive.py run wait 5 click 640 400 wait 2 shot after.png
+    scripts/klang-drive.py run wait 5 rclick 640 400 wait 1 shot menu.png
     scripts/klang-drive.py run wait 5 type "hardwell" key Return wait 3 shot s.png
 
 Commands run in order. `run` starts the app first and stops it at the end;
@@ -211,6 +212,10 @@ def main(argv: list[str]) -> int:
                 x, y = int(args[i + 1]), int(args[i + 2]); i += 3
                 vnc.click(x, y)
                 print(f"click {x},{y}")
+            elif cmd == "rclick":
+                x, y = int(args[i + 1]), int(args[i + 2]); i += 3
+                vnc.click(x, y, button=3)
+                print(f"rclick {x},{y}")
             elif cmd == "key":
                 vnc.key(args[i + 1]); i += 2
             elif cmd == "type":

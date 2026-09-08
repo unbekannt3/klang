@@ -10,6 +10,9 @@ Item {
 
     required property var player
     property var favorites: null
+
+    /// Bubbles a row's right-click up to the window's shared menu.
+    signal trackContextRequested(var track, real x, real y)
     /// Album to display.
     property int albumId: 0
     /// Navigation requests bubble up to Main.qml.
@@ -180,6 +183,11 @@ Item {
                 loading: catalog.loading
                 activeId: root.player.track_id
                 favorites: root.favorites
+                onContextRequested: (index, x, y) => {
+                    const rows = JSON.parse(catalog.album_tracks_json || "[]")
+                    if (rows[index])
+                        root.trackContextRequested(rows[index], x, y)
+                }
                 numbered: true
                 showCovers: false
                 showBpm: false

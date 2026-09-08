@@ -10,6 +10,9 @@ Item {
 
     required property var player
     property var favorites: null
+
+    /// Bubbles a row's right-click up to the window's shared menu.
+    signal trackContextRequested(var track, real x, real y)
     /// Artist to display.
     property int artistId: 0
     /// Navigation requests bubble up to Main.qml.
@@ -187,6 +190,11 @@ Item {
                 loading: catalog.loading
                 activeId: root.player.track_id
                 favorites: root.favorites
+                onContextRequested: (index, x, y) => {
+                    const rows = JSON.parse(catalog.artist_top_tracks_json || "[]")
+                    if (rows[index])
+                        root.trackContextRequested(rows[index], x, y)
+                }
                 emptyText: catalog.error.length > 0 ? catalog.error : "No tracks"
                 onTrackActivated: (index) =>
                         root.player.play_context(catalog.artist_top_tracks_json, index, "artist:" + root.artistId)

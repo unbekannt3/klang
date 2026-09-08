@@ -11,6 +11,9 @@ Item {
 
     required property var player
     property var favorites: null
+
+    /// Bubbles a row's right-click up to the window's shared menu.
+    signal trackContextRequested(var track, real x, real y)
     /// Seeded by the router; the in-page field takes over from here.
     property string query: ""
     signal openAlbum(int albumId)
@@ -110,6 +113,11 @@ Item {
                     tracks: search.tracks_json
                     activeId: root.player.track_id
                     favorites: root.favorites
+                    onContextRequested: (index, x, y) => {
+                        const rows = JSON.parse(search.tracks_json || "[]")
+                        if (rows[index])
+                            root.trackContextRequested(rows[index], x, y)
+                    }
                     onTrackActivated: (index) =>
                         root.player.play_context(search.tracks_json, index, "search")
                 }

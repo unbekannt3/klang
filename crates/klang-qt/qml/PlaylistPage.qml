@@ -12,6 +12,9 @@ Item {
 
     required property var player
     property var favorites: null
+
+    /// Bubbles a row's right-click up to the window's shared menu.
+    signal trackContextRequested(var track, real x, real y)
     property string playlistUuid: ""
     /// Set by the router so the header can render before load_playlist returns.
     property string playlistTitle: ""
@@ -162,6 +165,11 @@ Item {
                 loading: playlists.loading
                 activeId: root.player.track_id
                 favorites: root.favorites
+                onContextRequested: (index, x, y) => {
+                    const rows = JSON.parse(playlists.tracks_json || "[]")
+                    if (rows[index])
+                        root.trackContextRequested(rows[index], x, y)
+                }
                 emptyText: playlists.error.length > 0 ? playlists.error : "This playlist has no tracks"
                 onTrackActivated: (index) =>
                         root.player.play_context(playlists.tracks_json, index, "playlist:" + root.playlistUuid)
