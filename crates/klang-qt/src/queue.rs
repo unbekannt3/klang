@@ -65,7 +65,12 @@ pub struct Queue {
     /// Where the context came from, e.g. "playlist:uuid". Gapless is skipped
     /// across a source change.
     source: String,
+    /// What has already played, most recent last.
+    history: Vec<Entry>,
 }
+
+/// Keep the history bounded; the UI only ever shows a screenful.
+const HISTORY_LIMIT: usize = 100;
 
 impl Queue {
     pub fn current(&self) -> Option<&Entry> {
@@ -86,6 +91,23 @@ impl Queue {
 
     pub fn manual(&self) -> &[Entry] {
         &self.manual
+    }
+
+    /// Played tracks, oldest first.
+    pub fn history(&self) -> &[Entry] {
+        &self.history
+    }
+
+    /// Record what is playing before moving off it.
+    fn push_history(&mut self) {
+        if let Some(current) = self.current.clone() {
+            if self.history.last() != Some(&current) {
+                self.history.push(current);
+                if self.history.len() > HISTORY_LIMIT {
+                    self.history.remove(0);
+                }
+            }
+        }
     }
 
     /// Upcoming context entries in playback order, manual ones excluded.
@@ -142,6 +164,7 @@ impl Queue {
         if natural && self.repeat == Repeat::One {
             return self.current.clone();
         }
+        self.push_history();
         if !self.manual.is_empty() {
             self.current = Some(self.manual.remove(0));
             return self.current.clone();
@@ -168,6 +191,15 @@ impl Queue {
     /// Step back through the context. Manual entries are not restored — they
     /// were consumed.
     pub fn previous(&mut self) -> Option<Entry> {
+        // Stepping back consumes the history entry it returns to, and moves the
+        // context position with it so a later advance carries on from there.
+        if let Some(previous) = self.history.pop() {
+            if let Some(index) = self.context.iter().position(|e| e.id == previous.id) {
+                self.position = index;
+            }
+            self.current = Some(previous);
+            return self.current.clone();
+        }
         let order = self.order();
         let slot = order.iter().position(|&i| i == self.position)?;
         if slot == 0 {
@@ -184,6 +216,7 @@ impl Queue {
 
     /// Jump to an upcoming entry. `manual` selects which list the index is in.
     pub fn jump(&mut self, index: usize, manual: bool) -> Option<Entry> {
+        self.push_history();
         if manual {
             if index >= self.manual.len() {
                 return None;
@@ -372,6 +405,36 @@ mod tests {
         q.set_repeat(Repeat::Off);
         q.advance(true);
         assert!(q.gapless_next().is_none());
+    }
+
+    #[test]
+    fn history_records_what_played() {
+        let mut q = queue_of(4);
+        q.advance(true);
+        q.advance(true);
+        let ids: Vec<i64> = q.history().iter().map(|e| e.id).collect();
+        assert_eq!(ids, vec![0, 1]);
+    }
+
+    #[test]
+    fn previous_walks_back_through_history() {
+        let mut q = queue_of(4);
+        q.advance(true);
+        q.advance(true);
+        assert_eq!(q.current().unwrap().id, 2);
+        assert_eq!(q.previous().unwrap().id, 1);
+        assert_eq!(q.previous().unwrap().id, 0);
+        // History is exhausted; the context takes over and holds at the start.
+        assert_eq!(q.previous().unwrap().id, 0);
+    }
+
+    #[test]
+    fn repeat_one_does_not_fill_history() {
+        let mut q = queue_of(3);
+        q.set_repeat(Repeat::One);
+        q.advance(true);
+        q.advance(true);
+        assert!(q.history().is_empty());
     }
 
     #[test]

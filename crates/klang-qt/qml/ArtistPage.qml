@@ -186,8 +186,8 @@ Item {
                 loading: catalog.loading
                 activeId: root.player.track_id
                 emptyText: catalog.error.length > 0 ? catalog.error : "No tracks"
-                onTrackActivated: (id, title, artist, duration, cover) =>
-                    root.player.play(id, title, artist, duration, cover)
+                onTrackActivated: (index) =>
+                        root.player.play_context(catalog.artist_top_tracks_json, index, "artist:" + root.artistId)
             }
 
             CardCarousel {

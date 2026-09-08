@@ -108,8 +108,8 @@ Item {
                     visible: root.trackRows.length > 0
                     tracks: search.tracks_json
                     activeId: root.player.track_id
-                    onTrackActivated: (id, title, artist, duration, cover) =>
-                        root.player.play(id, title, artist, duration, cover)
+                    onTrackActivated: (index) =>
+                        root.player.play_context(search.tracks_json, index, "search")
                 }
 
                 CardCarousel {

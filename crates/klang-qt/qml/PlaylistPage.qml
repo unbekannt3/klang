@@ -161,8 +161,8 @@ Item {
                 loading: playlists.loading
                 activeId: root.player.track_id
                 emptyText: playlists.error.length > 0 ? playlists.error : "This playlist has no tracks"
-                onTrackActivated: (id, title, artist, duration, cover) =>
-                    root.player.play(id, title, artist, duration, cover)
+                onTrackActivated: (index) =>
+                        root.player.play_context(playlists.tracks_json, index, "playlist:" + root.playlistUuid)
             }
         }
     }

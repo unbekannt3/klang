@@ -183,8 +183,8 @@ Item {
                 showBpm: false
                 showKey: false
                 emptyText: catalog.error.length > 0 ? catalog.error : "No tracks"
-                onTrackActivated: (id, title, artist, duration, cover) =>
-                    root.player.play(id, title, artist, duration, cover)
+                onTrackActivated: (index) =>
+                        root.player.play_context(catalog.album_tracks_json, index, "album:" + root.albumId)
             }
 
             Text {

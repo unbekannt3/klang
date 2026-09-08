@@ -204,6 +204,40 @@ impl TidalTrack {
     }
 }
 
+/// Copy `audioAnalysisAttributes.{bpm,key,keyScale}` up to the track's top level
+/// (only where the flat field is missing/null), converting `bpm` from v2 search's
+/// numeric string ("123.0") into a plain number so it matches every other endpoint.
+fn hoist_audio_analysis_attributes(item: &mut Value) {
+    let Some(attrs) = item.get("audioAnalysisAttributes").cloned() else {
+        return;
+    };
+    let Some(obj) = item.as_object_mut() else {
+        return;
+    };
+    let is_missing = |o: &serde_json::Map<String, Value>, k: &str| {
+        o.get(k).is_none_or(|v| v.is_null())
+    };
+    if is_missing(obj, "bpm") {
+        if let Some(bpm) = attrs
+            .get("bpm")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<f64>().ok())
+        {
+            obj.insert("bpm".to_string(), Value::from(bpm.round() as u64));
+        }
+    }
+    if is_missing(obj, "key") {
+        if let Some(key) = attrs.get("key").and_then(|v| v.as_str()) {
+            obj.insert("key".to_string(), Value::from(key));
+        }
+    }
+    if is_missing(obj, "keyScale") {
+        if let Some(scale) = attrs.get("keyScale").and_then(|v| v.as_str()) {
+            obj.insert("keyScale".to_string(), Value::from(scale));
+        }
+    }
+}
+
 /// Parse `/playlists/{id}/items` wrapper entries (`{ item, type }`) into TidalTracks.
 /// A video's inner `item` deserializes cleanly (its missing track-only fields are
 /// all `#[serde(default)]`); we stamp `item_type` from the wrapper and copy `imageId`.
@@ -4031,18 +4065,28 @@ impl TidalClient {
             videos: Option<Sec<TidalVideo>>,
         }
 
-        let data: SR = serde_json::from_str(body)
+        let mut json: Value = serde_json::from_str(body)
             .map_err(|e| SoneError::Parse(format!("search ({}): {}", tag, e)))?;
 
         // Parse topHits from the raw JSON (v2 returns an array of typed entities)
-        let top_hits = serde_json::from_str::<serde_json::Value>(body)
-            .ok()
-            .and_then(|json| {
-                json.get("topHits")
-                    .and_then(|v| v.as_array())
-                    .map(|arr| DirectHitItem::parse_array(arr))
-            })
+        let top_hits = json
+            .get("topHits")
+            .and_then(|v| v.as_array())
+            .map(|arr| DirectHitItem::parse_array(arr))
             .unwrap_or_default();
+
+        // v2 search nests each track's bpm/key/keyScale under `audioAnalysisAttributes`
+        // instead of sending them flat like every other track endpoint (favorites,
+        // album/playlist/artist tracks) does — TidalTrack only looks at the flat
+        // fields, so they were silently dropped. Hoist them up before deserializing.
+        if let Some(items) = json.pointer_mut("/tracks/items").and_then(|v| v.as_array_mut()) {
+            for item in items {
+                hoist_audio_analysis_attributes(item);
+            }
+        }
+
+        let data: SR = serde_json::from_value(json)
+            .map_err(|e| SoneError::Parse(format!("search ({}): {}", tag, e)))?;
 
         log::debug!(
             "search [{}]: t={} al={} ar={} pl={} v={} th={} [{}] for '{}'",

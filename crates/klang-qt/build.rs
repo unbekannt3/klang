@@ -26,6 +26,7 @@ fn main() {
             QmlFile::from("qml/ThemePicker.qml"),
             QmlFile::from("qml/SettingsPage.qml"),
             QmlFile::from("qml/QueuePanel.qml"),
+            QmlFile::from("qml/NowPlayingView.qml"),
             QmlFile::from("qml/SettingRow.qml"),
             QmlFile::from("qml/PlaybackSettings.qml"),
             QmlFile::from("qml/ScrobbleSettings.qml"),

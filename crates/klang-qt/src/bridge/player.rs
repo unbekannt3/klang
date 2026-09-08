@@ -33,6 +33,9 @@ pub mod qobject {
         #[qproperty(i32, repeat)]
         #[qproperty(f32, volume)]
         #[qproperty(QString, queue_json)]
+        #[qproperty(QString, history_json)]
+        /// Human-readable name of what is playing, e.g. a playlist title.
+        #[qproperty(QString, source_label)]
         #[qproperty(QString, source)]
         type PlayerController = super::PlayerControllerRust;
 
@@ -69,6 +72,10 @@ pub mod qobject {
             index: i32,
             source: &QString,
         );
+
+        /// Name shown as "playing from"; the source id alone is not readable.
+        #[qinvokable]
+        fn set_source_name(self: Pin<&mut PlayerController>, name: &QString);
 
         #[qinvokable]
         fn next(self: Pin<&mut PlayerController>);
@@ -125,6 +132,8 @@ pub struct PlayerControllerRust {
     repeat: i32,
     volume: f32,
     queue_json: QString,
+    history_json: QString,
+    source_label: QString,
     source: QString,
     attached: bool,
     queue: Mutex<Queue>,
@@ -149,6 +158,8 @@ impl Default for PlayerControllerRust {
             repeat: 0,
             volume: 1.0,
             queue_json: QString::from("[]"),
+            history_json: QString::from("[]"),
+            source_label: QString::default(),
             source: QString::default(),
             attached: false,
             queue: Mutex::new(Queue::default()),
@@ -335,8 +346,12 @@ fn entries_from_json(json: &str) -> Vec<Entry> {
 
 impl qobject::PlayerController {
     /// Publish what is queued, manual entries first, so QML can render one list.
+    pub fn set_source_name(mut self: Pin<&mut Self>, name: &QString) {
+        self.as_mut().set_source_label(name.clone());
+    }
+
     fn publish_queue(mut self: Pin<&mut Self>) {
-        let (json, source) = {
+        let (json, history, source) = {
             let queue = self.rust().queue.lock().unwrap();
             let rows: Vec<serde_json::Value> = queue
                 .manual()
@@ -350,12 +365,23 @@ impl qobject::PlayerController {
                     "duration": e.duration, "cover": e.cover, "manual": false,
                 })))
                 .collect();
+            let history: Vec<serde_json::Value> = queue
+                .history()
+                .iter()
+                .rev()
+                .map(|e| serde_json::json!({
+                    "id": e.id, "title": e.title, "artist": e.artist,
+                    "duration": e.duration, "cover": e.cover,
+                }))
+                .collect();
             (
                 serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into()),
+                serde_json::to_string(&history).unwrap_or_else(|_| "[]".into()),
                 queue.source().to_string(),
             )
         };
         self.as_mut().set_queue_json(QString::from(&json));
+        self.as_mut().set_history_json(QString::from(&history));
         self.as_mut().set_source(QString::from(&source));
     }
 
