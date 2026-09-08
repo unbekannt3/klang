@@ -25,6 +25,26 @@ CORE_DIR="crates/klang-core/src"
 UPSTREAM_DIR="src-tauri/src"
 BASE_TAG="upstream-base"
 
+# Paths klang rewrote from scratch. Merging upstream into these produces noise,
+# not fixes: lib.rs lost `run()` and the whole tauri::Builder, and commands/ was
+# replaced by the Qt bridge. Upstream changes here are reported, never applied.
+REWRITTEN=(
+  "lib.rs"
+  "main.rs"
+  "commands/"
+)
+
+is_rewritten() {
+  local path="$1" skip
+  for skip in "${REWRITTEN[@]}"; do
+    case "$skip" in
+      */) [[ "$path" == "$skip"* ]] && return 0 ;;
+      *)  [[ "$path" == "$skip" ]] && return 0 ;;
+    esac
+  done
+  return 1
+}
+
 accept=0
 ref="upstream/master"
 for arg in "$@"; do
@@ -63,16 +83,29 @@ mapfile -t new_paths < <(list_paths "$new")
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-taken=0; merged=0; conflicted=0; skipped=0; local_only=0
+taken=0; merged=0; conflicted=0; skipped=0; local_only=0; rewritten=0
 conflicts=()
 
 for path in "${new_paths[@]}"; do
   ours="$CORE_DIR/$path"
 
-  # New file upstream: take it, but only warn — it may belong to a module we
-  # deleted (commands/, lib.rs) rather than to the core.
+  # Files klang rewrote: report upstream churn, never apply it.
+  if is_rewritten "$path"; then
+    if ! cmp -s <(git show "$base:$UPSTREAM_DIR/$path" 2>/dev/null) \
+                <(git show "$new:$UPSTREAM_DIR/$path" 2>/dev/null); then
+      echo "  REWRITTEN      $path  (upstream changed it — review by hand)"
+      rewritten=$((rewritten + 1))
+    fi
+    continue
+  fi
+
+  # File is new to upstream since the base commit.
   if ! git cat-file -e "$base:$UPSTREAM_DIR/$path" 2>/dev/null; then
-    echo "  NEW UPSTREAM   $path  (not merged — decide whether klang needs it)"
+    if [[ -f "$ours" ]]; then
+      echo "  ALREADY HERE   $path  (new upstream, klang already carries a copy)"
+    else
+      echo "  NEW UPSTREAM   $path  (not merged — decide whether klang needs it)"
+    fi
     continue
   fi
 
@@ -122,7 +155,7 @@ for path in "${base_paths[@]}"; do
 done
 
 echo
-echo "==> $taken taken, $merged merged, $conflicted conflicted, $skipped unchanged, $local_only dropped here"
+echo "==> $taken taken, $merged merged, $conflicted conflicted, $skipped unchanged, $local_only dropped here, $rewritten rewritten upstream"
 
 if (( conflicted > 0 )); then
   echo
