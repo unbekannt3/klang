@@ -1464,6 +1464,58 @@ pub async fn move_playlist_to_folder(
     result
 }
 
+/// Move whichever item sits at `from_index` so it ends up at `to_index` —
+/// `Vec::remove` + `Vec::insert` semantics, matching how a drag gesture's
+/// drop target is already computed on the QML side. Re-fetches the item
+/// order first since TIDAL's move endpoint addresses entries by instance id.
+pub async fn move_playlist_track(
+    state: &AppState,
+    playlist_id: String,
+    from_index: u32,
+    to_index: u32,
+) -> Result<(), SoneError> {
+    log::debug!(
+        "[move_playlist_track]: playlist_id={}, from={}, to={}",
+        playlist_id,
+        from_index,
+        to_index
+    );
+    if from_index == to_index {
+        return Ok(());
+    }
+
+    let mut client = state.tidal_client.lock().await;
+    let mut items = client.get_playlist_item_refs(&playlist_id).await?;
+    let from = from_index as usize;
+    if from >= items.len() {
+        return Err(SoneError::Parse(format!(
+            "move_playlist_track: from_index {} out of range ({})",
+            from_index,
+            items.len()
+        )));
+    }
+    let (item_type, track_id, item_id) = items.remove(from);
+    let to = (to_index as usize).min(items.len());
+    let position_before = items.get(to).map(|(_, _, id)| id.clone());
+
+    client
+        .move_playlist_item(
+            &playlist_id,
+            &item_type,
+            &track_id,
+            &item_id,
+            position_before.as_deref(),
+        )
+        .await?;
+    drop(client);
+
+    state
+        .disk_cache
+        .invalidate_tag(&format!("playlist:{}", playlist_id))
+        .await;
+    Ok(())
+}
+
 pub async fn get_playlist_recommendations(
     state: &AppState,
     playlist_id: String,

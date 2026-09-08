@@ -27,6 +27,12 @@ Item {
     readonly property var meta: JSON.parse(playlists.playlist_json || "{}")
     readonly property var trackRows: JSON.parse(playlists.tracks_json || "[]")
 
+    function openEditDialog() {
+        editDialog.load(root.playlistUuid, root.meta.title || root.playlistTitle,
+                         root.meta.description || "", !!root.meta.public)
+        editDialog.open = true
+    }
+
     readonly property string metaLine: {
         const parts = []
         if (meta.owner)
@@ -157,23 +163,161 @@ Item {
                 }
             }
 
-            TrackList {
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.spaceLg
+                Layout.topMargin: Theme.space
+                Layout.bottomMargin: Theme.spaceSm
+
+                Rectangle {
+                    implicitWidth: editLabel.implicitWidth + Theme.space
+                    implicitHeight: 34
+                    radius: Theme.radiusFull
+                    color: editHover.hovered ? Theme.hlFaint : Theme.inset
+                    border.color: Theme.border
+                    border.width: 1
+
+                    HoverHandler { id: editHover }
+                    TapHandler { onSingleTapped: root.openEditDialog() }
+
+                    Text {
+                        id: editLabel
+                        anchors.centerIn: parent
+                        text: "Edit"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSm
+                        font.weight: Font.DemiBold
+                        color: Theme.textPrimary
+                    }
+                }
+
+                Item { Layout.fillWidth: true }
+            }
+
+            Item {
+                id: trackListArea
                 Layout.fillWidth: true
                 Layout.preferredHeight: root.trackListHeight
-                tracks: playlists.tracks_json
-                numbered: true
-                loading: playlists.loading
-                activeId: root.player.track_id
-                favorites: root.favorites
-                onContextRequested: (index, x, y) => {
-                    const rows = JSON.parse(playlists.tracks_json || "[]")
-                    if (rows[index])
-                        root.trackContextRequested(rows[index], x, y)
+
+                TrackList {
+                    anchors.fill: parent
+                    tracks: playlists.tracks_json
+                    numbered: true
+                    loading: playlists.loading
+                    activeId: root.player.track_id
+                    favorites: root.favorites
+                    onContextRequested: (index, x, y) => {
+                        const rows = JSON.parse(playlists.tracks_json || "[]")
+                        if (rows[index])
+                            root.trackContextRequested(rows[index], x, y)
+                    }
+                    emptyText: playlists.error.length > 0 ? playlists.error : "This playlist has no tracks"
+                    onTrackActivated: (index) =>
+                            root.player.play_context(playlists.tracks_json, index, "playlist:" + root.playlistUuid)
                 }
-                emptyText: playlists.error.length > 0 ? playlists.error : "This playlist has no tracks"
-                onTrackActivated: (index) =>
-                        root.player.play_context(playlists.tracks_json, index, "playlist:" + root.playlistUuid)
+
+                // Drag-to-reorder overlay. TrackList itself is off-limits, so
+                // the grips live in the left gutter its rows already leave
+                // empty (x < Theme.spaceLg) and the drop index is computed
+                // from pointer position against its known header height (34)
+                // and Theme.rowHeight, rather than reaching into its delegates.
+                Item {
+                    id: reorderLayer
+                    anchors.fill: parent
+                    visible: root.trackRows.length > 1 && !playlists.loading
+
+                    readonly property int headerHeight: 34
+                    property int dragFromIndex: -1
+                    property int dropIndex: -1
+
+                    function commit() {
+                        if (dragFromIndex >= 0 && dropIndex >= 0 && dropIndex !== dragFromIndex)
+                            playlists.move_track(root.playlistUuid, dragFromIndex, dropIndex)
+                        dragFromIndex = -1
+                        dropIndex = -1
+                    }
+
+                    Rectangle {
+                        visible: reorderLayer.dragFromIndex >= 0
+                        x: Theme.spaceLg
+                        y: reorderLayer.headerHeight + reorderLayer.dragFromIndex * Theme.rowHeight
+                        width: parent.width - Theme.spaceLg * 2
+                        height: Theme.rowHeight
+                        radius: Theme.radiusXs
+                        color: Theme.hlFaint
+                    }
+
+                    Rectangle {
+                        visible: reorderLayer.dragFromIndex >= 0 && reorderLayer.dropIndex >= 0
+                        x: Theme.spaceLg
+                        width: parent.width - Theme.spaceLg * 2
+                        height: 2
+                        radius: 1
+                        color: Theme.accent
+                        y: reorderLayer.headerHeight + reorderLayer.dropIndex * Theme.rowHeight
+                           + (reorderLayer.dropIndex > reorderLayer.dragFromIndex ? Theme.rowHeight : 0)
+
+                        Behavior on y { NumberAnimation { duration: Theme.durationFast } }
+                    }
+
+                    Repeater {
+                        model: root.trackRows.length
+
+                        delegate: Item {
+                            id: handle
+                            required property int index
+
+                            x: 0
+                            y: reorderLayer.headerHeight + index * Theme.rowHeight
+                            width: Theme.spaceLg
+                            height: Theme.rowHeight
+
+                            HoverHandler { id: gripHover; cursorShape: Qt.SizeAllCursor }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "⋮⋮"
+                                rotation: 90
+                                font.pixelSize: 10
+                                color: dragHandler.active ? Theme.accent
+                                     : gripHover.hovered ? Theme.textSecondary : Theme.textFaint
+                            }
+
+                            DragHandler {
+                                id: dragHandler
+                                target: null
+                                onActiveChanged: {
+                                    if (active) {
+                                        reorderLayer.dragFromIndex = handle.index
+                                        reorderLayer.dropIndex = handle.index
+                                    } else {
+                                        reorderLayer.commit()
+                                    }
+                                }
+                                onCentroidChanged: {
+                                    if (!active)
+                                        return
+                                    const p = handle.mapToItem(reorderLayer, centroid.position.x, centroid.position.y)
+                                    let idx = Math.floor((p.y - reorderLayer.headerHeight) / Theme.rowHeight)
+                                    reorderLayer.dropIndex = Math.max(0, Math.min(idx, root.trackRows.length - 1))
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
+
+    ScrollMemory {
+        flickable: flick
+        pageKey: "playlist:" + root.playlistUuid
+    }
+
+    PlaylistEditDialog {
+        id: editDialog
+        anchors.fill: parent
+        playlists: playlists
+        onCloseRequested: open = false
     }
 }

@@ -48,6 +48,13 @@ QQC2.Popup {
         required property var entry
         // A submenu row cannot itself open a further submenu — one level only.
         property bool nested: false
+        // Bound-in callbacks rather than calling `root.xxx()` directly: a
+        // function *value* read out of an outer id resolves fine from a
+        // nested inline component, but Qt 6 raises "root is not defined" the
+        // moment that same outer id is referenced from inside a handler's
+        // own statement block, so the call has to happen one scope in.
+        property var requestClose: null
+        property var requestSubmenu: null
 
         width: parent ? parent.width : root.menuWidth
         height: !!entry.separator ? Theme.spaceSm + 1 : root.rowHeight
@@ -115,12 +122,14 @@ QQC2.Popup {
             if (entry.separator)
                 return
             if (!nested && entry.submenu && entry.submenu.length > 0) {
-                root.openSubmenu(rowItem)
+                if (requestSubmenu)
+                    requestSubmenu(rowItem)
                 return
             }
             if (entry.onTriggered)
                 entry.onTriggered()
-            root.closeAll()
+            if (requestClose)
+                requestClose()
         }
     }
 
@@ -136,6 +145,8 @@ QQC2.Popup {
                 required property var modelData
                 entry: modelData
                 nested: list.nested
+                requestClose: root.closeAll
+                requestSubmenu: root.openSubmenu
             }
         }
     }

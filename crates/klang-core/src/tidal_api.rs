@@ -3829,6 +3829,129 @@ impl TidalClient {
         Ok(())
     }
 
+    /// Fetch the playlist's current item order as (type, trackId, itemId)
+    /// triples. TIDAL's move endpoint (below) addresses an entry by its own
+    /// instance id rather than position — a track can appear more than once
+    /// in the same playlist — so the order has to be read back first.
+    pub async fn get_playlist_item_refs(
+        &mut self,
+        playlist_id: &str,
+    ) -> Result<Vec<(String, String, String)>, SoneError> {
+        #[derive(Debug, Deserialize, Default)]
+        struct ItemMeta {
+            #[serde(default, rename = "itemId")]
+            item_id: String,
+        }
+        #[derive(Debug, Deserialize)]
+        struct ItemRef {
+            id: String,
+            #[serde(rename = "type")]
+            item_type: String,
+            #[serde(default)]
+            meta: ItemMeta,
+        }
+        #[derive(Debug, Deserialize)]
+        struct Links {
+            #[serde(default)]
+            next: Option<String>,
+        }
+        #[derive(Debug, Deserialize)]
+        struct Relationship {
+            #[serde(default)]
+            data: Vec<ItemRef>,
+            #[serde(default)]
+            links: Option<Links>,
+        }
+
+        let mut url = format!(
+            "{}/playlists/{}/relationships/items",
+            TIDAL_API_V2_URL, playlist_id
+        );
+        let mut out = Vec::new();
+        // Relationship identifiers are tiny, so a real playlist fits in one
+        // page; `links.next` is followed defensively in case TIDAL caps it.
+        const MAX_PAGES: u32 = 50;
+        for _ in 0..MAX_PAGES {
+            let body = if url.contains('?') {
+                self.api_get_body(&url, &[]).await?
+            } else {
+                let cc = self.country_code.clone();
+                self.api_get_body(&url, &[("countryCode", &cc)]).await?
+            };
+            let page: Relationship = serde_json::from_str(&body).map_err(|e| {
+                SoneError::Parse(format!("{} - Body: {}", e, &body[..body.len().min(500)]))
+            })?;
+            out.extend(
+                page.data
+                    .into_iter()
+                    .map(|r| (r.item_type, r.id, r.meta.item_id)),
+            );
+            match page.links.and_then(|l| l.next) {
+                Some(next) if !next.is_empty() => url = next,
+                _ => break,
+            }
+        }
+        Ok(out)
+    }
+
+    /// Move one playlist item so it sits immediately before
+    /// `position_before` (or at the end when `None`). This is the only
+    /// route the web client's drag-and-drop reorder ever calls — found by
+    /// capturing its network traffic, since upstream never implemented it.
+    /// Unlike the v1 mutations above there is no ETag; the safety net here
+    /// is a per-request idempotency key instead.
+    pub async fn move_playlist_item(
+        &self,
+        playlist_id: &str,
+        item_type: &str,
+        track_id: &str,
+        item_id: &str,
+        position_before: Option<&str>,
+    ) -> Result<(), SoneError> {
+        let tokens = self.tokens.as_ref().ok_or(SoneError::NotAuthenticated)?;
+
+        let mut body = serde_json::json!({
+            "data": [{
+                "type": item_type,
+                "id": track_id,
+                "meta": { "itemId": item_id }
+            }]
+        });
+        if let Some(before) = position_before {
+            body["meta"] = serde_json::json!({ "positionBefore": before });
+        }
+
+        log::debug!(
+            "[move_playlist_item]: playlist_id={}, item_id={}, position_before={:?}",
+            playlist_id,
+            item_id,
+            position_before
+        );
+
+        let req = self
+            .client
+            .patch(format!(
+                "{}/playlists/{}/relationships/items",
+                TIDAL_API_V2_URL, playlist_id
+            ))
+            .header("Authorization", format!("Bearer {}", tokens.access_token))
+            .header("Content-Type", "application/vnd.api+json")
+            .header("Accept", "application/vnd.api+json")
+            .header("Idempotency-Key", uuid::Uuid::new_v4().to_string())
+            .json(&body);
+        let response = self.send(req).await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(SoneError::Api {
+                status: status.as_u16(),
+                body,
+            });
+        }
+        Ok(())
+    }
+
     pub async fn get_stream_url(
         &mut self,
         track_id: u64,
