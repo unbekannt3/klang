@@ -44,32 +44,6 @@ pub struct LibraryControllerRust {
     total: i32,
 }
 
-/// Flatten a TIDAL track into what the list row needs. Artist comes from
-/// `artist`, falling back to the first entry of `artists` — endpoints differ in
-/// which of the two they populate.
-fn row(track: &klang_core::tidal_api::TidalTrack) -> serde_json::Value {
-    let artist = track
-        .artist
-        .as_ref()
-        .map(|a| a.name.clone())
-        .or_else(|| {
-            track
-                .artists
-                .as_ref()
-                .and_then(|list| list.first().map(|a| a.name.clone()))
-        })
-        .unwrap_or_default();
-
-    serde_json::json!({
-        "id": track.id,
-        "title": track.title,
-        "artist": artist,
-        "album": track.album.as_ref().map(|a| a.title.clone()).unwrap_or_default(),
-        "duration": track.duration,
-        "quality": track.audio_quality.clone().unwrap_or_default(),
-    })
-}
-
 impl qobject::LibraryController {
     pub fn load_favorites(mut self: Pin<&mut Self>, user_id: i64, limit: i32) {
         self.as_mut().set_loading(true);
@@ -92,7 +66,7 @@ impl qobject::LibraryController {
                 obj.as_mut().set_loading(false);
                 match result {
                     Ok(page) => {
-                        let rows: Vec<_> = page.items.iter().map(row).collect();
+                        let rows: Vec<_> = page.items.iter().map(crate::rows::track_unindexed).collect();
                         let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
                         obj.as_mut().set_total(page.total_number_of_items as i32);
                         obj.as_mut().set_tracks_json(QString::from(&json));

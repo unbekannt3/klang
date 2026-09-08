@@ -132,6 +132,19 @@ pub struct TidalTrack {
     pub date_added: Option<String>,
     #[serde(default)]
     pub isrc: Option<String>,
+    /// Beats per minute. TIDAL returns this on the v1 track shape but sone
+    /// never modelled it, so serde was dropping it.
+    #[serde(default)]
+    pub bpm: Option<u32>,
+    /// Musical key as a note name, e.g. "A", "F#".
+    #[serde(default)]
+    pub key: Option<String>,
+    /// "MAJOR" or "MINOR". Pairs with `key` to give the Camelot code.
+    #[serde(default)]
+    pub key_scale: Option<String>,
+    /// TIDAL's AI-generated-content flag.
+    #[serde(default)]
+    pub ai: Option<bool>,
     #[serde(default)]
     pub explicit: Option<bool>,
     #[serde(default)]

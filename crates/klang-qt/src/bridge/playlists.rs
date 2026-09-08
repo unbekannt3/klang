@@ -64,30 +64,6 @@ pub struct PlaylistsControllerRust {
 /// Flatten a TIDAL track into what a playlist row needs, plus its position —
 /// `remove_track_from_playlist` addresses tracks by index, not id. Otherwise
 /// the same shape as `library::row`, which is private to that module.
-fn row(index: usize, track: &klang_core::tidal_api::TidalTrack) -> serde_json::Value {
-    let artist = track
-        .artist
-        .as_ref()
-        .map(|a| a.name.clone())
-        .or_else(|| {
-            track
-                .artists
-                .as_ref()
-                .and_then(|list| list.first().map(|a| a.name.clone()))
-        })
-        .unwrap_or_default();
-
-    serde_json::json!({
-        "index": index,
-        "id": track.id,
-        "title": track.title,
-        "artist": artist,
-        "album": track.album.as_ref().map(|a| a.title.clone()).unwrap_or_default(),
-        "duration": track.duration,
-        "quality": track.audio_quality.clone().unwrap_or_default(),
-    })
-}
-
 /// Build the currently-open playlist's header from the raw
 /// `get_playlist_details` response — TIDAL's `/playlists/{uuid}` shape
 /// (camelCase, same fields as `TidalPlaylistRaw`), returned unparsed because
@@ -237,7 +213,7 @@ impl qobject::PlaylistsController {
                 match tracks {
                     Ok(list) => {
                         let rows: Vec<_> =
-                            list.iter().enumerate().map(|(i, t)| row(i, t)).collect();
+                            list.iter().enumerate().map(|(i, t)| crate::rows::track(i, t)).collect();
                         let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
                         obj.as_mut().set_tracks_json(QString::from(&json));
                     }
@@ -335,7 +311,7 @@ impl qobject::PlaylistsController {
                 match tracks {
                     Ok(list) => {
                         let rows: Vec<_> =
-                            list.iter().enumerate().map(|(i, t)| row(i, t)).collect();
+                            list.iter().enumerate().map(|(i, t)| crate::rows::track(i, t)).collect();
                         let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
                         obj.as_mut().set_tracks_json(QString::from(&json));
                     }

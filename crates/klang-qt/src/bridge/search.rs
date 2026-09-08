@@ -57,29 +57,6 @@ pub struct SearchControllerRust {
 /// Flatten a TIDAL track into what the list row needs. Artist comes from
 /// `artist`, falling back to the first entry of `artists` — endpoints differ in
 /// which of the two they populate.
-fn track_row(track: &klang_core::tidal_api::TidalTrack) -> serde_json::Value {
-    let artist = track
-        .artist
-        .as_ref()
-        .map(|a| a.name.clone())
-        .or_else(|| {
-            track
-                .artists
-                .as_ref()
-                .and_then(|list| list.first().map(|a| a.name.clone()))
-        })
-        .unwrap_or_default();
-
-    serde_json::json!({
-        "id": track.id,
-        "title": track.title,
-        "artist": artist,
-        "album": track.album.as_ref().map(|a| a.title.clone()).unwrap_or_default(),
-        "duration": track.duration,
-        "quality": track.audio_quality.clone().unwrap_or_default(),
-    })
-}
-
 /// Flatten a TIDAL album into what the list row needs. Artist falls back the
 /// same way as tracks; `year` is the leading segment of `release_date`
 /// ("2023-05-01" -> 2023), the same extraction the MCP sanitizer uses.
@@ -145,7 +122,7 @@ impl qobject::SearchController {
                 obj.as_mut().set_loading(false);
                 match result {
                     Ok(results) => {
-                        let tracks: Vec<_> = results.tracks.iter().map(track_row).collect();
+                        let tracks: Vec<_> = results.tracks.iter().map(crate::rows::track_unindexed).collect();
                         let albums: Vec<_> = results.albums.iter().map(album_row).collect();
                         let artists: Vec<_> = results.artists.iter().map(artist_row).collect();
                         let playlists: Vec<_> =

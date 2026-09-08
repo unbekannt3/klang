@@ -4,6 +4,7 @@
 //! goes through the QObjects in `bridge`.
 
 mod bridge;
+mod rows;
 mod core;
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QString, QUrl};

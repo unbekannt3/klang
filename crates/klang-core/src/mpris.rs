@@ -65,7 +65,7 @@ impl MprisHandle {
                 let (bus_name, desktop_entry) = if std::env::var("SNAP").is_ok() {
                     ("klang", "klang_klang")
                 } else {
-                    ("me.unbk.klang", "me.unbk.klang")
+                    ("me.unbk.klang", "klang")
                 };
                 let player = match Player::builder(bus_name)
                     .can_play(true)

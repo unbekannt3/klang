@@ -15,6 +15,7 @@ pub mod api;
 pub mod app;
 pub mod audio;
 pub mod cache;
+pub mod camelot;
 pub mod embedded_config;
 pub mod logging;
 pub mod mcp;

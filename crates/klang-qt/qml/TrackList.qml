@@ -16,6 +16,9 @@ Item {
     /// Track id to mark as playing.
     property int activeId: 0
     property bool numbered: true
+    /// TIDAL shows both on track lists; album views hide them.
+    property bool showBpm: true
+    property bool showKey: true
 
     signal trackActivated(int id, string title, string artist, real duration)
 
@@ -66,7 +69,29 @@ Item {
                 }
 
                 Text {
-                    Layout.preferredWidth: 90
+                    visible: root.showBpm
+                    Layout.preferredWidth: 52
+                    horizontalAlignment: Text.AlignRight
+                    text: "BPM"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSm - 1
+                    font.letterSpacing: 1
+                    color: Theme.textFaint
+                }
+
+                Text {
+                    visible: root.showKey
+                    Layout.preferredWidth: 48
+                    horizontalAlignment: Text.AlignRight
+                    text: "KEY"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSm - 1
+                    font.letterSpacing: 1
+                    color: Theme.textFaint
+                }
+
+                Text {
+                    Layout.preferredWidth: 64
                     horizontalAlignment: Text.AlignRight
                     text: "LENGTH"
                     font.family: Theme.fontFamily
@@ -162,8 +187,56 @@ Item {
                     }
                 }
 
+                // TIDAL exposes bpm and key on the track payload; it prints a
+                // dash where the catalogue has no analysis for a track.
                 Text {
-                    Layout.preferredWidth: 90
+                    visible: root.showBpm
+                    Layout.preferredWidth: 52
+                    horizontalAlignment: Text.AlignRight
+                    text: row.modelData.bpm ? row.modelData.bpm : "–"
+                    font.family: Theme.monoFamily
+                    font.pixelSize: Theme.fontSizeSm
+                    color: row.modelData.bpm ? Theme.textSecondary : Theme.textDisabled
+                }
+
+                Item {
+                    visible: root.showKey
+                    Layout.preferredWidth: 48
+                    Layout.preferredHeight: 20
+
+                    Rectangle {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: !!row.modelData.key
+                        width: keyText.implicitWidth + Theme.spaceSm
+                        height: 20
+                        radius: Theme.radiusXs
+                        color: Theme.hlMed
+
+                        Text {
+                            id: keyText
+                            anchors.centerIn: parent
+                            text: row.modelData.key || ""
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSm - 1
+                            font.weight: Font.DemiBold
+                            color: Theme.accent
+                        }
+                    }
+
+                    Text {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: !row.modelData.key
+                        text: "–"
+                        font.family: Theme.monoFamily
+                        font.pixelSize: Theme.fontSizeSm
+                        color: Theme.textDisabled
+                    }
+                }
+
+                Text {
+                    Layout.preferredWidth: 64
                     horizontalAlignment: Text.AlignRight
                     text: Format.duration(row.modelData.duration)
                     font.family: Theme.monoFamily

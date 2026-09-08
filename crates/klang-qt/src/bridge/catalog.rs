@@ -106,32 +106,6 @@ fn album_row(album: &TidalAlbumDetail) -> serde_json::Value {
 /// `library.rs`'s `row()` (`id`, `title`, `artist`, `album`, `duration`,
 /// `quality`) plus disc/track numbers, which matter once tracks are shown in
 /// album order rather than a flat favorites list.
-fn track_row(track: &TidalTrack) -> serde_json::Value {
-    let artist = track
-        .artist
-        .as_ref()
-        .map(|a| a.name.clone())
-        .or_else(|| {
-            track
-                .artists
-                .as_ref()
-                .and_then(|list| list.first().map(|a| a.name.clone()))
-        })
-        .unwrap_or_default();
-
-    serde_json::json!({
-        "id": track.id,
-        "title": track.title,
-        "artist": artist,
-        "album": track.album.as_ref().map(|a| a.title.clone()).unwrap_or_default(),
-        "duration": track.duration,
-        "quality": track.audio_quality.clone().unwrap_or_default(),
-        "trackNumber": track.track_number.unwrap_or(0),
-        "volumeNumber": track.volume_number.unwrap_or(0),
-        "explicit": track.explicit.unwrap_or(false),
-    })
-}
-
 /// Flatten an artist header. `TidalArtistDetail` has no bio or follower
 /// count of its own — bio comes from the separate `get_artist_bio` call and
 /// is passed in; TIDAL has no public follower-count endpoint for an
@@ -178,7 +152,7 @@ impl qobject::CatalogController {
 
                 match tracks_result {
                     Ok(page) => {
-                        let rows: Vec<_> = page.items.iter().map(track_row).collect();
+                        let rows: Vec<_> = page.items.iter().map(crate::rows::track_unindexed).collect();
                         let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
                         obj.as_mut().set_album_tracks_json(QString::from(&json));
                     }
@@ -231,7 +205,7 @@ impl qobject::CatalogController {
 
                 match top_tracks_result {
                     Ok(tracks) => {
-                        let rows: Vec<_> = tracks.iter().map(track_row).collect();
+                        let rows: Vec<_> = tracks.iter().map(crate::rows::track_unindexed).collect();
                         let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
                         obj.as_mut().set_artist_top_tracks_json(QString::from(&json));
                     }

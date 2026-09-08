@@ -19,6 +19,10 @@ QQC2.ApplicationWindow {
     visible: true
     color: Theme.base
 
+    // Own chrome, so the titlebar carries the theme instead of Breeze. Moving
+    // and resizing go through the compositor — see TitleBar and ResizeEdges.
+    flags: Qt.Window | Qt.FramelessWindowHint
+
     // Which page the content area shows.
     property string route: "favorites"
 
@@ -40,6 +44,11 @@ QQC2.ApplicationWindow {
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
+
+        TitleBar {
+            Layout.fillWidth: true
+            window: root
+        }
 
         RowLayout {
             Layout.fillWidth: true
@@ -99,6 +108,10 @@ QQC2.ApplicationWindow {
             visible: player.track_id !== 0
             player: player
         }
+    }
+
+    ResizeEdges {
+        window: root
     }
 
     // Playback errors are shown in place rather than stealing focus mid-track.
