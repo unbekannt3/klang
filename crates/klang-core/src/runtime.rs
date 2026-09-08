@@ -45,22 +45,22 @@ pub fn block_on<F: Future>(future: F) -> F::Output {
 }
 
 /// Where settings, cache and logs live: `$KLANG_CONFIG_DIR`, else
-/// `~/.config/sone`.
+/// `~/.config/klang`.
 ///
-/// The default still says `sone` so a native sone profile carries over as-is.
-/// A Flatpak sone keeps its profile somewhere else entirely, so point klang at
-/// it explicitly:
+/// klang keeps its own profile so it can run beside an existing sone install —
+/// including a Flatpak one, whose profile lives under `~/.var/app/`. To start
+/// from an existing sone login, copy that profile over once:
 ///
 /// ```text
-/// KLANG_CONFIG_DIR=~/.var/app/io.github.lullabyX.sone/config/sone
+/// cp -r ~/.var/app/io.github.lullabyX.sone/config/sone ~/.config/klang
 /// ```
 pub fn config_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os("KLANG_CONFIG_DIR") {
         return PathBuf::from(dir);
     }
     dirs::config_dir()
-        .map(|d| d.join("sone"))
-        .unwrap_or_else(|| PathBuf::from("./.sone"))
+        .map(|d| d.join("klang"))
+        .unwrap_or_else(|| PathBuf::from("./.klang"))
 }
 
 /// Owns the runtime, the logger handle and the application context.

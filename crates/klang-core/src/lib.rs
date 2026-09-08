@@ -11,6 +11,7 @@
 // Everything the UI layer needs is `pub`. Upstream could keep most of this
 // private because the 177 `#[tauri::command]` wrappers lived inside the crate;
 // klang-qt sits outside it, so the same surface has to be reachable.
+pub mod api;
 pub mod app;
 pub mod audio;
 pub mod cache;
