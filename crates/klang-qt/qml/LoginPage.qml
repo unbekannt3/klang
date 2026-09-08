@@ -1,6 +1,6 @@
-// Device-code sign-in. TIDAL issues a short code, the user types it into their
-// own browser, and AuthController polls until the token lands. No web engine
-// anywhere in the process.
+// PKCE by default: TIDAL's device-code client is restricted and its tokens do
+// not grant lossless or Hi-Res. Device code stays as a fallback, labelled.
+// Neither flow needs a web engine.
 
 import QtQuick
 import QtQuick.Layouts
@@ -46,12 +46,71 @@ Item {
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
-            text: root.auth.user_code.length > 0
-                  ? "Open the address below and enter this code."
-                  : "Sign in with your TIDAL account."
+            text: root.auth.awaiting_redirect
+                  ? "Sign in in your browser, then paste the address it ends on."
+                  : root.auth.user_code.length > 0
+                    ? "Open the address below and enter this code."
+                    : "Sign in with your TIDAL account."
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
             color: Theme.textMuted
+        }
+
+        // ---- PKCE: paste the redirect back --------------------------
+        Rectangle {
+            Layout.fillWidth: true
+            visible: root.auth.awaiting_redirect
+            implicitHeight: 44
+            radius: Theme.radiusSm
+            color: Theme.inset
+            border.color: redirect.activeFocus ? Theme.accent : Theme.border
+            border.width: 1
+
+            TextInput {
+                id: redirect
+                anchors.fill: parent
+                anchors.leftMargin: Theme.space
+                anchors.rightMargin: Theme.space
+                verticalAlignment: TextInput.AlignVCenter
+                clip: true
+                font.family: Theme.monoFamily
+                font.pixelSize: Theme.fontSizeSm
+                color: Theme.textPrimary
+                selectionColor: Theme.accent
+                selectedTextColor: Theme.onAccent
+                onAccepted: root.auth.finish_browser_login(text)
+
+                Text {
+                    anchors.fill: parent
+                    verticalAlignment: Text.AlignVCenter
+                    visible: !redirect.text
+                    text: "https://tidal.com/android/login/auth?code=…"
+                    font: redirect.font
+                    color: Theme.textFaint
+                    elide: Text.ElideRight
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.alignment: Qt.AlignHCenter
+            visible: root.auth.awaiting_redirect
+            implicitWidth: 160
+            implicitHeight: 40
+            radius: Theme.radius
+            color: continueHover.hovered ? Theme.accentHover : Theme.accent
+
+            HoverHandler { id: continueHover }
+            TapHandler { onSingleTapped: root.auth.finish_browser_login(redirect.text) }
+
+            Text {
+                anchors.centerIn: parent
+                text: "Continue"
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                font.weight: Font.DemiBold
+                color: Theme.onAccent
+            }
         }
 
         // ---- the device code ----------------------------------------
@@ -91,7 +150,7 @@ Item {
         Rectangle {
             id: signIn
             Layout.alignment: Qt.AlignHCenter
-            visible: root.auth.user_code.length === 0
+            visible: !root.auth.awaiting_redirect && root.auth.user_code.length === 0
             implicitWidth: 220
             implicitHeight: 48
             radius: Theme.radius
@@ -102,7 +161,7 @@ Item {
             HoverHandler { id: signInHover; enabled: !root.auth.busy }
             TapHandler {
                 enabled: !root.auth.busy
-                onSingleTapped: root.auth.start_login()
+                onSingleTapped: root.auth.start_browser_login()
             }
 
             Text {
@@ -113,6 +172,19 @@ Item {
                 font.weight: Font.DemiBold
                 color: root.auth.busy ? Theme.textMuted : Theme.onAccent
             }
+        }
+
+        // Device code loses lossless, so it is offered quietly and labelled.
+        Text {
+            Layout.alignment: Qt.AlignHCenter
+            visible: !root.auth.awaiting_redirect && root.auth.user_code.length === 0
+            text: "Use a login code instead (no lossless)"
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeSm
+            color: codeHover.hovered ? Theme.textSecondary : Theme.textFaint
+
+            HoverHandler { id: codeHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onSingleTapped: root.auth.start_login() }
         }
 
         // Waiting for the user to enter the code.

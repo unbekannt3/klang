@@ -171,6 +171,7 @@ def launch() -> subprocess.Popen:
     env = {
         **os.environ,
         "QT_QPA_PLATFORM": f"vnc:size={SIZE}:port={PORT}",
+        # Set KLANG_CONFIG_DIR before running to drive a fresh profile.
         # The VNC plugin has no compositor, so the app must draw its own chrome.
         "QT_QPA_FONTDIR": os.environ.get("QT_QPA_FONTDIR", "/usr/share/fonts"),
     }
