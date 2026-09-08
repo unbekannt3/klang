@@ -8,5 +8,12 @@
 //! Not synced from upstream — see `scripts/sync-core.sh`.
 
 pub mod auth;
+pub mod feed;
 pub mod library;
+pub mod metadata;
+pub mod pages;
 pub mod playback;
+pub mod profile;
+pub mod scrobble;
+pub mod search;
+pub mod utility;

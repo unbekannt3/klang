@@ -71,8 +71,10 @@ impl qobject::AuthController {
                 obj.as_mut().set_busy(false);
                 match restored {
                     Ok(Some(_)) => {
-                        obj.as_mut().set_logged_in(true);
+                        // user_id first: QML reacts to logged_in, and the
+                        // handler needs the id to be there already.
                         obj.as_mut().set_user_id(user_id.unwrap_or(0) as i64);
+                        obj.as_mut().set_logged_in(true);
                     }
                     Ok(None) => obj.as_mut().set_logged_in(false),
                     Err(e) => {
