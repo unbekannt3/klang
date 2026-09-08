@@ -1,4 +1,4 @@
-//! External theme configuration — `<config_sone_dir>/theme.json`.
+//! External theme configuration — `<config_dir>/theme.json`.
 //!
 //! File shape:
 //! ```json
@@ -20,8 +20,7 @@ pub const THEME_FILE_VERSION: u32 = 1;
 /// The `"preset"` meaning "use the `custom` colors".
 pub const CUSTOM_PRESET: &str = "custom";
 
-/// Canonical preset names. Must stay in sync with `PRESET_THEMES`
-/// in `src/lib/theme.ts`(case-sensitive, order irrelevant).
+/// Canonical preset names, matching `theme::PRESET_THEMES`.
 pub const PRESET_NAMES: &[&str] = &[
     "Violet Night",
     "Cyberpunk",
@@ -110,10 +109,8 @@ pub fn validate(raw: &ThemeFile) -> Result<ThemeFile, String> {
 // File I/O
 // ---------------------------------------------------------------------------
 
-fn config_sone_dir() -> Result<PathBuf, String> {
-    let dir = dirs::config_dir()
-        .ok_or_else(|| "config directory is unresolvable".to_string())?
-        .join("sone");
+fn config_dir() -> Result<PathBuf, String> {
+    let dir = crate::runtime::config_dir();
     fs::create_dir_all(&dir).map_err(|e| format!("failed to create {dir:?}: {e}"))?;
     Ok(dir)
 }
@@ -186,17 +183,13 @@ pub fn write_theme_file(path: &Path, file: &ThemeFile) -> Result<(), String> {
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// Tauri commands
-// ---------------------------------------------------------------------------
-
 pub fn theme_file_get() -> Result<Option<ThemeFile>, String> {
-    let dir = config_sone_dir()?;
+    let dir = config_dir()?;
     read_theme_file(&dir.join("theme.json"))
 }
 
 pub fn theme_file_set(file: ThemeFile) -> Result<(), String> {
-    let dir = config_sone_dir()?;
+    let dir = config_dir()?;
     write_theme_file(&dir.join("theme.json"), &file)
 }
 

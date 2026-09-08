@@ -23,6 +23,8 @@ fn main() {
             QmlFile::from("qml/MediaCard.qml"),
             QmlFile::from("qml/CardCarousel.qml"),
             QmlFile::from("qml/SectionList.qml"),
+            QmlFile::from("qml/ThemePicker.qml"),
+            QmlFile::from("qml/SettingsPage.qml"),
             QmlFile::from("qml/HomePage.qml"),
             QmlFile::from("qml/ExplorePage.qml"),
             QmlFile::from("qml/SearchPage.qml"),

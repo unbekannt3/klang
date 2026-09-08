@@ -61,6 +61,7 @@ QQC2.ApplicationWindow {
     PlaylistsController { id: playlistsCtl }
 
     Component.onCompleted: {
+        Theme.controller.restore()
         playerCtl.attach()
         authCtl.restore()
     }
@@ -124,6 +125,7 @@ QQC2.ApplicationWindow {
                         case "album":     return albumPage
                         case "artist":    return artistPage
                         case "playlist":  return playlistPage
+                        case "settings":  return settingsPage
                         default:          return favoritesPage
                     }
                 }
@@ -200,6 +202,11 @@ QQC2.ApplicationWindow {
             artistId: root.page.params.artistId || 0
             onOpenAlbum: (id) => root.go("album", { albumId: id })
         }
+    }
+
+    Component {
+        id: settingsPage
+        SettingsPage {}
     }
 
     Component {

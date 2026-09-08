@@ -28,6 +28,8 @@ pub mod qobject {
         #[qobject]
         #[qml_element]
         #[qproperty(QString, preset_name)]
+        #[qproperty(QString, custom_accent)]
+        #[qproperty(QString, custom_background)]
         // Backgrounds
         #[qproperty(QString, bg_base)]
         #[qproperty(QString, bg_surface)]
@@ -77,6 +79,10 @@ pub mod qobject {
         /// Switch to a built-in preset by exact (case-sensitive) name. A
         /// name that isn't one of `PRESET_THEMES` leaves the current theme
         /// untouched.
+        /// Load the saved theme. Call once at start-up.
+        #[qinvokable]
+        fn restore(self: Pin<&mut ThemeController>);
+
         #[qinvokable]
         fn apply_preset(self: Pin<&mut ThemeController>, name: &QString);
 
@@ -94,6 +100,8 @@ pub mod qobject {
 
 pub struct ThemeControllerRust {
     preset_name: QString,
+    custom_accent: QString,
+    custom_background: QString,
     bg_base: QString,
     bg_surface: QString,
     bg_surface_hover: QString,
@@ -171,6 +179,10 @@ fn to_qml_color(value: &str) -> String {
 fn fields_from_derived(preset_name: &str, dt: &DerivedTheme) -> ThemeControllerRust {
     ThemeControllerRust {
         preset_name: QString::from(preset_name),
+        // Seeded from the preset so the custom fields open on the current
+        // colours rather than empty.
+        custom_accent: QString::from(&dt.accent.to_uppercase()),
+        custom_background: QString::from(&dt.bg_base.to_uppercase()),
         bg_base: QString::from(&to_qml_color(&dt.bg_base)),
         bg_surface: QString::from(&to_qml_color(&dt.bg_surface)),
         bg_surface_hover: QString::from(&to_qml_color(&dt.bg_surface_hover)),
@@ -209,6 +221,10 @@ fn fields_from_derived(preset_name: &str, dt: &DerivedTheme) -> ThemeControllerR
 fn apply_derived(mut ctrl: Pin<&mut qobject::ThemeController>, preset_name: &str, dt: &DerivedTheme) {
     let f = fields_from_derived(preset_name, dt);
     ctrl.as_mut().set_preset_name(f.preset_name);
+    // Keep the custom fields showing the colours actually in use, so switching
+    // to a preset and then tweaking it starts from that preset.
+    ctrl.as_mut().set_custom_accent(f.custom_accent);
+    ctrl.as_mut().set_custom_background(f.custom_background);
     ctrl.as_mut().set_bg_base(f.bg_base);
     ctrl.as_mut().set_bg_surface(f.bg_surface);
     ctrl.as_mut().set_bg_surface_hover(f.bg_surface_hover);
@@ -242,18 +258,57 @@ fn apply_derived(mut ctrl: Pin<&mut qobject::ThemeController>, preset_name: &str
 }
 
 impl qobject::ThemeController {
-    pub fn apply_preset(self: Pin<&mut Self>, name: &QString) {
+    pub fn apply_preset(mut self: Pin<&mut Self>, name: &QString) {
         let name = name.to_string();
         match theme::find_preset(&name) {
             Some((accent, bg_base)) => {
                 let dt = theme::derive_theme(accent, bg_base);
-                apply_derived(self, &name, &dt);
+                apply_derived(self.as_mut(), &name, &dt);
+                self.persist();
             }
             None => log::warn!("theme: unknown preset {name:?}, leaving theme unchanged"),
         }
     }
 
-    pub fn apply_custom(self: Pin<&mut Self>, accent: &QString, bg_base: &QString) {
+    /// Load the saved theme, falling back to the default preset.
+    pub fn restore(mut self: Pin<&mut Self>) {
+        let saved = match klang_core::theme_config::theme_file_get() {
+            Ok(Some(file)) => file,
+            Ok(None) => return,
+            Err(e) => {
+                log::warn!("theme: {e}, using the default");
+                return;
+            }
+        };
+        self.as_mut()
+            .set_custom_accent(QString::from(&saved.custom.accent));
+        self.as_mut()
+            .set_custom_background(QString::from(&saved.custom.background));
+        if saved.preset == CUSTOM_PRESET_NAME {
+            let accent = QString::from(&saved.custom.accent);
+            let background = QString::from(&saved.custom.background);
+            self.apply_custom(&accent, &background);
+        } else {
+            let name = QString::from(&saved.preset);
+            self.apply_preset(&name);
+        }
+    }
+
+    fn persist(self: Pin<&mut Self>) {
+        let file = klang_core::theme_config::ThemeFile {
+            version: Some(klang_core::theme_config::THEME_FILE_VERSION),
+            preset: self.preset_name().to_string(),
+            custom: klang_core::theme_config::ThemeCustom {
+                accent: self.custom_accent().to_string(),
+                background: self.custom_background().to_string(),
+            },
+        };
+        if let Err(e) = klang_core::theme_config::theme_file_set(file) {
+            log::warn!("theme: could not save: {e}");
+        }
+    }
+
+    pub fn apply_custom(mut self: Pin<&mut Self>, accent: &QString, bg_base: &QString) {
         let accent = match theme::normalize_hex(&accent.to_string()) {
             Some(a) => a,
             None => {
@@ -269,12 +324,29 @@ impl qobject::ThemeController {
             }
         };
         let dt = theme::derive_theme(&accent, &bg_base);
-        apply_derived(self, CUSTOM_PRESET_NAME, &dt);
+        apply_derived(self.as_mut(), CUSTOM_PRESET_NAME, &dt);
+        self.as_mut().set_custom_accent(QString::from(&accent));
+        self.as_mut().set_custom_background(QString::from(&bg_base));
+        self.persist();
     }
 
+    /// Every preset with the colours a swatch needs, plus whether its
+    /// background is light — the swatch paints that background, so its label
+    /// cannot take its colour from the active theme.
     pub fn preset_names(self: &Self) -> QString {
-        let names: Vec<&str> = theme::PRESET_THEMES.iter().map(|(n, _, _)| *n).collect();
-        let json = serde_json::to_string(&names).unwrap_or_else(|_| "[]".to_string());
+        let rows: Vec<serde_json::Value> = theme::PRESET_THEMES
+            .iter()
+            .map(|(name, accent, background)| {
+                let derived = theme::derive_theme(accent, background);
+                serde_json::json!({
+                    "name": name,
+                    "accent": accent,
+                    "background": background,
+                    "light": derived.text_primary.to_lowercase() != "#ffffff",
+                })
+            })
+            .collect();
+        let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_string());
         QString::from(&json)
     }
 }

@@ -371,7 +371,7 @@ impl qobject::PlayerController {
 
 impl qobject::PlayerController {
     pub fn play_context(
-        mut self: Pin<&mut Self>,
+        self: Pin<&mut Self>,
         tracks_json: &QString,
         index: i32,
         source: &QString,
@@ -390,7 +390,7 @@ impl qobject::PlayerController {
         }
     }
 
-    pub fn next(mut self: Pin<&mut Self>) {
+    pub fn next(self: Pin<&mut Self>) {
         let entry = self.rust().queue.lock().unwrap().advance(false);
         match entry {
             Some(entry) => self.start(entry),
@@ -433,7 +433,7 @@ impl qobject::PlayerController {
         }
     }
 
-    pub fn jump_to(mut self: Pin<&mut Self>, index: i32, manual: bool) {
+    pub fn jump_to(self: Pin<&mut Self>, index: i32, manual: bool) {
         if index < 0 {
             return;
         }

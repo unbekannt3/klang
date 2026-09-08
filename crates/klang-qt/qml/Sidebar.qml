@@ -103,6 +103,8 @@ Rectangle {
         NavItem { route: "explore";   label: "Explore";      iconName: "explore" }
         NavItem { route: "favorites"; label: "Loved Tracks"; iconName: "heart" }
 
+        NavItem { route: "settings";  label: "Settings";     iconName: "settings" }
+
         // Divider
         Rectangle {
             Layout.fillWidth: true
