@@ -103,9 +103,30 @@ Rectangle {
 
         NavItem { route: "home";      label: "Home";         iconName: "home" }
         NavItem { route: "explore";   label: "Explore";      iconName: "explore" }
-        NavItem { route: "favorites"; label: "Loved Tracks"; iconName: "heart" }
+        NavItem { route: "feed";      label: "Feed";         iconName: "queue" }
 
-        NavItem { route: "settings";  label: "Settings";     iconName: "settings" }
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.topMargin: Theme.spaceSm
+            height: 1
+            color: Theme.border
+        }
+
+        Text {
+            Layout.leftMargin: Theme.spaceSm
+            text: "MY COLLECTION"
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeSm - 1
+            font.weight: Font.DemiBold
+            font.letterSpacing: 1.2
+            color: Theme.textFaint
+        }
+
+        NavItem { route: "favorites";     label: "Tracks";    iconName: "heart" }
+        NavItem { route: "fav-albums";    label: "Albums";    iconName: "album" }
+        NavItem { route: "fav-artists";   label: "Artists";   iconName: "artist" }
+        NavItem { route: "fav-playlists"; label: "Playlists"; iconName: "playlist" }
+        NavItem { route: "settings";      label: "Settings";  iconName: "settings" }
 
         // Divider
         Rectangle {

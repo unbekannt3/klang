@@ -24,8 +24,62 @@ Item {
     /// FavoritesController; when unset the heart column is hidden.
     property var favorites: null
 
+    /// Column the list is sorted by, or "" when the page does not sort.
+    property string sortColumn: ""
+    property bool sortDescending: true
+
     signal trackActivated(int index)
     signal contextRequested(int index, real x, real y)
+    /// Emitted when a sortable header is clicked; the page re-fetches.
+    signal sortRequested(string column)
+
+    component SortableHeading: Item {
+        id: heading
+        required property string label
+        required property string column
+        property int alignment: Text.AlignLeft
+
+        readonly property bool sortable: root.sortColumn.length > 0
+        readonly property bool active: sortable && root.sortColumn === column
+
+        implicitHeight: 20
+
+        Row {
+            anchors.fill: parent
+            anchors.rightMargin: heading.alignment === Text.AlignRight ? 0 : undefined
+            layoutDirection: heading.alignment === Text.AlignRight ? Qt.RightToLeft : Qt.LeftToRight
+            spacing: 3
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: heading.label
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeSm - 1
+                font.letterSpacing: 1
+                color: heading.active ? Theme.textSecondary
+                     : headingHover.hovered && heading.sortable ? Theme.textMuted
+                     : Theme.textFaint
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: heading.active
+                text: root.sortDescending ? "\u25be" : "\u25b4"
+                font.pixelSize: Theme.fontSizeSm - 2
+                color: Theme.textSecondary
+            }
+        }
+
+        HoverHandler {
+            id: headingHover
+            enabled: heading.sortable
+            cursorShape: Qt.PointingHandCursor
+        }
+        TapHandler {
+            enabled: heading.sortable
+            onSingleTapped: root.sortRequested(heading.column)
+        }
+    }
 
     function rows() {
         if (typeof tracks === "string")
@@ -77,13 +131,10 @@ Item {
                     color: Theme.textFaint
                 }
 
-                Text {
+                SortableHeading {
                     Layout.fillWidth: true
-                    text: "TITLE"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSm - 1
-                    font.letterSpacing: 1
-                    color: Theme.textFaint
+                    label: "TITLE"
+                    column: "NAME"
                 }
 
                 Text {
@@ -97,6 +148,8 @@ Item {
                     color: Theme.textFaint
                 }
 
+                Item { Layout.preferredWidth: root.favorites !== null ? 24 : 0 }
+
                 Text {
                     visible: root.showKey
                     Layout.preferredWidth: 48
@@ -108,14 +161,11 @@ Item {
                     color: Theme.textFaint
                 }
 
-                Text {
+                SortableHeading {
                     Layout.preferredWidth: 64
-                    horizontalAlignment: Text.AlignRight
-                    text: "LENGTH"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSm - 1
-                    font.letterSpacing: 1
-                    color: Theme.textFaint
+                    label: "LENGTH"
+                    column: "DURATION"
+                    alignment: Text.AlignRight
                 }
             }
 

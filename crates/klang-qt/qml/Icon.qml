@@ -96,8 +96,14 @@ Item {
                         return s("M 8 8 L 8 5 L 19 5 L 19 16 L 16 16 M 5 8 L 16 8 L 16 19 L 5 19 Z")
                     case "more":
                         return s("M 6 12 L 6.01 12 M 12 12 L 12.01 12 M 18 12 L 18.01 12")
+                    case "album":
+                        return s("M 12 3 A 9 9 0 1 0 12 21 A 9 9 0 1 0 12 3 M 12 10 A 2 2 0 1 0 12 14 A 2 2 0 1 0 12 10")
+                    case "artist":
+                        return s("M 12 3 A 4 4 0 1 0 12 11 A 4 4 0 1 0 12 3 M 5 21 C 5 17 8 15 12 15 C 16 15 19 17 19 21")
                     case "playlist":
                         return s("M 4 6 L 14 6 M 4 11 L 14 11 M 4 16 L 10 16 M 17 8 L 17 19 M 17 8 L 21 7 L 21 18")
+                    case "radio":
+                        return s("M 12 12 m -1.8 0 a 1.8 1.8 0 1 0 3.6 0 a 1.8 1.8 0 1 0 -3.6 0 M 7 7.5 A 6.5 6.5 0 0 0 7 16.5 M 17 7.5 A 6.5 6.5 0 0 1 17 16.5")
                     }
                     return ""
                 }

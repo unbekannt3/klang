@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod catalog;
 pub mod favorites;
+pub mod feed;
 pub mod home;
 pub mod library;
 pub mod playlists;
