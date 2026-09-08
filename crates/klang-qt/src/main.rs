@@ -9,6 +9,14 @@ mod core;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QString, QUrl};
 
 fn main() {
+    // Without this Qt sends its warnings to the journal whenever it decides
+    // stderr is not a console, and a broken QML binding fails in total silence.
+    // SAFETY: single-threaded, before any Qt or Tokio thread exists.
+    unsafe {
+        std::env::set_var("QT_FORCE_STDERR_LOGGING", "1");
+        std::env::set_var("QT_ASSUME_STDERR_HAS_CONSOLE", "1");
+    }
+
     // The core owns the Tokio runtime and every background service, so it has
     // to be up before QML constructs a controller that talks to it.
     crate::core::start();

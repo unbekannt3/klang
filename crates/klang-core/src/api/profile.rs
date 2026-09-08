@@ -1,7 +1,6 @@
 use base64::Engine;
 
 use crate::tidal_api::{ExternalLink, Profile};
-use crate::app::AppHandle;
 use crate::AppState;
 use crate::SoneError;
 

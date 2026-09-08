@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Klang
+GenericName=Music Player
+Comment=Lossless TIDAL client for KDE
+Exec=klang
+Icon=me.unbk.klang
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+Keywords=music;tidal;flac;lossless;player;
+StartupNotify=true
+StartupWMClass=klang
+MimeType=x-scheme-handler/tidal;

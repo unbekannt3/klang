@@ -1,7 +1,6 @@
 
 use crate::cache::{CacheResult, CacheTier};
 use crate::tidal_api::{StreamInfo, TidalCredit, TidalLyrics};
-use crate::app::AppHandle;
 use crate::AppState;
 use crate::SoneError;
 

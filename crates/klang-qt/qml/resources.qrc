@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/qt/qml/me/unbk/klang/qml">
+    <file alias="klang.png">klang.png</file>
+  </qresource>
+</RCC>

@@ -22,6 +22,7 @@ pub mod overlay;
 pub mod pipeline_probe;
 pub mod runtime;
 pub mod scrobble;
+pub mod theme;
 pub mod theme_config;
 pub mod tidal_api;
 pub mod tidal_report;

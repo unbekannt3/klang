@@ -1,6 +1,5 @@
 
 use crate::tidal_api::{SuggestionsResponse, TidalSearchResults};
-use crate::app::AppHandle;
 use crate::AppState;
 use crate::SoneError;
 

@@ -1,0 +1,189 @@
+//! Catalogue search across tracks, albums, artists and playlists.
+//!
+//! Follows the shape of `library.rs`: properties for what QML binds to, a
+//! `#[qinvokable]` entry point that spawns onto `klang_core::runtime` and
+//! queues results back with `CxxQtThread::queue`. Each result category
+//! crosses into QML as its own JSON string that `JSON.parse` turns into a
+//! plain JS array — same walking-skeleton shortcut as the library list.
+
+use crate::core as app;
+use cxx_qt::Threading;
+use cxx_qt_lib::QString;
+use klang_core::api::search;
+use std::pin::Pin;
+
+#[cxx_qt::bridge]
+pub mod qobject {
+    unsafe extern "C++" {
+        include!("cxx-qt-lib/qstring.h");
+        type QString = cxx_qt_lib::QString;
+    }
+
+    extern "RustQt" {
+        #[qobject]
+        #[qml_element]
+        #[qproperty(bool, loading)]
+        #[qproperty(QString, error)]
+        #[qproperty(QString, query)]
+        #[qproperty(QString, tracks_json)]
+        #[qproperty(QString, albums_json)]
+        #[qproperty(QString, artists_json)]
+        #[qproperty(QString, playlists_json)]
+        type SearchController = super::SearchControllerRust;
+
+        /// Search tracks, albums, artists and playlists for `query`.
+        #[qinvokable]
+        fn search(self: Pin<&mut SearchController>, query: &QString, limit: i32);
+
+        /// Reset the query and every result list to empty.
+        #[qinvokable]
+        fn clear(self: Pin<&mut SearchController>);
+    }
+
+    impl cxx_qt::Threading for SearchController {}
+}
+
+#[derive(Default)]
+pub struct SearchControllerRust {
+    loading: bool,
+    error: QString,
+    query: QString,
+    tracks_json: QString,
+    albums_json: QString,
+    artists_json: QString,
+    playlists_json: QString,
+}
+
+/// Flatten a TIDAL track into what the list row needs. Artist comes from
+/// `artist`, falling back to the first entry of `artists` — endpoints differ in
+/// which of the two they populate.
+fn track_row(track: &klang_core::tidal_api::TidalTrack) -> serde_json::Value {
+    let artist = track
+        .artist
+        .as_ref()
+        .map(|a| a.name.clone())
+        .or_else(|| {
+            track
+                .artists
+                .as_ref()
+                .and_then(|list| list.first().map(|a| a.name.clone()))
+        })
+        .unwrap_or_default();
+
+    serde_json::json!({
+        "id": track.id,
+        "title": track.title,
+        "artist": artist,
+        "album": track.album.as_ref().map(|a| a.title.clone()).unwrap_or_default(),
+        "duration": track.duration,
+        "quality": track.audio_quality.clone().unwrap_or_default(),
+    })
+}
+
+/// Flatten a TIDAL album into what the list row needs. Artist falls back the
+/// same way as tracks; `year` is the leading segment of `release_date`
+/// ("2023-05-01" -> 2023), the same extraction the MCP sanitizer uses.
+fn album_row(album: &klang_core::tidal_api::TidalAlbumDetail) -> serde_json::Value {
+    let artist = album
+        .artist
+        .as_ref()
+        .map(|a| a.name.clone())
+        .or_else(|| {
+            album
+                .artists
+                .as_ref()
+                .and_then(|list| list.first().map(|a| a.name.clone()))
+        })
+        .unwrap_or_default();
+
+    let year = album
+        .release_date
+        .as_ref()
+        .and_then(|d| d.split('-').next().and_then(|y| y.parse::<u16>().ok()));
+
+    serde_json::json!({
+        "id": album.id,
+        "title": album.title,
+        "artist": artist,
+        "year": year,
+        "cover": album.cover.clone().unwrap_or_default(),
+    })
+}
+
+/// Flatten a TIDAL artist into what the list row needs.
+fn artist_row(artist: &klang_core::tidal_api::TidalArtist) -> serde_json::Value {
+    serde_json::json!({
+        "id": artist.id,
+        "name": artist.name,
+        "picture": artist.picture.clone().unwrap_or_default(),
+    })
+}
+
+/// Flatten a TIDAL playlist into what the list row needs.
+fn playlist_row(playlist: &klang_core::tidal_api::TidalPlaylist) -> serde_json::Value {
+    serde_json::json!({
+        "uuid": playlist.uuid,
+        "title": playlist.title,
+        "numberOfTracks": playlist.number_of_tracks.unwrap_or(0),
+        "image": playlist.image.clone().unwrap_or_default(),
+    })
+}
+
+impl qobject::SearchController {
+    pub fn search(mut self: Pin<&mut Self>, query: &QString, limit: i32) {
+        let query_string = String::from(query);
+        self.as_mut().set_loading(true);
+        self.as_mut().set_error(QString::from(""));
+        self.as_mut().set_query(query.clone());
+        let qt = self.qt_thread();
+
+        klang_core::runtime::spawn(async move {
+            let result =
+                search::search_tidal(app::state(), query_string, limit.max(1) as u32).await;
+
+            let _ = qt.queue(move |mut obj| {
+                obj.as_mut().set_loading(false);
+                match result {
+                    Ok(results) => {
+                        let tracks: Vec<_> = results.tracks.iter().map(track_row).collect();
+                        let albums: Vec<_> = results.albums.iter().map(album_row).collect();
+                        let artists: Vec<_> = results.artists.iter().map(artist_row).collect();
+                        let playlists: Vec<_> =
+                            results.playlists.iter().map(playlist_row).collect();
+
+                        let tracks_json =
+                            serde_json::to_string(&tracks).unwrap_or_else(|_| "[]".into());
+                        let albums_json =
+                            serde_json::to_string(&albums).unwrap_or_else(|_| "[]".into());
+                        let artists_json =
+                            serde_json::to_string(&artists).unwrap_or_else(|_| "[]".into());
+                        let playlists_json =
+                            serde_json::to_string(&playlists).unwrap_or_else(|_| "[]".into());
+
+                        obj.as_mut().set_tracks_json(QString::from(&tracks_json));
+                        obj.as_mut().set_albums_json(QString::from(&albums_json));
+                        obj.as_mut().set_artists_json(QString::from(&artists_json));
+                        obj.as_mut().set_playlists_json(QString::from(&playlists_json));
+                    }
+                    Err(e) => {
+                        obj.as_mut().set_tracks_json(QString::from("[]"));
+                        obj.as_mut().set_albums_json(QString::from("[]"));
+                        obj.as_mut().set_artists_json(QString::from("[]"));
+                        obj.as_mut().set_playlists_json(QString::from("[]"));
+                        obj.as_mut().set_error(QString::from(&e.to_string()));
+                    }
+                }
+            });
+        });
+    }
+
+    pub fn clear(mut self: Pin<&mut Self>) {
+        self.as_mut().set_loading(false);
+        self.as_mut().set_error(QString::from(""));
+        self.as_mut().set_query(QString::from(""));
+        self.as_mut().set_tracks_json(QString::from("[]"));
+        self.as_mut().set_albums_json(QString::from("[]"));
+        self.as_mut().set_artists_json(QString::from("[]"));
+        self.as_mut().set_playlists_json(QString::from("[]"));
+    }
+}

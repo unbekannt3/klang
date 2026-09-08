@@ -2,7 +2,6 @@
 use crate::cache::{CacheResult, CacheTier};
 use crate::error::SoneError;
 use crate::tidal_api::FeedResponse;
-use crate::app::AppHandle;
 use crate::AppState;
 
 /// Invalidation tag for every cached feed entry. Intentionally undiscriminated —
