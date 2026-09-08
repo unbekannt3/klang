@@ -22,6 +22,10 @@ Item {
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
     signal openMix(string mixId, string title)
+    /// Right-click on a card, in this list's coordinates.
+    signal itemContextRequested(var item, real x, real y)
+    /// A section header opened in full.
+    signal openSection(var section)
 
     function rows() {
         if (typeof sections === "string")
@@ -76,7 +80,14 @@ Item {
             width: view.width
             title: modelData.title || ""
             items: modelData.items || []
+            hasViewAll: (modelData.items || []).length > 0
             onItemActivated: (item) => root.activate(item)
+            onItemPlayRequested: (item) => root.activate(item)
+            onItemContextRequested: (item, x, y) => {
+                const p = mapToItem(root, x, y)
+                root.itemContextRequested(item, p.x, p.y)
+            }
+            onViewAllRequested: root.openSection(modelData)
         }
     }
 

@@ -22,6 +22,8 @@ Rectangle {
     signal muteToggled()
     signal queueRequested()
     signal expandRequested()
+    signal signalPathRequested()
+    signal miniPlayerRequested()
 
     implicitHeight: Theme.playerBarHeight
     color: Theme.surface
@@ -202,15 +204,19 @@ Rectangle {
 
             Item { Layout.fillWidth: true }
 
-            // What TIDAL actually served, not what was requested.
+            // What TIDAL actually served, not what was requested. Clicking it
+            // opens the signal path, the way sone's badge does.
             Rectangle {
                 visible: root.player.quality.length > 0
                 implicitWidth: qLabel.implicitWidth + Theme.space
                 implicitHeight: 22
                 radius: Theme.radiusXs
-                color: "transparent"
+                color: qualityHover.hovered ? Theme.hlFaint : "transparent"
                 border.color: Theme.accent
                 border.width: 1
+
+                HoverHandler { id: qualityHover }
+                TapHandler { onSingleTapped: root.signalPathRequested() }
 
                 Text {
                     id: qLabel
@@ -233,6 +239,12 @@ Rectangle {
                 iconName: "queue"
                 iconSize: 18
                 onClicked: root.queueRequested()
+            }
+
+            IconButton {
+                iconName: "restore"
+                iconSize: 16
+                onClicked: root.miniPlayerRequested()
             }
 
             ProgressSlider {

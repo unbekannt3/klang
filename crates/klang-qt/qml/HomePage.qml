@@ -12,6 +12,8 @@ Item {
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
     signal openMix(string mixId, string title)
+    signal itemContextRequested(var item, real x, real y)
+    signal openSection(var section)
 
     HomeController { id: home }
 
@@ -20,6 +22,9 @@ Item {
     Rectangle { anchors.fill: parent; color: Theme.base }
 
     SectionList {
+        onItemContextRequested: (item, x, y) => root.itemContextRequested(item, x, y)
+        onOpenSection: (section) => root.openSection(section)
+        scrollKey: "home"
         anchors.fill: parent
         player: root.player
         sections: home.sections_json

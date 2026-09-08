@@ -209,4 +209,10 @@ Item {
             }
         }
     }
+
+    ScrollMemory {
+        flickable: flick
+        pageKey: "artist:" + root.artistId
+    }
+
 }

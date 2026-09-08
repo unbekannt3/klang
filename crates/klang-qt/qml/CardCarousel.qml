@@ -14,6 +14,14 @@ ColumnLayout {
     property var items: []
 
     signal itemActivated(var item)
+    signal itemPlayRequested(var item)
+    /// Right-click on a card, in the carousel's coordinates.
+    signal itemContextRequested(var item, real x, real y)
+    /// Header click, where the section has a dedicated page.
+    signal viewAllRequested()
+
+    /// Shows a "View all" affordance next to the title.
+    property bool hasViewAll: false
 
     spacing: Theme.spaceSm
 
@@ -47,12 +55,28 @@ ColumnLayout {
         Layout.rightMargin: Theme.spaceLg
 
         Text {
+            id: heading
             Layout.fillWidth: true
             text: root.title
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeHeading
             font.weight: Font.Bold
-            color: Theme.textPrimary
+            color: root.hasViewAll && headingHover.hovered ? Theme.accent : Theme.textPrimary
+
+            HoverHandler { id: headingHover; enabled: root.hasViewAll }
+            TapHandler { enabled: root.hasViewAll; onSingleTapped: root.viewAllRequested() }
+        }
+
+        Text {
+            visible: root.hasViewAll
+            text: "View all"
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeSm
+            font.weight: Font.DemiBold
+            color: viewAllHover.hovered ? Theme.textPrimary : Theme.textMuted
+
+            HoverHandler { id: viewAllHover }
+            TapHandler { onSingleTapped: root.viewAllRequested() }
         }
 
         Arrow {
@@ -105,6 +129,11 @@ ColumnLayout {
             image: modelData.image || ""
             kind: modelData.kind || "album"
             onActivated: root.itemActivated(modelData)
+            onPlayRequested: root.itemPlayRequested(modelData)
+            onContextRequested: (x, y) => {
+                const p = mapToItem(root, x, y)
+                root.itemContextRequested(modelData, p.x, p.y)
+            }
         }
     }
 }

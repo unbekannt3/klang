@@ -84,6 +84,7 @@ Item {
         }
 
         TrackList {
+            scrollKey: "favorites"
             Layout.fillWidth: true
             Layout.fillHeight: true
             tracks: library.tracks_json

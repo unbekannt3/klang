@@ -10,9 +10,14 @@ Item {
 
     readonly property var sections: [
         { key: "themes", label: "Themes" },
+        { key: "general", label: "General" },
         { key: "playback", label: "Playback" },
         { key: "scrobbling", label: "Scrobbling" },
+        { key: "discord", label: "Discord" },
+        { key: "mcp", label: "MCP" },
+        { key: "overlay", label: "Overlay" },
         { key: "network", label: "Network" },
+        { key: "utilities", label: "Utilities" },
     ]
 
     Rectangle { anchors.fill: parent; color: Theme.base }
@@ -109,9 +114,14 @@ Item {
                 Loader {
                     Layout.fillWidth: true
                     sourceComponent: switch (root.section) {
+                        case "general":    return generalSection
                         case "playback":   return playbackSection
                         case "scrobbling": return scrobbleSection
+                        case "discord":    return discordSection
+                        case "mcp":        return mcpSection
+                        case "overlay":    return overlaySection
                         case "network":    return networkSection
+                        case "utilities":  return utilitiesSection
                         default:           return themesSection
                     }
                 }
@@ -122,9 +132,14 @@ Item {
     }
 
     Component { id: themesSection; ThemePicker {} }
+    Component { id: generalSection; GeneralSettings { settings: settingsCtl } }
     Component { id: playbackSection; PlaybackSettings { settings: settingsCtl } }
     Component { id: scrobbleSection; ScrobbleSettings { settings: settingsCtl } }
+    Component { id: discordSection; DiscordSettings { settings: settingsCtl } }
+    Component { id: mcpSection; McpSettings { settings: settingsCtl } }
+    Component { id: overlaySection; OverlaySettings { settings: settingsCtl } }
     Component { id: networkSection; NetworkSettings { settings: settingsCtl } }
+    Component { id: utilitiesSection; UtilitiesSettings { settings: settingsCtl } }
 
     // Ephemeral UI state, not a persisted setting, so clearing it with a
     // direct property write (rather than an apply_* invokable) is correct.

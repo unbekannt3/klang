@@ -102,6 +102,7 @@ Item {
         }
 
         TrackList {
+            scrollKey: "mix:" + root.mixId
             Layout.fillWidth: true
             Layout.fillHeight: true
             tracks: root.mixItems

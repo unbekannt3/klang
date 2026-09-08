@@ -15,6 +15,10 @@ Item {
     property string kind: "album"
 
     signal activated()
+    /// The hover play button, distinct from opening the item.
+    signal playRequested()
+    /// Right-click, in this card's coordinates.
+    signal contextRequested(real x, real y)
 
     implicitWidth: Theme.cardSize
     implicitHeight: Theme.cardSize + 52
@@ -34,6 +38,11 @@ Item {
 
     HoverHandler { id: hover }
     TapHandler { onSingleTapped: root.activated() }
+
+    TapHandler {
+        acceptedButtons: Qt.RightButton
+        onSingleTapped: (event) => root.contextRequested(event.position.x, event.position.y)
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -67,11 +76,19 @@ Item {
                 Behavior on opacity { NumberAnimation { duration: Theme.durationFast } }
                 Behavior on scale { NumberAnimation { duration: Theme.durationFast } }
 
-                Text {
+                // Only clickable once visible, so a stray tap on a cover
+                // corner does not start playback.
+                TapHandler {
+                    enabled: hover.hovered
+                    onSingleTapped: root.playRequested()
+                }
+
+                Icon {
                     anchors.centerIn: parent
                     anchors.horizontalCenterOffset: 1
-                    text: "▶"
-                    font.pixelSize: Theme.fontSize
+                    width: 18
+                    height: 18
+                    name: "play"
                     color: Theme.onAccent
                 }
             }

@@ -11,9 +11,20 @@ Rectangle {
     required property var window
     property bool canGoBack: false
     property string searchQuery: ""
+    property string avatarUrl: ""
+    property string displayName: ""
 
     signal backRequested()
     signal searchSubmitted(string query)
+    signal profileRequested()
+    signal settingsRequested()
+    signal logoutRequested()
+
+    /// Put the caret in the search field, for the Ctrl+K shortcut.
+    function focusSearch() {
+        search.forceActiveFocus()
+        search.selectAll()
+    }
 
     implicitHeight: 38
     color: Theme.sidebar
@@ -133,6 +144,15 @@ Rectangle {
         }
 
         Item { Layout.fillWidth: true }
+
+        UserMenu {
+            Layout.rightMargin: Theme.spaceSm
+            avatarUrl: root.avatarUrl
+            displayName: root.displayName
+            onProfileRequested: root.profileRequested()
+            onSettingsRequested: root.settingsRequested()
+            onLogoutRequested: root.logoutRequested()
+        }
 
         WindowButton {
             iconName: "minimize"

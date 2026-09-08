@@ -44,6 +44,16 @@ QQC2.ApplicationWindow {
         page = { route: route, params: {} }
     }
 
+    function profile() {
+        return JSON.parse(profileCtl.profile_json || "{}")
+    }
+
+    /// Open the shared card menu at a point in the content area.
+    function openMediaMenu(item, x, y) {
+        mediaMenu.item = item
+        mediaMenu.openAt(Qt.point(x, y), content)
+    }
+
     function back() {
         if (history.length === 0)
             return
@@ -60,6 +70,7 @@ QQC2.ApplicationWindow {
             playlistsCtl.load_all(authCtl.user_id)
             favoritesCtl.load(authCtl.user_id)
             favoritesCtl.load_blocks(authCtl.user_id)
+            profileCtl.load(authCtl.user_id)
         }
     }
 
@@ -67,11 +78,44 @@ QQC2.ApplicationWindow {
     PlaylistsController { id: playlistsCtl }
     FavoritesController { id: favoritesCtl }
     LibraryController { id: collectionCtl }
+    SettingsController { id: settingsCtl }
+    ProfileController { id: profileCtl }
+    SignalPathController { id: signalPathCtl }
+
+    VideoController {
+        id: videoCtl
+        // A video and a track cannot both be heard at once.
+        onPause_audio_requested: {
+            if (playerCtl.playing)
+                playerCtl.toggle()
+        }
+    }
 
     Component.onCompleted: {
         Theme.controller.restore()
         playerCtl.attach()
+        settingsCtl.load()
+        signalPathCtl.attach()
         authCtl.restore()
+    }
+
+    Shortcuts {
+        player: playerCtl
+        favorites: favoritesCtl
+        settings: settingsCtl
+        onSearchRequested: titleBar.focusSearch()
+        onHelpRequested: shortcutsHelp.open = !shortcutsHelp.open
+        // Escape closes whatever is topmost, innermost first.
+        onDismissRequested: {
+            if (shortcutsHelp.open)
+                shortcutsHelp.open = false
+            else if (signalPath.open)
+                signalPath.open = false
+            else if (playlistPicker.open)
+                playlistPicker.open = false
+            else if (root.nowPlayingOpen)
+                root.nowPlayingOpen = false
+        }
     }
 
     // ---- chrome ---------------------------------------------------------
@@ -80,10 +124,16 @@ QQC2.ApplicationWindow {
         spacing: 0
 
         TitleBar {
+            id: titleBar
             Layout.fillWidth: true
             window: root
             canGoBack: root.history.length > 0
             searchQuery: root.page.params.query || ""
+            avatarUrl: root.profile().avatarUrl || ""
+            displayName: root.profile().name || ""
+            onProfileRequested: root.go("profile", {})
+            onSettingsRequested: root.goRoot("settings")
+            onLogoutRequested: authCtl.logout()
             onBackRequested: root.back()
             onSearchSubmitted: (q) => {
                 if (q.length === 0)
@@ -134,6 +184,8 @@ QQC2.ApplicationWindow {
                         case "artist":    return artistPage
                         case "playlist":  return playlistPage
                         case "settings":  return settingsPage
+                        case "profile":   return profilePage
+                        case "profile-playlists": return profilePlaylistsPage
                         case "feed":          return feedPage
                         case "mix":           return mixPage
                         case "fav-albums":    return favAlbumsPage
@@ -161,6 +213,8 @@ QQC2.ApplicationWindow {
             onMuteToggled: playerCtl.toggle_mute()
             onQueueRequested: root.nowPlayingOpen = !root.nowPlayingOpen
             onExpandRequested: root.nowPlayingOpen = true
+            onSignalPathRequested: signalPath.open = !signalPath.open
+            onMiniPlayerRequested: miniPlayer.visible = true
         }
     }
 
@@ -187,6 +241,7 @@ QQC2.ApplicationWindow {
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
             onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
+            onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
         }
     }
 
@@ -197,6 +252,7 @@ QQC2.ApplicationWindow {
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+            onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
         }
     }
 
@@ -264,6 +320,30 @@ QQC2.ApplicationWindow {
     }
 
     Component {
+        id: profilePage
+        ProfilePage {
+            controller: profileCtl
+            userId: authCtl.user_id
+            onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+            onViewAllPlaylistsRequested: (playlists, name) =>
+                    root.go("profile-playlists", { playlists: playlists, name: name })
+            onBackRequested: root.back()
+        }
+    }
+
+    Component {
+        id: profilePlaylistsPage
+        MediaGridPage {
+            player: playerCtl
+            title: "Public playlists"
+            items: root.page.params.playlists || []
+            scrollKey: "profile-playlists"
+            onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+            onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
+        }
+    }
+
+    Component {
         id: feedPage
         FeedPage {
             player: playerCtl
@@ -298,6 +378,7 @@ QQC2.ApplicationWindow {
         onOpenArtist: (id) => root.go("artist", { artistId: id })
         onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
         onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
+        onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
     }
 
     Component {
@@ -344,11 +425,58 @@ QQC2.ApplicationWindow {
         onRadioRequested: (trackId) => console.log("track radio not wired yet", trackId)
     }
 
+    MediaContextMenu {
+        id: mediaMenu
+        item: ({})
+        favorites: favoritesCtl
+        onPlayRequested: (item) => {
+            if (item.kind === "album")
+                root.go("album", { albumId: parseInt(item.id) })
+            else if (item.kind === "playlist")
+                root.go("playlist", { uuid: item.id, title: item.title })
+            else if (item.kind === "mix")
+                root.go("mix", { mixId: item.id, title: item.title })
+            else if (item.kind === "artist")
+                root.go("artist", { artistId: parseInt(item.id) })
+        }
+        onGoToArtistRequested: (artistId) => root.go("artist", { artistId: artistId })
+        onEditRequested: (playlistId) => root.go("playlist", { uuid: playlistId, title: "" })
+        onDeleteRequested: (playlistId) => playlistsCtl.remove(playlistId)
+    }
+
     AddToPlaylistDialog {
         id: playlistPicker
         anchors.fill: parent
         playlists: playlistsCtl
         onCloseRequested: open = false
+    }
+
+    ShortcutsHelp {
+        id: shortcutsHelp
+        anchors.fill: parent
+        onCloseRequested: shortcutsHelp.open = false
+    }
+
+    SignalPathPanel {
+        id: signalPath
+        anchors.fill: parent
+        player: playerCtl
+        path: signalPathCtl
+        onCloseRequested: signalPath.open = false
+    }
+
+    VideoPlayerView {
+        anchors.fill: parent
+        controller: videoCtl
+        userId: authCtl.user_id
+        onMinimizeRequested: videoCtl.close()
+    }
+
+    MiniPlayerWindow {
+        id: miniPlayer
+        visible: false
+        player: playerCtl
+        favorites: favoritesCtl
     }
 
     NowPlayingView {
