@@ -32,6 +32,26 @@ fn artist_name(track: &TidalTrack) -> String {
         .unwrap_or_default()
 }
 
+/// The tier a row's badge shows.
+///
+/// `audio_quality` still reports LOSSLESS for Hi-Res tracks on the v1
+/// endpoints; tidal.com reads `mediaMetadata.tags` instead, which is where
+/// HIRES_LOSSLESS actually appears.
+fn quality_tier(track: &TidalTrack) -> String {
+    let tags = track
+        .media_metadata
+        .as_ref()
+        .map(|m| m.tags.as_slice())
+        .unwrap_or_default();
+    if tags.iter().any(|t| t == "HIRES_LOSSLESS") {
+        return "HI_RES_LOSSLESS".to_string();
+    }
+    if tags.iter().any(|t| t == "LOSSLESS") {
+        return "LOSSLESS".to_string();
+    }
+    track.audio_quality.clone().unwrap_or_default()
+}
+
 /// The id of a track's own radio mix, used by autoplay once the queue runs
 /// out. TIDAL nests it under `mixes.TRACK_MIX`.
 fn track_mix_id(track: &TidalTrack) -> Option<String> {
@@ -58,7 +78,7 @@ pub fn track(index: usize, t: &TidalTrack) -> Value {
         "album": t.album.as_ref().map(|a| a.title.clone()).unwrap_or_default(),
         "albumId": t.album.as_ref().map(|a| a.id),
         "duration": t.duration,
-        "quality": t.audio_quality.clone().unwrap_or_default(),
+        "quality": quality_tier(t),
         "bpm": t.bpm,
         "key": camelot::camelot(t.key.as_deref(), t.key_scale.as_deref()),
         "explicit": t.explicit.unwrap_or(false),

@@ -257,20 +257,25 @@ Item {
 
                 // Quality badge, only when the API told us something.
                 Rectangle {
+                    readonly property bool hiRes: row.modelData.quality === "HI_RES_LOSSLESS"
+                                               || row.modelData.quality === "HI_RES"
+
                     visible: !!row.modelData.quality
                     implicitWidth: qualityText.implicitWidth + Theme.spaceSm
                     implicitHeight: 18
                     radius: Theme.radiusXs
-                    color: Theme.hlMed
+                    color: hiRes ? "transparent" : Theme.hlMed
+                    border.color: Theme.hiRes
+                    border.width: hiRes ? 1 : 0
 
                     Text {
                         id: qualityText
                         anchors.centerIn: parent
-                        text: row.modelData.quality
+                        text: Format.qualityLabel(row.modelData.quality)
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeSm - 2
                         font.letterSpacing: 0.5
-                        color: Theme.textSecondary
+                        color: Format.qualityColor(row.modelData.quality)
                     }
                 }
 

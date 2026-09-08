@@ -258,6 +258,8 @@ fn sections_to_json(sections: &[HomePageSection]) -> String {
                 "title": s.title,
                 "kind": kind,
                 "items": items,
+                // Only sections TIDAL paginates get a "View all" destination.
+                "apiPath": s.api_path.clone().filter(|_| s.has_more),
             }))
         })
         .collect();

@@ -40,7 +40,6 @@ fn main() {
             QmlFile::from("qml/ScrobbleSettings.qml"),
             QmlFile::from("qml/NetworkSettings.qml"),
             QmlFile::from("qml/HomePage.qml"),
-            QmlFile::from("qml/ExplorePage.qml"),
             QmlFile::from("qml/SearchPage.qml"),
             QmlFile::from("qml/AlbumPage.qml"),
             QmlFile::from("qml/ArtistPage.qml"),

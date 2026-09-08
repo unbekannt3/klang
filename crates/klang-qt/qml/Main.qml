@@ -48,6 +48,12 @@ QQC2.ApplicationWindow {
         return JSON.parse(profileCtl.profile_json || "{}")
     }
 
+    /// A carousel header opened in full. Sections TIDAL does not paginate
+    /// carry no path, so the header is not clickable and this never fires.
+    function openSection(section) {
+        root.go("view-all", { apiPath: section.apiPath || "", title: section.title || "" })
+    }
+
     /// Open the shared card menu at a point in the content area.
     function openMediaMenu(item, x, y) {
         mediaMenu.item = item
@@ -178,14 +184,16 @@ QQC2.ApplicationWindow {
 
                     sourceComponent: switch (root.route) {
                         case "home":      return homePage
-                        case "explore":   return explorePage
+                        case "explore":   return exploreRootPage
                         case "search":    return searchPage
                         case "album":     return albumPage
                         case "artist":    return artistPage
                         case "playlist":  return playlistPage
                         case "settings":  return settingsPage
                         case "profile":   return profilePage
-                        case "profile-playlists": return profilePlaylistsPage
+                        case "item-grid": return itemGridPage
+                        case "view-all":      return viewAllPage
+                        case "artist-tracks": return artistTracksPage
                         case "feed":          return feedPage
                         case "mix":           return mixPage
                         case "fav-albums":    return favAlbumsPage
@@ -242,16 +250,28 @@ QQC2.ApplicationWindow {
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
             onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
             onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
+            onOpenSection: (section) => root.openSection(section)
         }
     }
 
+    // Explore is the same page as any other category, just the root path:
+    // TIDAL's own explore payload is mostly genre/mood link sections, which
+    // the home carousels drop and ViewAllPage renders.
     Component {
-        id: explorePage
-        ExplorePage {
+        id: exploreRootPage
+        ViewAllPage {
             player: playerCtl
+            title: "Explore"
+            apiPath: "pages/explore"
+            sectioned: true
+            userId: authCtl.user_id
+            scrollKey: "explore"
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+            onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
+            onOpenExplorePage: (path, title) =>
+                    root.go("view-all", { apiPath: path, title: title, sectioned: true })
             onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
         }
     }
@@ -297,6 +317,12 @@ QQC2.ApplicationWindow {
             }
             artistId: root.page.params.artistId || 0
             onOpenAlbum: (id) => root.go("album", { albumId: id })
+            onOpenArtistTracks: (artistName) => root.go("artist-tracks", {
+                artistId: root.page.params.artistId || 0,
+                artistName: artistName
+            })
+            onOpenItemGrid: (title, items) => root.go("item-grid", { title: title, items: items })
+            onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
         }
     }
 
@@ -320,25 +346,68 @@ QQC2.ApplicationWindow {
     }
 
     Component {
+        id: viewAllPage
+        ViewAllPage {
+            player: playerCtl
+            title: root.page.params.title || ""
+            apiPath: root.page.params.apiPath || ""
+            sectioned: root.page.params.sectioned || false
+            viewAllPath: root.page.params.viewAllPath || ""
+            artistId: root.page.params.artistId || 0
+            libraryKind: root.page.params.libraryKind || ""
+            userId: authCtl.user_id
+            scrollKey: "view-all:" + (root.page.params.apiPath
+                                      || root.page.params.libraryKind
+                                      || root.page.params.viewAllPath || "")
+            onOpenAlbum: (id) => root.go("album", { albumId: id })
+            onOpenArtist: (id) => root.go("artist", { artistId: id })
+            onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+            onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
+            onOpenExplorePage: (path, title) =>
+                    root.go("view-all", { apiPath: path, title: title, sectioned: true })
+            onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
+        }
+    }
+
+    Component {
+        id: artistTracksPage
+        ArtistTracksPage {
+            player: playerCtl
+            favorites: favoritesCtl
+            artistId: root.page.params.artistId || 0
+            artistName: root.page.params.artistName || ""
+            onTrackContextRequested: (track, x, y) => {
+                trackMenu.track = track
+                trackMenu.openAt(Qt.point(x, y), content)
+            }
+        }
+    }
+
+    Component {
         id: profilePage
         ProfilePage {
             controller: profileCtl
             userId: authCtl.user_id
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
             onViewAllPlaylistsRequested: (playlists, name) =>
-                    root.go("profile-playlists", { playlists: playlists, name: name })
+                    root.go("item-grid", { items: playlists, title: "Public playlists" })
             onBackRequested: root.back()
         }
     }
 
+    // A carousel opened as a grid, over cards the page already holds — used
+    // where TIDAL gives no "view all" endpoint to page through.
     Component {
-        id: profilePlaylistsPage
+        id: itemGridPage
         MediaGridPage {
             player: playerCtl
-            title: "Public playlists"
-            items: root.page.params.playlists || []
-            scrollKey: "profile-playlists"
+            title: root.page.params.title || ""
+            items: root.page.params.items || []
+            scrollKey: "item-grid:" + (root.page.params.title || "")
+            onOpenAlbum: (id) => root.go("album", { albumId: id })
+            onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+            onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
             onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
         }
     }
@@ -370,10 +439,11 @@ QQC2.ApplicationWindow {
     }
 
     // The three collection grids differ only in their source and heading.
-    component CollectionGrid: MediaGridPage {
+    // The three library grids differ only in which favourites they page
+    // through; ViewAllPage handles the paging and the sort control.
+    component CollectionGrid: ViewAllPage {
         player: playerCtl
-        loading: collectionCtl.loading
-        error: collectionCtl.error
+        userId: authCtl.user_id
         onOpenAlbum: (id) => root.go("album", { albumId: id })
         onOpenArtist: (id) => root.go("artist", { artistId: id })
         onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
@@ -385,8 +455,8 @@ QQC2.ApplicationWindow {
         id: favAlbumsPage
         CollectionGrid {
             title: "Albums"
-            items: collectionCtl.albums_json
-            Component.onCompleted: collectionCtl.load_albums(authCtl.user_id, 200)
+            libraryKind: "albums"
+            scrollKey: "fav-albums"
         }
     }
 
@@ -394,8 +464,8 @@ QQC2.ApplicationWindow {
         id: favArtistsPage
         CollectionGrid {
             title: "Artists"
-            items: collectionCtl.artists_json
-            Component.onCompleted: collectionCtl.load_artists(authCtl.user_id, 200)
+            libraryKind: "artists"
+            scrollKey: "fav-artists"
         }
     }
 
@@ -403,8 +473,8 @@ QQC2.ApplicationWindow {
         id: favPlaylistsPage
         CollectionGrid {
             title: "Playlists"
-            items: collectionCtl.playlists_json
-            Component.onCompleted: collectionCtl.load_playlists(authCtl.user_id, 200)
+            libraryKind: "playlists"
+            scrollKey: "fav-playlists"
         }
     }
 

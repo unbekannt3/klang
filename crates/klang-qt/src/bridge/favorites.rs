@@ -140,7 +140,7 @@ pub fn load_blocks(mut self: Pin<&mut Self>, user_id: i64) {
                     Err(e) => log::warn!("blocks: could not load {kind}: {e}"),
                 }
             }
-            let _ = qt.queue(move |mut obj| {
+            let _ = qt.queue(move |obj| {
                 {
                     let mut sets = obj.rust().sets.lock().unwrap();
                     for (kind, ids) in loaded {

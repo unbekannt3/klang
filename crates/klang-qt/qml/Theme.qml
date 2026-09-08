@@ -87,6 +87,10 @@ QtObject {
     // spinner left running in the background keeps the GPU awake for a window
     // nobody is looking at (sone issue #191). Zero-length animations still
     // reach their end value, so bindings stay correct either way.
+    /// TIDAL's Hi-Res gold. Fixed rather than theme-derived: it is a tier
+    /// marker, and the same colour in every palette is the point.
+    readonly property color hiRes: "#E8C87E"
+
     readonly property bool animated: Qt.application.active
     readonly property int durationFast: animated ? 120 : 0
     readonly property int duration: animated ? 180 : 0

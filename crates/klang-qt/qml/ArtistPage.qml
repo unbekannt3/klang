@@ -19,6 +19,11 @@ Item {
     signal openAlbum(int albumId)
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
+    /// "Popular tracks" opened in full.
+    signal openArtistTracks(string artistName)
+    /// A carousel opened as a grid of the cards it already holds.
+    signal openItemGrid(string title, var items)
+    signal itemContextRequested(var item, real x, real y)
 
     readonly property int avatarSize: 200
     property bool bioExpanded: false
@@ -174,13 +179,30 @@ Item {
                 }
             }
 
-            Text {
+            RowLayout {
+                Layout.fillWidth: true
                 Layout.leftMargin: Theme.spaceLg
-                text: "Popular tracks"
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeHeading
-                font.weight: Font.Bold
-                color: Theme.textPrimary
+                Layout.rightMargin: Theme.spaceLg
+
+                Text {
+                    Layout.fillWidth: true
+                    text: "Popular tracks"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeHeading
+                    font.weight: Font.Bold
+                    color: Theme.textPrimary
+                }
+
+                Text {
+                    text: "View all"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSm
+                    font.weight: Font.DemiBold
+                    color: allTracksHover.hovered ? Theme.textPrimary : Theme.textMuted
+
+                    HoverHandler { id: allTracksHover }
+                    TapHandler { onSingleTapped: root.openArtistTracks(root.artist().name || "") }
+                }
             }
 
             TrackList {
@@ -205,7 +227,14 @@ Item {
                 Layout.bottomMargin: Theme.spaceLg
                 title: "Albums"
                 items: root.albumCards()
+                hasViewAll: root.albumCards().length > 0
                 onItemActivated: (item) => root.openAlbum(item.id)
+                onItemPlayRequested: (item) => root.openAlbum(item.id)
+                onItemContextRequested: (item, x, y) => {
+                    const p = mapToItem(root, x, y)
+                    root.itemContextRequested(item, p.x, p.y)
+                }
+                onViewAllRequested: root.openItemGrid("Albums", root.albumCards())
             }
         }
     }

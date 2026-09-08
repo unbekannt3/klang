@@ -204,28 +204,47 @@ Rectangle {
 
             Item { Layout.fillWidth: true }
 
-            // What TIDAL actually served, not what was requested. Clicking it
-            // opens the signal path, the way sone's badge does.
+            // What TIDAL actually served, not what was requested: the tier
+            // TIDAL brands (MAX in gold for Hi-Res) plus the real bit depth
+            // and rate. Clicking it opens the signal path, as in sone.
             Rectangle {
+                readonly property bool hiRes: root.player.quality_tier === "HI_RES_LOSSLESS"
+                                           || root.player.quality_tier === "HI_RES"
+                readonly property color tierColor: hiRes ? Theme.hiRes : Theme.accent
+
                 visible: root.player.quality.length > 0
-                implicitWidth: qLabel.implicitWidth + Theme.space
+                implicitWidth: qualityRow.implicitWidth + Theme.space
                 implicitHeight: 22
                 radius: Theme.radiusXs
                 color: qualityHover.hovered ? Theme.hlFaint : "transparent"
-                border.color: Theme.accent
+                border.color: tierColor
                 border.width: 1
 
                 HoverHandler { id: qualityHover }
                 TapHandler { onSingleTapped: root.signalPathRequested() }
 
-                Text {
-                    id: qLabel
+                Row {
+                    id: qualityRow
                     anchors.centerIn: parent
-                    text: root.player.quality
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSm - 1
-                    font.letterSpacing: 0.5
-                    color: Theme.accent
+                    spacing: Theme.spaceXs
+
+                    Text {
+                        visible: text.length > 0
+                        text: Format.qualityLabel(root.player.quality_tier)
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSm - 1
+                        font.weight: Font.Bold
+                        font.letterSpacing: 0.5
+                        color: parent.parent.tierColor
+                    }
+
+                    Text {
+                        text: root.player.quality
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSm - 1
+                        font.letterSpacing: 0.5
+                        color: Theme.textSecondary
+                    }
                 }
             }
 

@@ -80,7 +80,7 @@ Item {
             width: view.width
             title: modelData.title || ""
             items: modelData.items || []
-            hasViewAll: (modelData.items || []).length > 0
+            hasViewAll: !!modelData.apiPath
             onItemActivated: (item) => root.activate(item)
             onItemPlayRequested: (item) => root.activate(item)
             onItemContextRequested: (item, x, y) => {

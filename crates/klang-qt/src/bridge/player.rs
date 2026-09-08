@@ -28,6 +28,9 @@ pub mod qobject {
         #[qproperty(QString, artist)]
         #[qproperty(QString, cover)]
         #[qproperty(QString, quality)]
+        /// The tier TIDAL served — LOW/HIGH/LOSSLESS/HI_RES_LOSSLESS — kept
+        /// apart from `quality`, which is the bit depth and sample rate.
+        #[qproperty(QString, quality_tier)]
         #[qproperty(QString, error)]
         #[qproperty(i64, track_id)]
         #[qproperty(bool, shuffle)]
@@ -128,6 +131,7 @@ pub struct PlayerControllerRust {
     artist: QString,
     cover: QString,
     quality: QString,
+    quality_tier: QString,
     error: QString,
     track_id: i64,
     shuffle: bool,
@@ -168,6 +172,7 @@ impl Default for PlayerControllerRust {
             artist: QString::default(),
             cover: QString::default(),
             quality: QString::default(),
+            quality_tier: QString::default(),
             error: QString::default(),
             track_id: 0,
             shuffle: false,
@@ -264,6 +269,9 @@ impl qobject::PlayerController {
                 match result {
                     Ok(info) => {
                         obj.as_mut().set_quality(QString::from(&quality_label(&info)));
+                        obj.as_mut().set_quality_tier(QString::from(
+                            &info.audio_quality.clone().unwrap_or_default(),
+                        ));
                         obj.as_mut().set_playing(true);
                         obj.as_mut().publish_metadata();
                         push_playback_status(true, 0.0);
