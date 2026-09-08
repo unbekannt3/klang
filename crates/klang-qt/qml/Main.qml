@@ -266,6 +266,7 @@ QQC2.ApplicationWindow {
         id: feedPage
         FeedPage {
             player: playerCtl
+            userId: authCtl.user_id
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
