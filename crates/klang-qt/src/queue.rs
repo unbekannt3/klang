@@ -47,12 +47,16 @@ pub struct Entry {
     pub artist: String,
     pub duration: f32,
     #[serde(default)]
+    pub album: String,
+    #[serde(default)]
     pub cover: String,
 }
 
 /// The queue is two lists: tracks queued by hand play before the context
 /// (an album, a playlist) the user started from, and are consumed as they play.
-#[derive(Default)]
+/// Derives serde so the whole struct can be persisted verbatim (see
+/// `player.rs`'s `QueueSnapshot`) — every field is already serde-friendly.
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Queue {
     manual: Vec<Entry>,
     context: Vec<Entry>,
@@ -306,6 +310,7 @@ mod tests {
                 title: format!("Track {i}"),
                 artist: "Artist".into(),
                 duration: 180.0,
+                album: "Album".into(),
                 cover: String::new(),
             })
             .collect()
@@ -329,7 +334,7 @@ mod tests {
     #[test]
     fn manual_entries_play_before_the_context() {
         let mut q = queue_of(3);
-        q.enqueue(Entry { id: 99, title: "Queued".into(), artist: "A".into(), duration: 1.0, cover: String::new() });
+        q.enqueue(Entry { id: 99, title: "Queued".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new() });
         assert_eq!(q.advance(true).unwrap().id, 99);
         // The context resumes where it was, not one further on.
         assert_eq!(q.advance(true).unwrap().id, 1);
@@ -338,8 +343,8 @@ mod tests {
     #[test]
     fn play_next_jumps_the_manual_queue() {
         let mut q = queue_of(2);
-        q.enqueue(Entry { id: 10, title: "Later".into(), artist: "A".into(), duration: 1.0, cover: String::new() });
-        q.play_next(Entry { id: 20, title: "Sooner".into(), artist: "A".into(), duration: 1.0, cover: String::new() });
+        q.enqueue(Entry { id: 10, title: "Later".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new() });
+        q.play_next(Entry { id: 20, title: "Sooner".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new() });
         assert_eq!(q.advance(true).unwrap().id, 20);
         assert_eq!(q.advance(true).unwrap().id, 10);
     }
@@ -395,7 +400,7 @@ mod tests {
     fn jumping_the_manual_queue_drops_what_was_skipped() {
         let mut q = queue_of(1);
         for id in [10, 11, 12] {
-            q.enqueue(Entry { id, title: "Q".into(), artist: "A".into(), duration: 1.0, cover: String::new() });
+            q.enqueue(Entry { id, title: "Q".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new() });
         }
         assert_eq!(q.jump(2, true).unwrap().id, 12);
         assert!(q.manual().is_empty());
@@ -462,5 +467,24 @@ mod tests {
         q.jump(0, false);
         let ids: Vec<i64> = q.upcoming().iter().map(|e| e.id).collect();
         assert_eq!(ids, vec![2, 3]);
+    }
+
+    #[test]
+    fn queue_round_trips_through_json() {
+        let mut q = queue_of(4);
+        q.advance(true);
+        q.enqueue(Entry { id: 50, title: "Queued".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new() });
+        q.set_shuffle(true);
+        q.set_repeat(Repeat::All);
+
+        let json = serde_json::to_string(&q).unwrap();
+        let restored: Queue = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.current(), q.current());
+        assert_eq!(restored.repeat(), q.repeat());
+        assert_eq!(restored.is_shuffled(), q.is_shuffled());
+        assert_eq!(restored.manual(), q.manual());
+        assert_eq!(restored.history(), q.history());
+        assert_eq!(restored.upcoming(), q.upcoming());
     }
 }

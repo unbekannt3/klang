@@ -3,8 +3,9 @@
 use crate::core as app;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
-use crate::queue::{Entry, Queue};
+use crate::queue::{Entry, Queue, Repeat};
 use klang_core::api::playback;
+use serde::{Deserialize, Serialize};
 use std::pin::Pin;
 use std::sync::Mutex;
 
@@ -139,6 +140,20 @@ pub struct PlayerControllerRust {
     queue: Mutex<Queue>,
     /// Restored when unmuting.
     volume_before_mute: f32,
+    /// qid of the track currently prerolled for gapless, matched against the
+    /// `track-advanced` event that confirms the pipeline switched to it.
+    armed_qid: String,
+    /// Monotonic source for `armed_qid`, so two prerolls in a row never collide.
+    next_arm_seq: u64,
+    /// Set on every position tick and queue mutation, cleared by the debounced
+    /// save in `attach`.
+    queue_dirty: bool,
+    /// Whether `play_url` has ever run this session; `toggle` uses this to
+    /// tell a real pause from a start-up restore with nothing loaded yet.
+    pipeline_loaded: bool,
+    /// Position to seek to once the in-flight `play()` reports it started —
+    /// set by `toggle`'s cold-start path, consumed in `play`.
+    pending_seek: Option<f32>,
 }
 
 impl Default for PlayerControllerRust {
@@ -164,6 +179,11 @@ impl Default for PlayerControllerRust {
             attached: false,
             queue: Mutex::new(Queue::default()),
             volume_before_mute: 1.0,
+            armed_qid: String::new(),
+            next_arm_seq: 0,
+            queue_dirty: false,
+            pipeline_loaded: false,
+            pending_seek: None,
         }
     }
 }
@@ -178,6 +198,39 @@ fn quality_label(info: &klang_core::tidal_api::StreamInfo) -> String {
             .clone()
             .unwrap_or_else(|| "unknown".to_string()),
     }
+}
+
+/// Same UUID-to-CDN mapping as `CoverArt.qml`'s `url()`; MPRIS needs a real
+/// URI, not the bare TIDAL image UUID the rest of the UI passes around.
+fn art_url(cover: &str) -> String {
+    if cover.is_empty() {
+        return String::new();
+    }
+    if cover.starts_with("http") {
+        return cover.to_string();
+    }
+    let path = cover.replace('-', "/");
+    format!("https://resources.tidal.com/images/{path}/1280x1280.jpg")
+}
+
+fn push_playback_status(is_playing: bool, position_secs: f64) {
+    let _ = playback::update_mpris_playback_status(app::state(), is_playing, Some(position_secs));
+}
+
+fn push_shuffle(enabled: bool) {
+    let _ = playback::update_mpris_shuffle(app::state(), enabled);
+}
+
+fn push_loop_status(repeat: Repeat) {
+    let _ = playback::update_mpris_loop_status(app::state(), repeat.as_i32() as u8);
+}
+
+/// On-disk shape of a saved queue: `{"queue": <Queue's own serde fields>,
+/// "position_secs": <last known playback position>}`.
+#[derive(Serialize, Deserialize)]
+struct QueueSnapshot {
+    queue: Queue,
+    position_secs: f32,
 }
 
 impl qobject::PlayerController {
@@ -197,6 +250,8 @@ impl qobject::PlayerController {
         self.as_mut().set_duration_secs(duration);
         self.as_mut().set_position_secs(0.0);
         self.as_mut().set_track_id(track_id);
+        self.as_mut().rust_mut().pipeline_loaded = true;
+        self.publish_metadata();
         let qt = self.qt_thread();
 
         klang_core::runtime::spawn(async move {
@@ -209,10 +264,25 @@ impl qobject::PlayerController {
                     Ok(info) => {
                         obj.as_mut().set_quality(QString::from(&quality_label(&info)));
                         obj.as_mut().set_playing(true);
+                        obj.as_mut().publish_metadata();
+                        push_playback_status(true, 0.0);
+                        // The queue-driven callers (start/gapless/resume) set this
+                        // before play() resolves; an ad-hoc play() leaves it None.
+                        if let Some(pos) = obj.as_mut().rust_mut().pending_seek.take() {
+                            let qt2 = obj.qt_thread();
+                            klang_core::runtime::spawn(async move {
+                                // play_url just returned; the pipeline is still
+                                // negotiating caps and is not reliably seekable yet.
+                                tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+                                let _ = qt2.queue(move |mut obj| obj.as_mut().seek(pos));
+                            });
+                        }
+                        obj.as_mut().on_queue_changed();
                     }
                     Err(e) => {
                         obj.as_mut().set_playing(false);
                         obj.as_mut().set_error(QString::from(&e.to_string()));
+                        push_playback_status(false, 0.0);
                     }
                 }
             });
@@ -220,8 +290,24 @@ impl qobject::PlayerController {
     }
 
     pub fn toggle(mut self: Pin<&mut Self>) {
+        if !self.rust().pipeline_loaded {
+            // Restored at start-up: the display shows the last track but
+            // nothing was ever loaded into the pipeline, so resume_track has
+            // nothing to resume — do a real load and carry the saved position.
+            let restored = self.rust().queue.lock().unwrap().current().cloned();
+            let saved_position = *self.position_secs();
+            if let Some(entry) = restored {
+                if saved_position > 0.5 {
+                    self.as_mut().rust_mut().pending_seek = Some(saved_position);
+                }
+                self.start(entry);
+            }
+            return;
+        }
+
         let want_play = !*self.playing();
         self.as_mut().set_playing(want_play);
+        push_playback_status(want_play, *self.position_secs() as f64);
         let qt = self.qt_thread();
 
         klang_core::runtime::spawn(async move {
@@ -235,6 +321,7 @@ impl qobject::PlayerController {
                 let _ = qt.queue(move |mut obj| {
                     // The pipeline refused, so put the button back where it was.
                     obj.as_mut().set_playing(!want_play);
+                    push_playback_status(!want_play, 0.0);
                     obj.as_mut().set_error(QString::from(&msg));
                 });
             }
@@ -244,6 +331,10 @@ impl qobject::PlayerController {
     pub fn stop(mut self: Pin<&mut Self>) {
         self.as_mut().set_playing(false);
         self.as_mut().set_position_secs(0.0);
+        self.as_mut().rust_mut().queue_dirty = true;
+        // Nothing is going to play next right now; drop whatever was prerolled.
+        self.as_mut().rust_mut().armed_qid.clear();
+        let _ = playback::clear_next_track(app::state());
         klang_core::runtime::spawn(async move {
             let _ = playback::stop_track(app::state()).await;
         });
@@ -268,6 +359,7 @@ impl qobject::PlayerController {
             return;
         }
         self.as_mut().rust_mut().attached = true;
+        self.as_mut().restore_queue();
 
         // Position poll. The pipeline is the source of truth for where we are;
         // 500 ms is the cadence the React UI used.
@@ -282,13 +374,29 @@ impl qobject::PlayerController {
                 let _ = qt.queue(move |mut obj| {
                     if *obj.playing() {
                         obj.as_mut().set_position_secs(pos);
+                        obj.as_mut().rust_mut().queue_dirty = true;
                     }
                 });
             }
         });
 
-        // Core events. `audio-error` is the one the user must see; the rest of
-        // the catalogue lands here as the bridge grows.
+        // Debounced queue save: the position tick above marks the snapshot
+        // dirty every 500 ms while playing, but this flushes it to disk at
+        // most once per interval, so resume never falls far behind without
+        // writing the state file on every tick.
+        let qt = self.qt_thread();
+        klang_core::runtime::spawn(async move {
+            let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
+            loop {
+                tick.tick().await;
+                let _ = qt.queue(|mut obj| obj.as_mut().flush_queue_if_dirty());
+            }
+        });
+
+        // Core events. `audio-error` is the one the user must see; `track-
+        // advanced` is the gapless boundary firing without a `track-finished`
+        // (concat switched branches on its own); the rest of the catalogue
+        // lands here as the bridge grows.
         let qt = self.qt_thread();
         klang_core::runtime::spawn(async move {
             let mut events = app::subscribe();
@@ -302,9 +410,19 @@ impl qobject::PlayerController {
                                 None => {
                                     obj.as_mut().set_playing(false);
                                     obj.as_mut().set_position_secs(0.0);
+                                    obj.as_mut().rust_mut().queue_dirty = true;
+                                    push_playback_status(false, 0.0);
                                 }
                             }
                         });
+                    }
+                    "track-advanced" => {
+                        let qid = event
+                            .payload
+                            .get("qid")
+                            .and_then(|v| v.as_str())
+                            .map(str::to_string);
+                        let _ = qt.queue(move |mut obj| obj.as_mut().on_gapless_advanced(qid));
                     }
                     "audio-error" => {
                         let msg = event
@@ -316,12 +434,91 @@ impl qobject::PlayerController {
                         let _ = qt.queue(move |mut obj| {
                             obj.as_mut().set_playing(false);
                             obj.as_mut().set_error(QString::from(&msg));
+                            push_playback_status(false, 0.0);
                         });
+                    }
+                    // Media keys, the tray menu and any MPRIS client all
+                    // arrive as these events; without handling them the
+                    // D-Bus interface is publish-only.
+                    "tray:toggle-play" => {
+                        let _ = qt.queue(|obj| obj.toggle());
+                    }
+                    "mpris:play" => {
+                        let _ = qt.queue(|mut obj| {
+                            if !*obj.as_mut().playing() {
+                                obj.toggle();
+                            }
+                        });
+                    }
+                    "mpris:pause" => {
+                        let _ = qt.queue(|mut obj| {
+                            if *obj.as_mut().playing() {
+                                obj.toggle();
+                            }
+                        });
+                    }
+                    "mpris:stop" => {
+                        let _ = qt.queue(|obj| obj.stop());
+                    }
+                    "tray:next-track" => {
+                        let _ = qt.queue(|obj| obj.next());
+                    }
+                    "tray:prev-track" => {
+                        let _ = qt.queue(|obj| obj.previous());
+                    }
+                    "mpris:seek" => {
+                        // Relative, unlike set-position.
+                        if let Some(offset) = event.payload.as_f64() {
+                            let _ = qt.queue(move |mut obj| {
+                                let target = (*obj.as_mut().position_secs() + offset as f32).max(0.0);
+                                obj.seek(target);
+                            });
+                        }
+                    }
+                    "mpris:set-position" => {
+                        if let Some(secs) = event.payload.as_f64() {
+                            let _ = qt.queue(move |obj| obj.seek(secs as f32));
+                        }
+                    }
+                    "mpris:set-volume" => {
+                        if let Some(level) = event.payload.as_f64() {
+                            let _ = qt.queue(move |obj| obj.set_output_volume(level as f32));
+                        }
+                    }
+                    "mpris:set-shuffle" => {
+                        if let Some(on) = event.payload.as_bool() {
+                            let _ = qt.queue(move |mut obj| {
+                                if *obj.as_mut().shuffle() != on {
+                                    obj.toggle_shuffle();
+                                }
+                            });
+                        }
+                    }
+                    "mpris:set-loop-status" => {
+                        if let Some(mode) = event.payload.as_str().map(str::to_string) {
+                            let _ = qt.queue(move |obj| obj.apply_loop_status(&mode));
+                        }
                     }
                     _ => {}
                 }
             }
         });
+    }
+
+    /// Apply an MPRIS `LoopStatus` string. Unknown values are ignored rather
+    /// than treated as "None" — a client sending something odd should not
+    /// silently turn repeat off.
+    fn apply_loop_status(mut self: Pin<&mut Self>, mode: &str) {
+        let repeat = match mode {
+            "None" => Repeat::Off,
+            "Track" => Repeat::One,
+            "Playlist" => Repeat::All,
+            _ => return,
+        };
+        self.as_mut().rust_mut().queue.lock().unwrap().set_repeat(repeat);
+        self.as_mut().set_repeat(repeat.as_i32());
+        push_loop_status(repeat);
+        self.on_queue_changed();
     }
 }
 
@@ -332,6 +529,7 @@ fn entry_from_json(value: &serde_json::Value) -> Option<Entry> {
         title: value.get("title").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
         artist: value.get("artist").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
         duration: value.get("duration").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+        album: value.get("album").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
         cover: value.get("cover").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
     })
 }
@@ -383,6 +581,44 @@ impl qobject::PlayerController {
         self.as_mut().set_queue_json(QString::from(&json));
         self.as_mut().set_history_json(QString::from(&history));
         self.as_mut().set_source(QString::from(&source));
+    }
+
+    /// Push what is currently loaded to MPRIS and Discord RPC. Reads the
+    /// Q_PROPERTYs rather than taking an `Entry`, so `play()` and the gapless
+    /// hand-off (which never builds one) share this one path.
+    fn publish_metadata(&self) {
+        // The album name lives on the queue entry rather than on a
+        // Q_PROPERTY: play() is also called ad-hoc for a single card, where
+        // there is no album to show.
+        let track_id = *self.track_id();
+        let album = self
+            .rust()
+            .queue
+            .lock()
+            .unwrap()
+            .current()
+            .filter(|entry| entry.id == track_id)
+            .map(|entry| entry.album.clone())
+            .unwrap_or_default();
+
+        let _ = playback::update_mpris_metadata(
+            app::state(),
+            playback::MprisMetadata {
+                track_id: (*self.track_id()).max(0) as u64,
+                title: self.title().to_string(),
+                artist: self.artist().to_string(),
+                album,
+                art_url: art_url(&self.cover().to_string()),
+                duration_secs: *self.duration_secs() as f64,
+                url: String::new(),
+                quality_text: self.quality().to_string(),
+                album_artist: None,
+                track_number: None,
+                disc_number: None,
+                content_created: None,
+                user_rating: None,
+            },
+        );
     }
 
     /// Begin playing an entry that the queue has already selected.
@@ -444,7 +680,8 @@ impl qobject::PlayerController {
             .and_then(entry_from_json)
         {
             self.as_mut().rust_mut().queue.lock().unwrap().play_next(entry);
-            self.publish_queue();
+            self.as_mut().publish_queue();
+            self.on_queue_changed();
         }
     }
 
@@ -455,7 +692,8 @@ impl qobject::PlayerController {
             .and_then(entry_from_json)
         {
             self.as_mut().rust_mut().queue.lock().unwrap().enqueue(entry);
-            self.publish_queue();
+            self.as_mut().publish_queue();
+            self.on_queue_changed();
         }
     }
 
@@ -484,24 +722,30 @@ impl qobject::PlayerController {
             .lock()
             .unwrap()
             .remove_manual(index as usize);
-        self.publish_queue();
+        self.as_mut().publish_queue();
+        self.on_queue_changed();
     }
 
     pub fn clear_queue(mut self: Pin<&mut Self>) {
         self.as_mut().rust_mut().queue.lock().unwrap().clear_manual();
-        self.publish_queue();
+        self.as_mut().publish_queue();
+        self.on_queue_changed();
     }
 
     pub fn toggle_shuffle(mut self: Pin<&mut Self>) {
         let on = !*self.shuffle();
         self.as_mut().rust_mut().queue.lock().unwrap().set_shuffle(on);
         self.as_mut().set_shuffle(on);
-        self.publish_queue();
+        push_shuffle(on);
+        self.as_mut().publish_queue();
+        self.on_queue_changed();
     }
 
     pub fn toggle_repeat(mut self: Pin<&mut Self>) {
         let repeat = self.as_mut().rust_mut().queue.lock().unwrap().toggle_repeat();
         self.as_mut().set_repeat(repeat.as_i32());
+        push_loop_status(repeat);
+        self.on_queue_changed();
     }
 
     pub fn toggle_mute(mut self: Pin<&mut Self>) {
@@ -513,5 +757,117 @@ impl qobject::PlayerController {
         }
         self.as_mut().set_volume(level);
         self.set_output_volume(level);
+    }
+}
+
+impl qobject::PlayerController {
+    /// Called after anything that can change what plays next: mark the
+    /// snapshot for its next debounced save and re-arm the gapless preload.
+    fn on_queue_changed(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().queue_dirty = true;
+        self.rearm_gapless();
+    }
+
+    /// Arm whatever `Queue::gapless_next` reports for the track that is
+    /// actually playing, or clear the slot when there is nothing. Skipped when
+    /// the queue's `current` does not match `track_id` — an ad-hoc `play()`
+    /// outside any queue context has nothing of its own worth prefetching.
+    fn rearm_gapless(mut self: Pin<&mut Self>) {
+        let now_playing = *self.track_id();
+        let next = {
+            let queue = self.rust().queue.lock().unwrap();
+            if queue.current().map(|e| e.id) != Some(now_playing) {
+                return;
+            }
+            queue.gapless_next().cloned()
+        };
+        match next {
+            Some(entry) => {
+                self.as_mut().rust_mut().next_arm_seq += 1;
+                let qid = format!("gapless-{}", self.rust().next_arm_seq);
+                self.as_mut().rust_mut().armed_qid = qid.clone();
+                klang_core::runtime::spawn(async move {
+                    let _ = playback::set_next_track(app::state(), entry.id as u64, qid, true).await;
+                });
+            }
+            None => {
+                self.as_mut().rust_mut().armed_qid.clear();
+                let _ = playback::clear_next_track(app::state());
+            }
+        }
+    }
+
+    /// The pipeline crossed a gapless boundary by itself — an armed next track
+    /// took over without a `track-finished`. Catch the queue and display up to
+    /// match, without re-issuing `play()` on an already-playing track.
+    fn on_gapless_advanced(mut self: Pin<&mut Self>, qid: Option<String>) {
+        let armed = self.rust().armed_qid.clone();
+        if armed.is_empty() || qid.as_deref() != Some(armed.as_str()) {
+            return; // stale advance from a slot already replaced by a re-arm
+        }
+        let Some(entry) = self.as_mut().rust_mut().queue.lock().unwrap().advance(true) else {
+            return;
+        };
+        self.as_mut().set_title(QString::from(&entry.title));
+        self.as_mut().set_artist(QString::from(&entry.artist));
+        self.as_mut().set_cover(QString::from(&entry.cover));
+        self.as_mut().set_duration_secs(entry.duration);
+        self.as_mut().set_track_id(entry.id);
+        self.as_mut().set_position_secs(0.0);
+        self.as_mut().set_playing(true);
+        self.publish_metadata();
+        push_playback_status(true, 0.0);
+        self.as_mut().publish_queue();
+        self.on_queue_changed();
+    }
+
+    /// Write the queue and current position, but only if something changed
+    /// since the last flush — the position tick marks this dirty every 500 ms
+    /// while playing, so writing on every call would defeat the debounce.
+    fn flush_queue_if_dirty(mut self: Pin<&mut Self>) {
+        if !self.rust().queue_dirty {
+            return;
+        }
+        self.as_mut().rust_mut().queue_dirty = false;
+        let position_secs = *self.position_secs();
+        let snapshot = QueueSnapshot {
+            queue: self.rust().queue.lock().unwrap().clone(),
+            position_secs,
+        };
+        if let Ok(json) = serde_json::to_string(&snapshot) {
+            let _ = playback::save_playback_queue(app::state(), json);
+        }
+    }
+
+    /// Bring back the queue and now-playing display from the last session.
+    /// The pipeline is left untouched — `toggle`'s cold-start path loads it on
+    /// the first press of play, so the app comes back paused, not playing.
+    fn restore_queue(mut self: Pin<&mut Self>) {
+        let Ok(Some(json)) = playback::load_playback_queue(app::state()) else {
+            return;
+        };
+        let Ok(snapshot) = serde_json::from_str::<QueueSnapshot>(&json) else {
+            return;
+        };
+        let repeat = snapshot.queue.repeat();
+        let shuffled = snapshot.queue.is_shuffled();
+        let Some(entry) = snapshot.queue.current().cloned() else {
+            return;
+        };
+        *self.as_mut().rust_mut().queue.lock().unwrap() = snapshot.queue;
+
+        self.as_mut().set_title(QString::from(&entry.title));
+        self.as_mut().set_artist(QString::from(&entry.artist));
+        self.as_mut().set_cover(QString::from(&entry.cover));
+        self.as_mut().set_duration_secs(entry.duration);
+        self.as_mut().set_track_id(entry.id);
+        self.as_mut().set_position_secs(snapshot.position_secs);
+        self.as_mut().set_shuffle(shuffled);
+        self.as_mut().set_repeat(repeat.as_i32());
+        self.as_mut().publish_queue();
+        self.publish_metadata();
+        push_playback_status(false, snapshot.position_secs as f64);
+        push_shuffle(shuffled);
+        push_loop_status(repeat);
     }
 }
