@@ -1,9 +1,6 @@
-// The single source of design tokens.
-//
-// Colours come from ThemeController, which ports sone's derivation: the whole
-// palette falls out of two hex inputs (accent + background), with 15 presets.
-// Geometry and type are TIDAL's own, read off tidal.com's "wave" design tokens
-// so klang sits at the same proportions as the official client.
+// Design tokens. Colours come from ThemeController (sone's derivation: the
+// palette falls out of accent + background). Geometry and type are TIDAL's,
+// taken from tidal.com's own design tokens.
 pragma Singleton
 
 import QtQuick
@@ -12,8 +9,6 @@ import me.unbk.klang
 QtObject {
     id: theme
 
-    // Owns the palette. Everything below is a passthrough so pages bind to
-    // `Theme.textPrimary` rather than reaching for the controller.
     property ThemeController controller: ThemeController {}
 
     // ---- surfaces -------------------------------------------------------
@@ -56,7 +51,7 @@ QtObject {
     readonly property color error: controller.error
     readonly property color warning: controller.warning
 
-    // ---- geometry, from tidal.com's wave tokens -------------------------
+    // ---- geometry, from tidal.com --------------------------------------
     readonly property int radiusXs: 4
     readonly property int radiusSm: 8
     readonly property int radius: 12
@@ -69,7 +64,6 @@ QtObject {
     readonly property int rowHeight: 56
     readonly property int coverThumb: 40
 
-    // 4-point spacing scale.
     readonly property int spaceXs: 4
     readonly property int spaceSm: 8
     readonly property int space: 16
@@ -77,8 +71,7 @@ QtObject {
     readonly property int spaceXl: 32
 
     // ---- type -----------------------------------------------------------
-    // TIDAL ships "Square Sans Text"; on a stock Fedora it will not resolve, so
-    // the stack falls through to whatever the desktop uses for UI.
+    // Square Sans Text is TIDAL's and will not resolve on a stock Fedora.
     readonly property string fontFamily: "Square Sans Text, Inter, Noto Sans, DejaVu Sans, sans-serif"
     readonly property string monoFamily: "monospace"
 

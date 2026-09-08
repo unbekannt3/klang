@@ -1,19 +1,8 @@
-//! Home and Explore pages.
+//! Home and Explore, as carousel sections.
 //!
-//! TIDAL's home page is a list of horizontal carousels ("Individuelle Mixe",
-//! "Kürzlich abgespielt", "Neue Alben-Vorschläge für dich", …). The facade
-//! (`klang_core::api::pages`) hands back `HomePageSection`s whose `items`
-//! field is deliberately untyped JSON — TIDAL's v1/v2 home-feed endpoints
-//! return wildly different shapes per entity (mix/album/playlist/artist/
-//! track) and the facade passes them through unparsed rather than force a
-//! single struct on them (see the comment above `TidalMix` in
-//! `tidal_api.rs`). This bridge is where that raw JSON finally gets sniffed
-//! into a uniform `{id, title, subtitle, image, kind}` row so QML can pick a
-//! card shape from `kind` without knowing TIDAL's wire format.
-//!
-//! Follows the shape of `library.rs`: properties for what QML binds to,
-//! `#[qinvokable]` entry points that spawn onto `klang_core::runtime` and
-//! queue results back with `CxxQtThread::queue`.
+//! `HomePageSection.items` is untyped JSON — TIDAL returns a different shape
+//! per entity kind — so this is where it gets sniffed into uniform
+//! `{id, title, subtitle, image, kind}` rows.
 
 use crate::core as app;
 use cxx_qt::Threading;
@@ -39,9 +28,7 @@ pub mod qobject {
         #[qproperty(QString, explore_json)]
         type HomeController = super::HomeControllerRust;
 
-        /// Load the personalized home feed: a JSON array of
-        /// `{title, kind, items}` carousels, newest/most-relevant first —
-        /// TIDAL's own ordering is trusted, nothing is resorted here.
+        /// A JSON array of `{title, kind, items}` carousels, in TIDAL's order.
         #[qinvokable]
         fn load_home(self: Pin<&mut HomeController>);
 
@@ -61,11 +48,8 @@ pub struct HomeControllerRust {
     explore_json: QString,
 }
 
-/// Section types that are navigation/promo chrome, not a carousel of
-/// playable entities. Mirrors the filtering `TidalClient` already applies in
-/// `get_home_page` / `get_home_page_more` / `parse_v1_module` — kept here too
-/// because `get_page_section` (used for Explore) does none of that filtering
-/// itself.
+/// Navigation and promo chrome, not playable entities. `get_page_section`
+/// (Explore) does not filter these itself, unlike `get_home_page`.
 fn is_content_section(section_type: &str) -> bool {
     !matches!(
         section_type,
@@ -79,26 +63,16 @@ fn is_content_section(section_type: &str) -> bool {
     )
 }
 
-/// Pull `{text}` or a bare string out of a v2 "text info" field
-/// (`titleTextInfo`, `subtitleTextInfo`, … — see `MixTextInfo` in
-/// `tidal_api.rs`).
+/// Pull `{text}` or a bare string out of a v2 text-info field.
 fn text_info(v: &Value) -> Option<String> {
     v.as_str()
         .map(|s| s.to_string())
         .or_else(|| v.get("text").and_then(|t| t.as_str()).map(|s| s.to_string()))
 }
 
-/// Classify one raw item's TIDAL entity kind from the fields it carries.
-///
-/// `HomePageSection.items` is untyped JSON, so there is no enum to match on.
-/// `TidalClient::parse_v2_section` already solves this exact problem to pick
-/// a *section* type (home_feed v2 wraps each item as `{type, data}` and
-/// merges `type` into `data._itemType`); this reuses the same declared-type
-/// check first, then falls back to the same shape-sniffing heuristic
-/// (`mixType`/`mixImages` → mix, `uuid` → playlist, `cover`/`numberOfTracks`
-/// → album, `picture` → artist, else track) for sections whose type doesn't
-/// name a single kind (`MIXED_TYPES_LIST`, `MIXED_LIST`, or a v1 module type
-/// passed through unmapped).
+/// Entity kind of one raw item: declared `_itemType`/`type` first, then the
+/// section type, then field-shape sniffing — the same order
+/// `TidalClient::parse_v2_section` uses.
 fn item_kind(item: &Value, section_type: &str) -> &'static str {
     let declared = item
         .get("_itemType")

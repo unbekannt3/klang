@@ -51,17 +51,17 @@ QQC2.ApplicationWindow {
     }
 
     AuthController {
-        id: auth
+        id: authCtl
         // user_id is set before logged_in, so it is already valid here.
-        onLogged_inChanged: if (logged_in) playlists.load_all(auth.user_id)
+        onLogged_inChanged: if (logged_in) playlistsCtl.load_all(authCtl.user_id)
     }
 
-    PlayerController { id: player }
-    PlaylistsController { id: playlists }
+    PlayerController { id: playerCtl }
+    PlaylistsController { id: playlistsCtl }
 
     Component.onCompleted: {
-        player.attach()
-        auth.restore()
+        playerCtl.attach()
+        authCtl.restore()
     }
 
     // ---- chrome ---------------------------------------------------------
@@ -81,9 +81,9 @@ QQC2.ApplicationWindow {
 
             Sidebar {
                 Layout.fillHeight: true
-                visible: auth.logged_in
+                visible: authCtl.logged_in
                 current: root.route
-                playlists: playlists.playlists_json
+                playlists: playlistsCtl.playlists_json
                 onNavigate: (r) => root.goRoot(r)
                 onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
             }
@@ -95,15 +95,15 @@ QQC2.ApplicationWindow {
 
                 LoginPage {
                     anchors.fill: parent
-                    visible: !auth.logged_in
-                    auth: auth
+                    visible: !authCtl.logged_in
+                    auth: authCtl
                 }
 
                 Loader {
                     id: content
                     anchors.fill: parent
-                    visible: auth.logged_in
-                    active: auth.logged_in
+                    visible: authCtl.logged_in
+                    active: authCtl.logged_in
 
                     sourceComponent: switch (root.route) {
                         case "home":      return homePage
@@ -120,8 +120,8 @@ QQC2.ApplicationWindow {
 
         PlayerBar {
             Layout.fillWidth: true
-            visible: player.track_id !== 0
-            player: player
+            visible: playerCtl.track_id !== 0
+            player: playerCtl
         }
     }
 
@@ -129,13 +129,13 @@ QQC2.ApplicationWindow {
     // so no page needs to know about any other.
     Component {
         id: favoritesPage
-        FavoritesPage { player: player; userId: auth.user_id }
+        FavoritesPage { player: playerCtl; userId: authCtl.user_id }
     }
 
     Component {
         id: homePage
         HomePage {
-            player: player
+            player: playerCtl
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
@@ -145,7 +145,7 @@ QQC2.ApplicationWindow {
     Component {
         id: explorePage
         ExplorePage {
-            player: player
+            player: playerCtl
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
@@ -155,7 +155,7 @@ QQC2.ApplicationWindow {
     Component {
         id: searchPage
         SearchPage {
-            player: player
+            player: playerCtl
             query: root.page.params.query || ""
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
@@ -166,7 +166,7 @@ QQC2.ApplicationWindow {
     Component {
         id: albumPage
         AlbumPage {
-            player: player
+            player: playerCtl
             albumId: root.page.params.albumId || 0
             onOpenArtist: (id) => root.go("artist", { artistId: id })
         }
@@ -175,7 +175,7 @@ QQC2.ApplicationWindow {
     Component {
         id: artistPage
         ArtistPage {
-            player: player
+            player: playerCtl
             artistId: root.page.params.artistId || 0
             onOpenAlbum: (id) => root.go("album", { albumId: id })
         }
@@ -184,7 +184,7 @@ QQC2.ApplicationWindow {
     Component {
         id: playlistPage
         PlaylistPage {
-            player: player
+            player: playerCtl
             playlistUuid: root.page.params.uuid || ""
             playlistTitle: root.page.params.title || ""
         }
@@ -205,7 +205,7 @@ QQC2.ApplicationWindow {
         color: Theme.elevated
         border.color: Theme.error
         border.width: 1
-        opacity: player.error.length > 0 ? 1 : 0
+        opacity: playerCtl.error.length > 0 ? 1 : 0
         visible: opacity > 0
 
         Behavior on opacity {
@@ -218,7 +218,7 @@ QQC2.ApplicationWindow {
             width: parent.width - Theme.space
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
-            text: player.error
+            text: playerCtl.error
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
             color: Theme.textPrimary
@@ -227,13 +227,13 @@ QQC2.ApplicationWindow {
         Timer {
             id: errorTimer
             interval: 6000
-            onTriggered: player.error = ""
+            onTriggered: playerCtl.error = ""
         }
 
         Connections {
-            target: player
+            target: playerCtl
             function onErrorChanged() {
-                if (player.error.length > 0)
+                if (playerCtl.error.length > 0)
                     errorTimer.restart()
             }
         }

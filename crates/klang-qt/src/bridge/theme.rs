@@ -138,14 +138,6 @@ impl Default for ThemeControllerRust {
 }
 
 /// Convert a TS-style color value (plain `#rrggbb`/`#rgb` hex, or an
-/// `rgba(r,g,b,a)` adaptive overlay) into a QML-ready color string.
-///
-/// Plain hex becomes uppercase `#RRGGBB`. `rgba(...)` becomes uppercase
-/// `#AARRGGBB` — Qt/QML's `color` type parses the 8-digit alpha-first hex
-/// form natively, so this is the one lossless way to keep the translucency:
-/// truncating to a bare `#RRGGBB` would turn e.g. `border_subtle`'s 6% white
-/// overlay into solid opaque white. See the judgement-call note in the
-/// module report.
 fn to_qml_color(value: &str) -> String {
     if let Some(hex) = value.strip_prefix('#') {
         return format!("#{}", hex.to_uppercase());

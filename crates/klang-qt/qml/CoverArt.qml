@@ -1,11 +1,6 @@
-// Album or artist artwork.
-//
-// TIDAL serves images from a public CDN with no auth, so Qt's Image fetches
-// them directly and keeps its own network cache. That bypasses klang-core's
-// disk cache and proxy settings — a deliberate trade for now; routing every
-// thumbnail through the core would need a QQuickImageProvider.
-//
-// No corner radius by default: tidal.com renders covers square.
+// TIDAL's image CDN needs no auth, so Qt fetches directly and uses its own
+// network cache. This bypasses klang-core's disk cache and proxy settings;
+// routing thumbnails through the core would need a QQuickImageProvider.
 
 import QtQuick
 import me.unbk.klang
@@ -13,9 +8,8 @@ import me.unbk.klang
 Rectangle {
     id: root
 
-    /// TIDAL image UUID. A full URL is passed through unchanged.
+    /// TIDAL image UUID, or a full URL.
     property string uuid: ""
-    /// Shown while loading and when there is no artwork.
     property string placeholderGlyph: "♪"
 
     color: Theme.inset
@@ -42,10 +36,9 @@ Rectangle {
     Image {
         id: image
         anchors.fill: parent
-        // Decoded off the GUI thread so a long list never stutters.
         asynchronous: true
         cache: true
-        // Cap the texture at what is drawn, not the source resolution.
+        // Cap the texture at the drawn size, not the source resolution.
         sourceSize.width: Math.round(root.width * Screen.devicePixelRatio)
         sourceSize.height: Math.round(root.height * Screen.devicePixelRatio)
         fillMode: Image.PreserveAspectCrop
