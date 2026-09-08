@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/klang-core"]
+members = ["crates/klang-core", "crates/klang-qt"]
 
 [workspace.package]
 version = "0.1.0"

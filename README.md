@@ -24,8 +24,7 @@ output, gapless playback, GStreamer pipeline probing, MPRIS, scrobbling.
 ```
 crates/klang-core/    the inherited core — TIDAL API, playback, MPRIS,
                       scrobbling, cache, MCP server, OBS overlay
-crates/klang-qt/      cxx-qt bridge and main() — not started yet
-qml/                  Kirigami UI — not started yet
+crates/klang-qt/      cxx-qt bridge, main(), and the QML under qml/
 src/                  sone's React UI, kept as a reference while porting
 scripts/sync-core.sh  three-way merge of upstream fixes into klang-core
 ```
@@ -56,18 +55,27 @@ Boot the core with no UI attached and see what it finds:
 cargo run -p klang-core --example smoke
 ```
 
-## Configuration
-
-Settings, cache and logs default to `~/.config/sone`, so a native sone install
-carries over unchanged. A Flatpak sone keeps its profile elsewhere — point klang
-at it:
+Run the app:
 
 ```sh
-KLANG_CONFIG_DIR=~/.var/app/io.github.lullabyX.sone/config/sone \
-    cargo run -p klang-core --example smoke
+cargo run -p klang-qt
 ```
 
-klang claims its own MPRIS name, `me.unbk.klang`, so it can run alongside sone.
+Sign in with the device code it shows: open link.tidal.com in a browser and
+type the code. The session is then remembered.
+
+## Configuration
+
+Settings, cache and logs live in `~/.config/klang`, and the MPRIS name is
+`me.unbk.klang`, so klang runs beside sone without touching its profile or
+stealing its D-Bus name.
+
+`$KLANG_CONFIG_DIR` overrides the location. To start from an existing sone
+login instead of signing in again, copy the profile across once:
+
+```sh
+cp -r ~/.var/app/io.github.lullabyX.sone/config/sone ~/.config/klang
+```
 
 ## Upstream
 

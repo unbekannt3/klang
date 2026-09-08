@@ -1,0 +1,23 @@
+[package]
+name = "klang-qt"
+description = "Qt Quick / Kirigami front end for klang"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "klang"
+path = "src/main.rs"
+
+[dependencies]
+klang-core = { path = "../klang-core" }
+cxx = "1.0"
+cxx-qt = "0.10"
+cxx-qt-lib = { version = "0.10", features = ["qt_gui", "qt_qml"] }
+log = "0.4"
+tokio = { version = "1", features = ["time", "sync", "rt"] }
+serde_json = "1"
+
+[build-dependencies]
+cxx-qt-build = { version = "0.10", features = ["link_qt_object_files"] }
