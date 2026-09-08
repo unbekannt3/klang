@@ -19,6 +19,14 @@ fn main() {
             QmlFile::from("qml/ThemedScrollBar.qml"),
             QmlFile::from("qml/WheelScroller.qml"),
             QmlFile::from("qml/CoverArt.qml"),
+            QmlFile::from("qml/MediaCard.qml"),
+            QmlFile::from("qml/CardCarousel.qml"),
+            QmlFile::from("qml/HomePage.qml"),
+            QmlFile::from("qml/ExplorePage.qml"),
+            QmlFile::from("qml/SearchPage.qml"),
+            QmlFile::from("qml/AlbumPage.qml"),
+            QmlFile::from("qml/ArtistPage.qml"),
+            QmlFile::from("qml/PlaylistPage.qml"),
         ]),
     )
     .qrc("qml/resources.qrc")

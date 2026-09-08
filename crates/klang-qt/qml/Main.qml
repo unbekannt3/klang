@@ -23,8 +23,32 @@ QQC2.ApplicationWindow {
     // and resizing go through the compositor — see TitleBar and ResizeEdges.
     flags: Qt.Window | Qt.FramelessWindowHint
 
-    // Which page the content area shows.
-    property string route: "favorites"
+    // ---- navigation ----------------------------------------------------
+    //
+    // A page is {route, params}. `history` is the back stack; the sidebar
+    // resets it, opening a detail pushes onto it.
+    property var page: ({ route: "favorites", params: {} })
+    property var history: []
+    readonly property string route: page.route
+
+    function go(route, params) {
+        history.push(page)
+        historyChanged()
+        page = { route: route, params: params || {} }
+    }
+
+    /// Sidebar destinations are roots, not steps — they clear the stack.
+    function goRoot(route) {
+        history = []
+        page = { route: route, params: {} }
+    }
+
+    function back() {
+        if (history.length === 0)
+            return
+        page = history.pop()
+        historyChanged()
+    }
 
     AuthController {
         id: auth
@@ -60,12 +84,8 @@ QQC2.ApplicationWindow {
                 visible: auth.logged_in
                 current: root.route
                 playlists: playlists.playlists_json
-                onNavigate: (r) => root.route = r
-                onOpenPlaylist: (uuid, title) => {
-                    // The playlist page lands with the playlists bridge; until
-                    // then the request is recorded so nothing is silently lost.
-                    console.log("open playlist", uuid, title)
-                }
+                onNavigate: (r) => root.goRoot(r)
+                onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
             }
 
             // Content area
@@ -79,25 +99,20 @@ QQC2.ApplicationWindow {
                     auth: auth
                 }
 
-                FavoritesPage {
+                Loader {
+                    id: content
                     anchors.fill: parent
-                    visible: auth.logged_in && root.route === "favorites"
-                    player: player
-                    userId: auth.user_id
-                }
+                    visible: auth.logged_in
+                    active: auth.logged_in
 
-                // Placeholder while the home and explore bridges land.
-                Item {
-                    anchors.fill: parent
-                    visible: auth.logged_in && root.route !== "favorites"
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: root.route === "home" ? "Home is being built"
-                                                    : "Explore is being built"
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeLg
-                        color: Theme.textFaint
+                    sourceComponent: switch (root.route) {
+                        case "home":      return homePage
+                        case "explore":   return explorePage
+                        case "search":    return searchPage
+                        case "album":     return albumPage
+                        case "artist":    return artistPage
+                        case "playlist":  return playlistPage
+                        default:          return favoritesPage
                     }
                 }
             }
@@ -107,6 +122,71 @@ QQC2.ApplicationWindow {
             Layout.fillWidth: true
             visible: player.track_id !== 0
             player: player
+        }
+    }
+
+    // One component per route. Each page bubbles navigation requests up here,
+    // so no page needs to know about any other.
+    Component {
+        id: favoritesPage
+        FavoritesPage { player: player; userId: auth.user_id }
+    }
+
+    Component {
+        id: homePage
+        HomePage {
+            player: player
+            onOpenAlbum: (id) => root.go("album", { albumId: id })
+            onOpenArtist: (id) => root.go("artist", { artistId: id })
+            onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+        }
+    }
+
+    Component {
+        id: explorePage
+        ExplorePage {
+            player: player
+            onOpenAlbum: (id) => root.go("album", { albumId: id })
+            onOpenArtist: (id) => root.go("artist", { artistId: id })
+            onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+        }
+    }
+
+    Component {
+        id: searchPage
+        SearchPage {
+            player: player
+            query: root.page.params.query || ""
+            onOpenAlbum: (id) => root.go("album", { albumId: id })
+            onOpenArtist: (id) => root.go("artist", { artistId: id })
+            onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+        }
+    }
+
+    Component {
+        id: albumPage
+        AlbumPage {
+            player: player
+            albumId: root.page.params.albumId || 0
+            onOpenArtist: (id) => root.go("artist", { artistId: id })
+        }
+    }
+
+    Component {
+        id: artistPage
+        ArtistPage {
+            player: player
+            artistId: root.page.params.artistId || 0
+            onOpenAlbum: (id) => root.go("album", { albumId: id })
+        }
+    }
+
+    Component {
+        id: playlistPage
+        PlaylistPage {
+            player: player
+            playlistUuid: root.page.params.uuid || ""
+            playlistTitle: root.page.params.title || ""
         }
     }
 
