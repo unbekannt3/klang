@@ -1,4 +1,4 @@
-// Home page — stub. See the page contract in Main.qml's Router.
+// Home feed: personalized carousels from TIDAL.
 
 import QtQuick
 import me.unbk.klang
@@ -12,13 +12,21 @@ Item {
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
 
+    HomeController { id: home }
+
+    Component.onCompleted: home.load_home()
+
     Rectangle { anchors.fill: parent; color: Theme.base }
 
-    Text {
-        anchors.centerIn: parent
-        text: "Home — not built yet"
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSizeLg
-        color: Theme.textFaint
+    SectionList {
+        anchors.fill: parent
+        player: root.player
+        sections: home.sections_json
+        loading: home.loading
+        error: home.error
+        emptyText: "Nothing to show yet"
+        onOpenAlbum: (id) => root.openAlbum(id)
+        onOpenArtist: (id) => root.openArtist(id)
+        onOpenPlaylist: (uuid, title) => root.openPlaylist(uuid, title)
     }
 }

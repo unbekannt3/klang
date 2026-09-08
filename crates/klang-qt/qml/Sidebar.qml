@@ -29,7 +29,7 @@ Rectangle {
         id: item
         required property string route
         required property string label
-        required property string iconGlyph
+        required property string iconName
 
         Layout.fillWidth: true
         height: 40
@@ -45,10 +45,11 @@ Rectangle {
         contentItem: RowLayout {
             spacing: Theme.spaceSm
 
-            Text {
+            Icon {
                 Layout.leftMargin: Theme.spaceSm
-                text: item.iconGlyph
-                font.pixelSize: Theme.fontSizeLg
+                Layout.preferredWidth: 20
+                Layout.preferredHeight: 20
+                name: item.iconName
                 color: root.current === item.route ? Theme.textPrimary : Theme.textMuted
             }
 
@@ -98,9 +99,9 @@ Rectangle {
             }
         }
 
-        NavItem { route: "home";      label: "Home";          iconGlyph: "♫" }
-        NavItem { route: "explore";   label: "Explore";       iconGlyph: "◈" }
-        NavItem { route: "favorites"; label: "Loved Tracks";  iconGlyph: "♥" }
+        NavItem { route: "home";      label: "Home";         iconName: "home" }
+        NavItem { route: "explore";   label: "Explore";      iconName: "explore" }
+        NavItem { route: "favorites"; label: "Loved Tracks"; iconName: "heart" }
 
         // Divider
         Rectangle {

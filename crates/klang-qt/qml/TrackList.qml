@@ -22,7 +22,7 @@ Item {
     /// Album views already show one big cover, so their rows hide the thumbnail.
     property bool showCovers: true
 
-    signal trackActivated(int id, string title, string artist, real duration, string cover)
+    signal trackActivated(int index)
 
     function rows() {
         if (typeof tracks === "string")
@@ -142,9 +142,7 @@ Item {
 
             HoverHandler { id: hover }
             TapHandler {
-                onSingleTapped: root.trackActivated(row.modelData.id, row.modelData.title,
-                                                    row.modelData.artist, row.modelData.duration,
-                                                    row.modelData.cover || "")
+                onSingleTapped: root.trackActivated(row.index)
             }
 
             RowLayout {

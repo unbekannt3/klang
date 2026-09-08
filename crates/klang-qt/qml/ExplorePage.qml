@@ -1,4 +1,4 @@
-// Explore page — stub. See the page contract in Main.qml's Router.
+// Explore: the same section shape as Home, from a different TIDAL endpoint.
 
 import QtQuick
 import me.unbk.klang
@@ -12,13 +12,21 @@ Item {
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
 
+    HomeController { id: home }
+
+    Component.onCompleted: home.load_explore()
+
     Rectangle { anchors.fill: parent; color: Theme.base }
 
-    Text {
-        anchors.centerIn: parent
-        text: "Explore — not built yet"
-        font.family: Theme.fontFamily
-        font.pixelSize: Theme.fontSizeLg
-        color: Theme.textFaint
+    SectionList {
+        anchors.fill: parent
+        player: root.player
+        sections: home.explore_json
+        loading: home.loading
+        error: home.error
+        emptyText: "Nothing to explore yet"
+        onOpenAlbum: (id) => root.openAlbum(id)
+        onOpenArtist: (id) => root.openArtist(id)
+        onOpenPlaylist: (uuid, title) => root.openPlaylist(uuid, title)
     }
 }

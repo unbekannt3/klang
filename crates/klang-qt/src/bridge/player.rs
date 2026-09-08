@@ -3,8 +3,10 @@
 use crate::core as app;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
+use crate::queue::{Entry, Queue};
 use klang_core::api::playback;
 use std::pin::Pin;
+use std::sync::Mutex;
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -26,6 +28,12 @@ pub mod qobject {
         #[qproperty(QString, quality)]
         #[qproperty(QString, error)]
         #[qproperty(i64, track_id)]
+        #[qproperty(bool, shuffle)]
+        /// 0 off, 1 all, 2 one.
+        #[qproperty(i32, repeat)]
+        #[qproperty(f32, volume)]
+        #[qproperty(QString, queue_json)]
+        #[qproperty(QString, source)]
         type PlayerController = super::PlayerControllerRust;
 
         /// Resolve the stream and start playing. `duration` seeds the progress
@@ -53,6 +61,47 @@ pub mod qobject {
         #[qinvokable]
         fn set_output_volume(self: Pin<&mut PlayerController>, level: f32);
 
+        /// Replace the queue with `tracks_json` and start at `index`.
+        #[qinvokable]
+        fn play_context(
+            self: Pin<&mut PlayerController>,
+            tracks_json: &QString,
+            index: i32,
+            source: &QString,
+        );
+
+        #[qinvokable]
+        fn next(self: Pin<&mut PlayerController>);
+
+        #[qinvokable]
+        fn previous(self: Pin<&mut PlayerController>);
+
+        /// Enqueue ahead of the context.
+        #[qinvokable]
+        fn play_next(self: Pin<&mut PlayerController>, track_json: &QString);
+
+        #[qinvokable]
+        fn enqueue(self: Pin<&mut PlayerController>, track_json: &QString);
+
+        /// Jump to an upcoming entry. `manual` picks which list `index` is in.
+        #[qinvokable]
+        fn jump_to(self: Pin<&mut PlayerController>, index: i32, manual: bool);
+
+        #[qinvokable]
+        fn remove_queued(self: Pin<&mut PlayerController>, index: i32);
+
+        #[qinvokable]
+        fn clear_queue(self: Pin<&mut PlayerController>);
+
+        #[qinvokable]
+        fn toggle_shuffle(self: Pin<&mut PlayerController>);
+
+        #[qinvokable]
+        fn toggle_repeat(self: Pin<&mut PlayerController>);
+
+        #[qinvokable]
+        fn toggle_mute(self: Pin<&mut PlayerController>);
+
         /// Start the position poll and subscribe to core events. Call once.
         #[qinvokable]
         fn attach(self: Pin<&mut PlayerController>);
@@ -61,7 +110,6 @@ pub mod qobject {
     impl cxx_qt::Threading for PlayerController {}
 }
 
-#[derive(Default)]
 pub struct PlayerControllerRust {
     playing: bool,
     busy: bool,
@@ -73,7 +121,40 @@ pub struct PlayerControllerRust {
     quality: QString,
     error: QString,
     track_id: i64,
+    shuffle: bool,
+    repeat: i32,
+    volume: f32,
+    queue_json: QString,
+    source: QString,
     attached: bool,
+    queue: Mutex<Queue>,
+    /// Restored when unmuting.
+    volume_before_mute: f32,
+}
+
+impl Default for PlayerControllerRust {
+    fn default() -> Self {
+        Self {
+            playing: false,
+            busy: false,
+            position_secs: 0.0,
+            duration_secs: 0.0,
+            title: QString::default(),
+            artist: QString::default(),
+            cover: QString::default(),
+            quality: QString::default(),
+            error: QString::default(),
+            track_id: 0,
+            shuffle: false,
+            repeat: 0,
+            volume: 1.0,
+            queue_json: QString::from("[]"),
+            source: QString::default(),
+            attached: false,
+            queue: Mutex::new(Queue::default()),
+            volume_before_mute: 1.0,
+        }
+    }
 }
 
 /// Reports the sample rate and bit depth TIDAL actually served, so the badge
@@ -164,7 +245,8 @@ impl qobject::PlayerController {
         });
     }
 
-    pub fn set_output_volume(self: Pin<&mut Self>, level: f32) {
+    pub fn set_output_volume(mut self: Pin<&mut Self>, level: f32) {
+        self.as_mut().set_volume(level);
         let _ = playback::set_volume(app::state(), level);
     }
 
@@ -203,8 +285,14 @@ impl qobject::PlayerController {
                 match event.name.as_str() {
                     "track-finished" => {
                         let _ = qt.queue(|mut obj| {
-                            obj.as_mut().set_playing(false);
-                            obj.as_mut().set_position_secs(0.0);
+                            let next = obj.rust().queue.lock().unwrap().advance(true);
+                            match next {
+                                Some(entry) => obj.as_mut().start(entry),
+                                None => {
+                                    obj.as_mut().set_playing(false);
+                                    obj.as_mut().set_position_secs(0.0);
+                                }
+                            }
                         });
                     }
                     "audio-error" => {
@@ -223,5 +311,181 @@ impl qobject::PlayerController {
                 }
             }
         });
+    }
+}
+
+/// Parse one row from `rows.rs` into a queue entry.
+fn entry_from_json(value: &serde_json::Value) -> Option<Entry> {
+    Some(Entry {
+        id: value.get("id")?.as_i64()?,
+        title: value.get("title").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+        artist: value.get("artist").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+        duration: value.get("duration").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+        cover: value.get("cover").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+    })
+}
+
+fn entries_from_json(json: &str) -> Vec<Entry> {
+    serde_json::from_str::<serde_json::Value>(json)
+        .ok()
+        .and_then(|v| v.as_array().cloned())
+        .map(|rows| rows.iter().filter_map(entry_from_json).collect())
+        .unwrap_or_default()
+}
+
+impl qobject::PlayerController {
+    /// Publish what is queued, manual entries first, so QML can render one list.
+    fn publish_queue(mut self: Pin<&mut Self>) {
+        let (json, source) = {
+            let queue = self.rust().queue.lock().unwrap();
+            let rows: Vec<serde_json::Value> = queue
+                .manual()
+                .iter()
+                .map(|e| serde_json::json!({
+                    "id": e.id, "title": e.title, "artist": e.artist,
+                    "duration": e.duration, "cover": e.cover, "manual": true,
+                }))
+                .chain(queue.upcoming().iter().map(|e| serde_json::json!({
+                    "id": e.id, "title": e.title, "artist": e.artist,
+                    "duration": e.duration, "cover": e.cover, "manual": false,
+                })))
+                .collect();
+            (
+                serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into()),
+                queue.source().to_string(),
+            )
+        };
+        self.as_mut().set_queue_json(QString::from(&json));
+        self.as_mut().set_source(QString::from(&source));
+    }
+
+    /// Begin playing an entry that the queue has already selected.
+    fn start(mut self: Pin<&mut Self>, entry: Entry) {
+        let title = QString::from(&entry.title);
+        let artist = QString::from(&entry.artist);
+        let cover = QString::from(&entry.cover);
+        self.as_mut().play(entry.id, &title, &artist, entry.duration, &cover);
+        self.publish_queue();
+    }
+}
+
+impl qobject::PlayerController {
+    pub fn play_context(
+        mut self: Pin<&mut Self>,
+        tracks_json: &QString,
+        index: i32,
+        source: &QString,
+    ) {
+        let entries = entries_from_json(&tracks_json.to_string());
+        if entries.is_empty() {
+            return;
+        }
+        let start = {
+            let mut queue = self.rust().queue.lock().unwrap();
+            queue.set_context(entries, index.max(0) as usize, source.to_string());
+            queue.current().cloned()
+        };
+        if let Some(entry) = start {
+            self.start(entry);
+        }
+    }
+
+    pub fn next(mut self: Pin<&mut Self>) {
+        let entry = self.rust().queue.lock().unwrap().advance(false);
+        match entry {
+            Some(entry) => self.start(entry),
+            None => self.stop(),
+        }
+    }
+
+    pub fn previous(mut self: Pin<&mut Self>) {
+        // Restart the track first, like every other player, and only step back
+        // when already near the beginning.
+        if *self.position_secs() > 3.0 {
+            self.as_mut().seek(0.0);
+            return;
+        }
+        let entry = self.rust().queue.lock().unwrap().previous();
+        if let Some(entry) = entry {
+            self.start(entry);
+        }
+    }
+
+    pub fn play_next(mut self: Pin<&mut Self>, track_json: &QString) {
+        if let Some(entry) = serde_json::from_str(&track_json.to_string())
+            .ok()
+            .as_ref()
+            .and_then(entry_from_json)
+        {
+            self.as_mut().rust_mut().queue.lock().unwrap().play_next(entry);
+            self.publish_queue();
+        }
+    }
+
+    pub fn enqueue(mut self: Pin<&mut Self>, track_json: &QString) {
+        if let Some(entry) = serde_json::from_str(&track_json.to_string())
+            .ok()
+            .as_ref()
+            .and_then(entry_from_json)
+        {
+            self.as_mut().rust_mut().queue.lock().unwrap().enqueue(entry);
+            self.publish_queue();
+        }
+    }
+
+    pub fn jump_to(mut self: Pin<&mut Self>, index: i32, manual: bool) {
+        if index < 0 {
+            return;
+        }
+        let entry = self
+            .rust()
+            .queue
+            .lock()
+            .unwrap()
+            .jump(index as usize, manual);
+        if let Some(entry) = entry {
+            self.start(entry);
+        }
+    }
+
+    pub fn remove_queued(mut self: Pin<&mut Self>, index: i32) {
+        if index < 0 {
+            return;
+        }
+        self.as_mut()
+            .rust_mut()
+            .queue
+            .lock()
+            .unwrap()
+            .remove_manual(index as usize);
+        self.publish_queue();
+    }
+
+    pub fn clear_queue(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().queue.lock().unwrap().clear_manual();
+        self.publish_queue();
+    }
+
+    pub fn toggle_shuffle(mut self: Pin<&mut Self>) {
+        let on = !*self.shuffle();
+        self.as_mut().rust_mut().queue.lock().unwrap().set_shuffle(on);
+        self.as_mut().set_shuffle(on);
+        self.publish_queue();
+    }
+
+    pub fn toggle_repeat(mut self: Pin<&mut Self>) {
+        let repeat = self.as_mut().rust_mut().queue.lock().unwrap().toggle_repeat();
+        self.as_mut().set_repeat(repeat.as_i32());
+    }
+
+    pub fn toggle_mute(mut self: Pin<&mut Self>) {
+        let current = *self.volume();
+        let restored = self.rust().volume_before_mute;
+        let level = if current > 0.0 { 0.0 } else { restored.max(0.05) };
+        if current > 0.0 {
+            self.as_mut().rust_mut().volume_before_mute = current;
+        }
+        self.as_mut().set_volume(level);
+        self.set_output_volume(level);
     }
 }

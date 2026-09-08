@@ -1,6 +1,5 @@
-// Custom window chrome, so the titlebar carries the app's colours instead of
-// Breeze's. The window is frameless; dragging and the window buttons go through
-// QWindow's public slots, which QML can call directly.
+// A Wayland client cannot move itself, so dragging goes through
+// QWindow::startSystemMove — a public slot, hence callable straight from QML.
 
 import QtQuick
 import QtQuick.Layouts
@@ -19,7 +18,6 @@ Rectangle {
     implicitHeight: 38
     color: Theme.sidebar
 
-    // The whole bar is the drag handle, except where a button sits on top.
     DragHandler {
         target: null
         onActiveChanged: if (active) root.window.startSystemMove()
@@ -33,23 +31,26 @@ Rectangle {
 
     component WindowButton: Rectangle {
         id: btn
-        property string glyph: ""
-        /// Close gets the destructive hover colour.
+        property string iconName: ""
         property bool destructive: false
+        property bool active: true
         signal activated()
 
         implicitWidth: 40
         implicitHeight: root.height
-        color: hover.hovered ? (destructive ? Theme.error : Theme.hlMed) : "transparent"
+        opacity: btn.active ? 1 : 0.3
+        color: hover.hovered && btn.active
+               ? (destructive ? Theme.error : Theme.hlMed)
+               : "transparent"
 
-        HoverHandler { id: hover }
-        TapHandler { onSingleTapped: btn.activated() }
+        HoverHandler { id: hover; enabled: btn.active }
+        TapHandler { enabled: btn.active; onSingleTapped: btn.activated() }
 
-        Text {
+        Icon {
             anchors.centerIn: parent
-            text: btn.glyph
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeSm
+            width: 16
+            height: 16
+            name: btn.iconName
             color: hover.hovered && btn.destructive ? Theme.textPrimary : Theme.textSecondary
         }
     }
@@ -69,9 +70,8 @@ Rectangle {
         }
 
         WindowButton {
-            glyph: "‹"
-            enabled: root.canGoBack
-            opacity: root.canGoBack ? 1 : 0.3
+            iconName: "back"
+            active: root.canGoBack
             onActivated: root.backRequested()
         }
 
@@ -85,12 +85,13 @@ Rectangle {
             border.color: search.activeFocus ? Theme.accent : "transparent"
             border.width: 1
 
-            Text {
+            Icon {
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.spaceSm
                 anchors.verticalCenter: parent.verticalCenter
-                text: "⌕"
-                font.pixelSize: Theme.fontSize
+                width: 14
+                height: 14
+                name: "search"
                 color: Theme.textFaint
             }
 
@@ -107,7 +108,18 @@ Rectangle {
                 color: Theme.textPrimary
                 selectionColor: Theme.accent
                 selectedTextColor: Theme.onAccent
-                onAccepted: root.searchSubmitted(text)
+                onAccepted: {
+                    debounce.stop()
+                    root.searchSubmitted(text)
+                }
+                // Search as you type, but only once typing pauses.
+                onTextEdited: debounce.restart()
+
+                Timer {
+                    id: debounce
+                    interval: 300
+                    onTriggered: root.searchSubmitted(search.text)
+                }
 
                 Text {
                     anchors.fill: parent
@@ -123,25 +135,25 @@ Rectangle {
         Item { Layout.fillWidth: true }
 
         WindowButton {
-            glyph: "–"
+            iconName: "minimize"
             onActivated: root.window.showMinimized()
         }
 
         WindowButton {
-            glyph: root.window.visibility === Window.Maximized ? "❐" : "□"
+            iconName: root.window.visibility === Window.Maximized ? "restore" : "maximize"
             onActivated: root.window.visibility === Window.Maximized
                          ? root.window.showNormal()
                          : root.window.showMaximized()
         }
 
         WindowButton {
-            glyph: "✕"
+            iconName: "close"
             destructive: true
             onActivated: root.window.close()
         }
     }
 
-    // Hairline under the bar.
+
     Rectangle {
         anchors.bottom: parent.bottom
         width: parent.width

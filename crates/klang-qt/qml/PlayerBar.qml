@@ -8,6 +8,17 @@ Rectangle {
     id: root
 
     required property var player
+    property bool shuffle: false
+    /// 0 off, 1 all, 2 one.
+    property int repeat: 0
+    property real volume: 1
+
+    signal nextRequested()
+    signal previousRequested()
+    signal shuffleToggled()
+    signal repeatToggled()
+    signal muteToggled()
+    signal queueRequested()
 
     implicitHeight: Theme.playerBarHeight
     color: Theme.surface
@@ -21,10 +32,11 @@ Rectangle {
 
     component IconButton: Rectangle {
         id: btn
-        property string glyph: ""
-        property int glyphSize: Theme.fontSizeLg
+        property string iconName: ""
+        property int iconSize: 20
         property bool primary: false
         property bool active: true
+        property bool on: false
         signal clicked()
 
         implicitWidth: primary ? 40 : 32
@@ -33,15 +45,22 @@ Rectangle {
         color: primary ? Theme.textPrimary
              : hover.hovered ? Theme.hlMed : "transparent"
         opacity: btn.active ? 1 : 0.4
+        scale: primary && hover.hovered ? 1.06 : 1
+
+        Behavior on scale { NumberAnimation { duration: Theme.durationFast } }
 
         HoverHandler { id: hover; enabled: btn.active }
         TapHandler { enabled: btn.active; onSingleTapped: btn.clicked() }
 
-        Text {
+        Icon {
             anchors.centerIn: parent
-            text: btn.glyph
-            font.pixelSize: btn.glyphSize
-            color: btn.primary ? Theme.base : Theme.textSecondary
+            width: btn.iconSize
+            height: btn.iconSize
+            name: btn.iconName
+            color: btn.primary ? Theme.base
+                 : btn.on ? Theme.accent
+                 : hover.hovered ? Theme.textPrimary
+                 : Theme.textSecondary
         }
     }
 
@@ -95,17 +114,47 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: Theme.space
 
-                IconButton { glyph: "⏮" }
+                IconButton {
+                    iconName: "shuffle"
+                    on: root.shuffle
+                    onClicked: root.shuffleToggled()
+                }
+
+                IconButton {
+                    iconName: "previous"
+                    onClicked: root.previousRequested()
+                }
 
                 IconButton {
                     primary: true
-                    glyph: root.player.playing ? "❚❚" : "▶"
-                    glyphSize: root.player.playing ? Theme.fontSizeSm : Theme.fontSizeLg
+                    iconName: root.player.playing ? "pause" : "play"
+                    iconSize: 22
                     active: !root.player.busy
                     onClicked: root.player.toggle()
                 }
 
-                IconButton { glyph: "⏭" }
+                IconButton {
+                    iconName: "next"
+                    onClicked: root.nextRequested()
+                }
+
+                IconButton {
+                    iconName: "repeat"
+                    on: root.repeat !== 0
+                    onClicked: root.repeatToggled()
+
+                    // Repeat-one keeps the loop glyph and marks it with a dot.
+                    Rectangle {
+                        visible: root.repeat === 2
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 3
+                        width: 3
+                        height: 3
+                        radius: 1.5
+                        color: Theme.accent
+                    }
+                }
             }
 
             RowLayout {
@@ -164,17 +213,22 @@ Rectangle {
                 }
             }
 
-            Text {
-                text: "🔊"
-                font.pixelSize: Theme.fontSize
-                color: Theme.textMuted
+            IconButton {
+                iconName: root.volume > 0 ? "volume" : "muted"
+                iconSize: 18
+                onClicked: root.muteToggled()
+            }
+
+            IconButton {
+                iconName: "queue"
+                iconSize: 18
+                onClicked: root.queueRequested()
             }
 
             ProgressSlider {
-                id: volume
                 Layout.preferredWidth: 80
                 to: 1
-                value: 1
+                value: root.volume
                 onSeeked: (v) => root.player.set_output_volume(v)
             }
         }

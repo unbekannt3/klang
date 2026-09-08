@@ -11,7 +11,7 @@ use crate::core as app;
 use cxx_qt::Threading;
 use cxx_qt_lib::QString;
 use klang_core::api::pages;
-use klang_core::tidal_api::{TidalAlbumDetail, TidalArtistDetail, TidalTrack};
+use klang_core::tidal_api::{TidalAlbumDetail, TidalArtistDetail};
 use std::pin::Pin;
 
 #[cxx_qt::bridge]

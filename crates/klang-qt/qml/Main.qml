@@ -29,6 +29,7 @@ QQC2.ApplicationWindow {
     // resets it, opening a detail pushes onto it.
     property var page: ({ route: "favorites", params: {} })
     property var history: []
+    property bool queueOpen: false
     readonly property string route: page.route
 
     function go(route, params) {
@@ -76,7 +77,11 @@ QQC2.ApplicationWindow {
             searchQuery: root.page.params.query || ""
             onBackRequested: root.back()
             onSearchSubmitted: (q) => {
-                if (q.length > 0)
+                if (q.length === 0)
+                    return
+                if (root.route === "search")
+                    root.page = { route: "search", params: { query: q } }
+                else
                     root.go("search", { query: q })
             }
         }
@@ -129,6 +134,15 @@ QQC2.ApplicationWindow {
             Layout.fillWidth: true
             visible: playerCtl.track_id !== 0
             player: playerCtl
+            shuffle: playerCtl.shuffle
+            repeat: playerCtl.repeat
+            volume: playerCtl.volume
+            onNextRequested: playerCtl.next()
+            onPreviousRequested: playerCtl.previous()
+            onShuffleToggled: playerCtl.toggle_shuffle()
+            onRepeatToggled: playerCtl.toggle_repeat()
+            onMuteToggled: playerCtl.toggle_mute()
+            onQueueRequested: root.queueOpen = !root.queueOpen
         }
     }
 

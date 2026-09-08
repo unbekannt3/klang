@@ -4,6 +4,7 @@
 //! goes through the QObjects in `bridge`.
 
 mod bridge;
+mod queue;
 mod rows;
 mod core;
 
