@@ -11,6 +11,7 @@ Item {
     id: root
 
     required property var player
+    property var favorites: null
     property string playlistUuid: ""
     /// Set by the router so the header can render before load_playlist returns.
     property string playlistTitle: ""
@@ -160,6 +161,7 @@ Item {
                 numbered: true
                 loading: playlists.loading
                 activeId: root.player.track_id
+                favorites: root.favorites
                 emptyText: playlists.error.length > 0 ? playlists.error : "This playlist has no tracks"
                 onTrackActivated: (index) =>
                         root.player.play_context(playlists.tracks_json, index, "playlist:" + root.playlistUuid)

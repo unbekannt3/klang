@@ -9,6 +9,7 @@ Item {
     id: root
 
     required property var player
+    property var favorites: null
     /// Album to display.
     property int albumId: 0
     /// Navigation requests bubble up to Main.qml.
@@ -178,6 +179,7 @@ Item {
                 tracks: catalog.album_tracks_json
                 loading: catalog.loading
                 activeId: root.player.track_id
+                favorites: root.favorites
                 numbered: true
                 showCovers: false
                 showBpm: false

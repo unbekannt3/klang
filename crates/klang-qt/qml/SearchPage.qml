@@ -10,6 +10,7 @@ Item {
     id: root
 
     required property var player
+    property var favorites: null
     /// Seeded by the router; the in-page field takes over from here.
     property string query: ""
     signal openAlbum(int albumId)
@@ -108,6 +109,7 @@ Item {
                     visible: root.trackRows.length > 0
                     tracks: search.tracks_json
                     activeId: root.player.track_id
+                    favorites: root.favorites
                     onTrackActivated: (index) =>
                         root.player.play_context(search.tracks_json, index, "search")
                 }

@@ -9,20 +9,23 @@ import me.unbk.klang
 Item {
     id: root
 
-    /// JSON string or array of {id, title, artist, album, duration, quality}.
+    /// JSON string or array of row objects; see klang-qt's rows.rs.
     property var tracks: []
     property string emptyText: "Nothing here"
     property bool loading: false
     /// Track id to mark as playing.
     property int activeId: 0
     property bool numbered: true
-    /// TIDAL shows both on track lists; album views hide them.
     property bool showBpm: true
     property bool showKey: true
-    /// Album views already show one big cover, so their rows hide the thumbnail.
     property bool showCovers: true
+    /// An album page already names the album in its header.
+    property bool showAlbum: true
+    /// FavoritesController; when unset the heart column is hidden.
+    property var favorites: null
 
     signal trackActivated(int index)
+    signal contextRequested(int index, real x, real y)
 
     function rows() {
         if (typeof tracks === "string")
@@ -144,6 +147,13 @@ Item {
             TapHandler {
                 onSingleTapped: root.trackActivated(row.index)
             }
+            TapHandler {
+                acceptedButtons: Qt.RightButton
+                onSingleTapped: (point) => {
+                    const p = row.mapToItem(root, point.position.x, point.position.y)
+                    root.contextRequested(row.index, p.x, p.y)
+                }
+            }
 
             RowLayout {
                 anchors.fill: parent
@@ -183,7 +193,7 @@ Item {
 
                     Text {
                         Layout.fillWidth: true
-                        text: row.modelData.album
+                        text: root.showAlbum && row.modelData.album
                               ? row.modelData.artist + " · " + row.modelData.album
                               : row.modelData.artist
                         elide: Text.ElideRight
@@ -257,6 +267,33 @@ Item {
                         font.family: Theme.monoFamily
                         font.pixelSize: Theme.fontSizeSm
                         color: Theme.textDisabled
+                    }
+                }
+
+                // The heart shows on hover, or always once favourited.
+                Item {
+                    visible: root.favorites !== null
+                    Layout.preferredWidth: 24
+                    Layout.preferredHeight: 24
+
+                    property bool loved: root.favorites
+                        && root.favorites.revision >= 0
+                        && root.favorites.is_track(row.modelData.id)
+
+                    Icon {
+                        anchors.centerIn: parent
+                        width: 17
+                        height: 17
+                        visible: parent.loved || hover.hovered
+                        name: parent.loved ? "heart-filled" : "heart"
+                        color: parent.loved ? Theme.accent
+                             : heartHover.hovered ? Theme.textPrimary
+                             : Theme.textFaint
+                    }
+
+                    HoverHandler { id: heartHover }
+                    TapHandler {
+                        onSingleTapped: root.favorites.toggle_track(row.modelData.id)
                     }
                 }
 

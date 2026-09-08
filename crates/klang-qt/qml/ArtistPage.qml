@@ -9,6 +9,7 @@ Item {
     id: root
 
     required property var player
+    property var favorites: null
     /// Artist to display.
     property int artistId: 0
     /// Navigation requests bubble up to Main.qml.
@@ -185,6 +186,7 @@ Item {
                 tracks: catalog.artist_top_tracks_json
                 loading: catalog.loading
                 activeId: root.player.track_id
+                favorites: root.favorites
                 emptyText: catalog.error.length > 0 ? catalog.error : "No tracks"
                 onTrackActivated: (index) =>
                         root.player.play_context(catalog.artist_top_tracks_json, index, "artist:" + root.artistId)

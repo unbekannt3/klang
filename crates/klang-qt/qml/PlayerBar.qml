@@ -8,6 +8,8 @@ Rectangle {
     id: root
 
     required property var player
+    /// FavoritesController; when unset the heart is hidden.
+    property var favorites: null
     property bool shuffle: false
     /// 0 off, 1 all, 2 one.
     property int repeat: 0

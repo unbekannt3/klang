@@ -54,11 +54,17 @@ QQC2.ApplicationWindow {
     AuthController {
         id: authCtl
         // user_id is set before logged_in, so it is already valid here.
-        onLogged_inChanged: if (logged_in) playlistsCtl.load_all(authCtl.user_id)
+        onLogged_inChanged: {
+            if (!logged_in)
+                return
+            playlistsCtl.load_all(authCtl.user_id)
+            favoritesCtl.load(authCtl.user_id)
+        }
     }
 
     PlayerController { id: playerCtl }
     PlaylistsController { id: playlistsCtl }
+    FavoritesController { id: favoritesCtl }
 
     Component.onCompleted: {
         Theme.controller.restore()
@@ -137,6 +143,7 @@ QQC2.ApplicationWindow {
             Layout.fillWidth: true
             visible: playerCtl.track_id !== 0
             player: playerCtl
+            favorites: favoritesCtl
             shuffle: playerCtl.shuffle
             repeat: playerCtl.repeat
             volume: playerCtl.volume
@@ -154,7 +161,7 @@ QQC2.ApplicationWindow {
     // so no page needs to know about any other.
     Component {
         id: favoritesPage
-        FavoritesPage { player: playerCtl; userId: authCtl.user_id }
+        FavoritesPage { player: playerCtl; userId: authCtl.user_id; favorites: favoritesCtl }
     }
 
     Component {
@@ -181,6 +188,7 @@ QQC2.ApplicationWindow {
         id: searchPage
         SearchPage {
             player: playerCtl
+            favorites: favoritesCtl
             query: root.page.params.query || ""
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
@@ -192,6 +200,7 @@ QQC2.ApplicationWindow {
         id: albumPage
         AlbumPage {
             player: playerCtl
+            favorites: favoritesCtl
             albumId: root.page.params.albumId || 0
             onOpenArtist: (id) => root.go("artist", { artistId: id })
         }
@@ -201,6 +210,7 @@ QQC2.ApplicationWindow {
         id: artistPage
         ArtistPage {
             player: playerCtl
+            favorites: favoritesCtl
             artistId: root.page.params.artistId || 0
             onOpenAlbum: (id) => root.go("album", { albumId: id })
         }
@@ -215,6 +225,7 @@ QQC2.ApplicationWindow {
         id: playlistPage
         PlaylistPage {
             player: playerCtl
+            favorites: favoritesCtl
             playlistUuid: root.page.params.uuid || ""
             playlistTitle: root.page.params.title || ""
         }

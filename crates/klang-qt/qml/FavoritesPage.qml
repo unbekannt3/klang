@@ -8,6 +8,7 @@ Item {
     id: root
 
     required property var player
+    property var favorites: null
     required property int userId
 
     LibraryController { id: library }
@@ -85,6 +86,7 @@ Item {
             tracks: library.tracks_json
             loading: library.loading
             activeId: root.player.track_id
+            favorites: root.favorites
             emptyText: library.error.length > 0 ? library.error : "No loved tracks yet"
             onTrackActivated: (index) =>
                 root.player.play_context(library.tracks_json, index, "favorites")
