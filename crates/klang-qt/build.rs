@@ -16,6 +16,9 @@ fn main() {
             QmlFile::from("qml/ProgressSlider.qml"),
             QmlFile::from("qml/TitleBar.qml"),
             QmlFile::from("qml/ResizeEdges.qml"),
+            QmlFile::from("qml/ThemedScrollBar.qml"),
+            QmlFile::from("qml/WheelScroller.qml"),
+            QmlFile::from("qml/CoverArt.qml"),
         ]),
     )
     .qrc("qml/resources.qrc")

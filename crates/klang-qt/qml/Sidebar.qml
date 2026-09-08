@@ -124,10 +124,22 @@ Rectangle {
         ListView {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            id: playlistView
             clip: true
             model: root.playlistRows()
             reuseItems: true
             spacing: 1
+
+            HoverHandler { id: playlistHover }
+
+            WheelScroller {
+                view: playlistView
+                rowHeight: 34
+            }
+
+            QQC2.ScrollBar.vertical: ThemedScrollBar {
+                listHovered: playlistHover.hovered
+            }
 
             delegate: QQC2.ItemDelegate {
                 id: pl

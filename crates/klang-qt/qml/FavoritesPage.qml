@@ -86,8 +86,8 @@ Item {
             loading: library.loading
             activeId: root.player.track_id
             emptyText: library.error.length > 0 ? library.error : "No loved tracks yet"
-            onTrackActivated: (id, title, artist, duration) =>
-                root.player.play(id, title, artist, duration)
+            onTrackActivated: (id, title, artist, duration, cover) =>
+                root.player.play(id, title, artist, duration, cover)
         }
     }
 }

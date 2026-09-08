@@ -19,8 +19,10 @@ Item {
     /// TIDAL shows both on track lists; album views hide them.
     property bool showBpm: true
     property bool showKey: true
+    /// Album views already show one big cover, so their rows hide the thumbnail.
+    property bool showCovers: true
 
-    signal trackActivated(int id, string title, string artist, real duration)
+    signal trackActivated(int id, string title, string artist, real duration, string cover)
 
     function rows() {
         if (typeof tracks === "string")
@@ -31,12 +33,21 @@ Item {
     ListView {
         id: view
         anchors.fill: parent
-        anchors.leftMargin: Theme.spaceLg
-        anchors.rightMargin: Theme.spaceLg
         clip: true
         model: root.rows()
         currentIndex: -1
         reuseItems: true
+
+        HoverHandler { id: listHover }
+
+        WheelScroller {
+            view: view
+            rowHeight: Theme.rowHeight
+        }
+
+        QQC2.ScrollBar.vertical: ThemedScrollBar {
+            listHovered: listHover.hovered
+        }
 
         // Column header, TIDAL-style: thin uppercase labels over a hairline.
         header: Item {
@@ -45,6 +56,10 @@ Item {
 
             RowLayout {
                 anchors.fill: parent
+                anchors.leftMargin: Theme.spaceLg
+                // Extra on the right so the overlay scrollbar never sits on the
+                // LENGTH column.
+                anchors.rightMargin: Theme.spaceLg + Theme.spaceSm
                 anchors.bottomMargin: Theme.spaceXs
                 spacing: Theme.space
 
@@ -103,7 +118,10 @@ Item {
 
             Rectangle {
                 anchors.bottom: parent.bottom
-                width: parent.width
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.leftMargin: Theme.spaceLg
+                anchors.rightMargin: Theme.spaceLg
                 height: 1
                 color: Theme.border
             }
@@ -116,7 +134,8 @@ Item {
 
             readonly property bool active: modelData.id === root.activeId
 
-            width: view.width
+            width: view.width - Theme.spaceLg * 2
+            x: Theme.spaceLg
             height: Theme.rowHeight
             radius: Theme.radiusXs
             color: hover.hovered ? Theme.hlFaint : "transparent"
@@ -124,13 +143,14 @@ Item {
             HoverHandler { id: hover }
             TapHandler {
                 onSingleTapped: root.trackActivated(row.modelData.id, row.modelData.title,
-                                                    row.modelData.artist, row.modelData.duration)
+                                                    row.modelData.artist, row.modelData.duration,
+                                                    row.modelData.cover || "")
             }
 
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: Theme.spaceSm
-                anchors.rightMargin: Theme.spaceSm
+                anchors.rightMargin: Theme.spaceSm + Theme.spaceSm
                 spacing: Theme.space
 
                 Text {
@@ -141,6 +161,13 @@ Item {
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeSm
                     color: row.active ? Theme.accent : Theme.textFaint
+                }
+
+                CoverArt {
+                    visible: root.showCovers
+                    Layout.preferredWidth: Theme.coverThumb
+                    Layout.preferredHeight: Theme.coverThumb
+                    uuid: row.modelData.cover || ""
                 }
 
                 ColumnLayout {

@@ -56,18 +56,10 @@ Rectangle {
             Layout.preferredWidth: Theme.sidebarWidth
             spacing: Theme.spaceSm
 
-            Rectangle {
+            CoverArt {
                 Layout.preferredWidth: Theme.coverThumb + 16
                 Layout.preferredHeight: Theme.coverThumb + 16
-                radius: Theme.radiusXs
-                color: Theme.inset
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "♪"
-                    font.pixelSize: Theme.fontSizeLg
-                    color: Theme.textFaint
-                }
+                uuid: root.player.cover
             }
 
             ColumnLayout {

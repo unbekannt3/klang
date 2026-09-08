@@ -187,7 +187,10 @@ impl DiskCacheInner {
 
 const MAX_DISK_BYTES: u64 = 2 * 1024 * 1024 * 1024; // 2 GB
 const EVICT_TARGET: u64 = MAX_DISK_BYTES * 9 / 10; // 1.8 GB
-const CURRENT_SCHEMA_VERSION: u8 = 5;
+// Bump whenever a cached struct's serialized shape changes, otherwise entries
+// written by an older build are read back missing the new fields.
+// 6: TidalTrack gained bpm, key, key_scale and ai.
+const CURRENT_SCHEMA_VERSION: u8 = 6;
 
 pub struct DiskCache {
     base_dir: PathBuf,

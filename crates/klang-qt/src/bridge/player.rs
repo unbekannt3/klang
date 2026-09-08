@@ -22,6 +22,7 @@ pub mod qobject {
         #[qproperty(f32, duration_secs)]
         #[qproperty(QString, title)]
         #[qproperty(QString, artist)]
+        #[qproperty(QString, cover)]
         #[qproperty(QString, quality)]
         #[qproperty(QString, error)]
         #[qproperty(i64, track_id)]
@@ -36,6 +37,7 @@ pub mod qobject {
             title: &QString,
             artist: &QString,
             duration: f32,
+            cover: &QString,
         );
 
         /// Pause if playing, resume if paused.
@@ -67,6 +69,7 @@ pub struct PlayerControllerRust {
     duration_secs: f32,
     title: QString,
     artist: QString,
+    cover: QString,
     quality: QString,
     error: QString,
     track_id: i64,
@@ -92,11 +95,13 @@ impl qobject::PlayerController {
         title: &QString,
         artist: &QString,
         duration: f32,
+        cover: &QString,
     ) {
         self.as_mut().set_busy(true);
         self.as_mut().set_error(QString::from(""));
         self.as_mut().set_title(title.clone());
         self.as_mut().set_artist(artist.clone());
+        self.as_mut().set_cover(cover.clone());
         self.as_mut().set_duration_secs(duration);
         self.as_mut().set_position_secs(0.0);
         self.as_mut().set_track_id(track_id);
