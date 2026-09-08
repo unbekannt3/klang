@@ -11,6 +11,7 @@ Item {
     signal openAlbum(int albumId)
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
+    signal openMix(string mixId, string title)
 
     HomeController { id: home }
 
@@ -28,5 +29,6 @@ Item {
         onOpenAlbum: (id) => root.openAlbum(id)
         onOpenArtist: (id) => root.openArtist(id)
         onOpenPlaylist: (uuid, title) => root.openPlaylist(uuid, title)
+        onOpenMix: (mixId, title) => root.openMix(mixId, title)
     }
 }

@@ -19,6 +19,7 @@ Item {
     signal openAlbum(int albumId)
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
+    signal openMix(string mixId, string title)
 
     function rows() {
         if (typeof sections === "string")
@@ -37,8 +38,10 @@ Item {
             root.openArtist(parseInt(item.id))
             break
         case "playlist":
-        case "mix":
             root.openPlaylist(item.id, item.title)
+            break
+        case "mix":
+            root.openMix(item.id, item.title)
             break
         default:
             root.player.play(parseInt(item.id), item.title, item.subtitle, 0, item.image)

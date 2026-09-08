@@ -4,6 +4,7 @@ pub mod favorites;
 pub mod feed;
 pub mod home;
 pub mod library;
+pub mod mix;
 pub mod playlists;
 pub mod player;
 pub mod search;

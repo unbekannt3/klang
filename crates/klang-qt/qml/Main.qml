@@ -65,6 +65,7 @@ QQC2.ApplicationWindow {
     PlayerController { id: playerCtl }
     PlaylistsController { id: playlistsCtl }
     FavoritesController { id: favoritesCtl }
+    LibraryController { id: collectionCtl }
 
     Component.onCompleted: {
         Theme.controller.restore()
@@ -132,6 +133,11 @@ QQC2.ApplicationWindow {
                         case "artist":    return artistPage
                         case "playlist":  return playlistPage
                         case "settings":  return settingsPage
+                        case "feed":          return feedPage
+                        case "mix":           return mixPage
+                        case "fav-albums":    return favAlbumsPage
+                        case "fav-artists":   return favArtistsPage
+                        case "fav-playlists": return favPlaylistsPage
                         default:          return favoritesPage
                     }
                 }
@@ -179,6 +185,7 @@ QQC2.ApplicationWindow {
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+            onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
         }
     }
 
@@ -254,6 +261,71 @@ QQC2.ApplicationWindow {
             playlistTitle: root.page.params.title || ""
         }
     }
+
+    Component {
+        id: feedPage
+        FeedPage {
+            player: playerCtl
+            onOpenAlbum: (id) => root.go("album", { albumId: id })
+            onOpenArtist: (id) => root.go("artist", { artistId: id })
+            onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+        }
+    }
+
+    Component {
+        id: mixPage
+        MixPage {
+            player: playerCtl
+            mixId: root.page.params.mixId || ""
+            mixTitle: root.page.params.title || ""
+            mixItems: mixCtl.tracks_json
+            loading: mixCtl.loading
+            error: mixCtl.error
+            onOpenAlbum: (id) => root.go("album", { albumId: id })
+            onOpenArtist: (id) => root.go("artist", { artistId: id })
+            Component.onCompleted: mixCtl.load(mixId)
+        }
+    }
+
+    // The three collection grids differ only in their source and heading.
+    component CollectionGrid: MediaGridPage {
+        player: playerCtl
+        loading: collectionCtl.loading
+        error: collectionCtl.error
+        onOpenAlbum: (id) => root.go("album", { albumId: id })
+        onOpenArtist: (id) => root.go("artist", { artistId: id })
+        onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+        onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
+    }
+
+    Component {
+        id: favAlbumsPage
+        CollectionGrid {
+            title: "Albums"
+            items: collectionCtl.albums_json
+            Component.onCompleted: collectionCtl.load_albums(authCtl.user_id, 200)
+        }
+    }
+
+    Component {
+        id: favArtistsPage
+        CollectionGrid {
+            title: "Artists"
+            items: collectionCtl.artists_json
+            Component.onCompleted: collectionCtl.load_artists(authCtl.user_id, 200)
+        }
+    }
+
+    Component {
+        id: favPlaylistsPage
+        CollectionGrid {
+            title: "Playlists"
+            items: collectionCtl.playlists_json
+            Component.onCompleted: collectionCtl.load_playlists(authCtl.user_id, 200)
+        }
+    }
+
+    MixController { id: mixCtl }
 
     TrackContextMenu {
         id: trackMenu

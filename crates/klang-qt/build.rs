@@ -55,6 +55,7 @@ fn main() {
         "src/bridge/feed.rs",
         "src/bridge/home.rs",
         "src/bridge/library.rs",
+        "src/bridge/mix.rs",
         "src/bridge/player.rs",
         "src/bridge/playlists.rs",
         "src/bridge/search.rs",
