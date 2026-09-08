@@ -10,7 +10,7 @@ Rectangle {
 
     /// Route key of the visible page.
     property string current: "home"
-    /// JSON string or array of {uuid, title, numberOfTracks} from PlaylistsController.
+    /// JSON string or array from PlaylistsController.playlists_json.
     property var playlists: []
 
     signal navigate(string route)
@@ -20,9 +20,11 @@ Rectangle {
     color: Theme.sidebar
 
     function playlistRows() {
-        if (typeof playlists === "string")
-            return JSON.parse(playlists || "[]")
-        return playlists || []
+        const rows = typeof playlists === "string"
+                   ? JSON.parse(playlists || "[]")
+                   : (playlists || [])
+        // Folders are in the same flattened list; the sidebar lists playlists.
+        return rows.filter((r) => r.kind === "playlist")
     }
 
     component NavItem: QQC2.ItemDelegate {
@@ -137,7 +139,7 @@ Rectangle {
 
             WheelScroller {
                 view: playlistView
-                rowHeight: 34
+                rowHeight: 44
             }
 
             QQC2.ScrollBar.vertical: ThemedScrollBar {
@@ -148,7 +150,7 @@ Rectangle {
                 id: pl
                 required property var modelData
                 width: ListView.view.width
-                height: 34
+                height: 44
                 hoverEnabled: true
 
                 background: Rectangle {
@@ -156,17 +158,43 @@ Rectangle {
                     color: pl.hovered ? Theme.hlFaint : "transparent"
                 }
 
-                contentItem: Text {
-                    leftPadding: Theme.spaceSm
-                    text: pl.modelData.title
-                    elide: Text.ElideRight
-                    verticalAlignment: Text.AlignVCenter
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    color: Theme.textSecondary
+                contentItem: RowLayout {
+                    spacing: Theme.spaceSm
+
+                    CoverArt {
+                        Layout.leftMargin: Theme.spaceXs
+                        Layout.preferredWidth: 32
+                        Layout.preferredHeight: 32
+                        uuid: pl.modelData.image || ""
+                        placeholderGlyph: "≡"
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: pl.modelData.title
+                            elide: Text.ElideRight
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize
+                            color: Theme.textSecondary
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            visible: pl.modelData.trackCount > 0
+                            text: pl.modelData.trackCount + " tracks"
+                            elide: Text.ElideRight
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSm - 1
+                            color: Theme.textFaint
+                        }
+                    }
                 }
 
-                onClicked: root.openPlaylist(modelData.uuid, modelData.title)
+                onClicked: root.openPlaylist(modelData.id, modelData.title)
             }
         }
     }

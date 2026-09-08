@@ -152,9 +152,22 @@ KEYS = {
 }
 
 
+def port_is_free(port: int = PORT) -> bool:
+    with socket.socket() as s:
+        return s.connect_ex(("127.0.0.1", port)) != 0
+
+
 def launch() -> subprocess.Popen:
     if not BINARY.exists():
         raise SystemExit(f"not built: {BINARY}")
+    # A stale instance would keep the port and silently serve an old build.
+    if not port_is_free():
+        subprocess.run(["pkill", "-x", "klang"], check=False)
+        deadline = time.monotonic() + 5
+        while not port_is_free():
+            if time.monotonic() > deadline:
+                raise SystemExit(f"port {PORT} still busy; kill it by hand")
+            time.sleep(0.2)
     env = {
         **os.environ,
         "QT_QPA_PLATFORM": f"vnc:size={SIZE}:port={PORT}",

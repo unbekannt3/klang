@@ -25,6 +25,11 @@ fn main() {
             QmlFile::from("qml/SectionList.qml"),
             QmlFile::from("qml/ThemePicker.qml"),
             QmlFile::from("qml/SettingsPage.qml"),
+            QmlFile::from("qml/QueuePanel.qml"),
+            QmlFile::from("qml/SettingRow.qml"),
+            QmlFile::from("qml/PlaybackSettings.qml"),
+            QmlFile::from("qml/ScrobbleSettings.qml"),
+            QmlFile::from("qml/NetworkSettings.qml"),
             QmlFile::from("qml/HomePage.qml"),
             QmlFile::from("qml/ExplorePage.qml"),
             QmlFile::from("qml/SearchPage.qml"),
@@ -43,6 +48,7 @@ fn main() {
         "src/bridge/player.rs",
         "src/bridge/playlists.rs",
         "src/bridge/search.rs",
+        "src/bridge/settings.rs",
         "src/bridge/theme.rs",
     ])
     .build();

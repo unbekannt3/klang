@@ -3947,31 +3947,36 @@ impl TidalClient {
         self.search_v1(query, limit).await
     }
 
+    /// Raw v2 search body, exposed so callers (see examples/search_bpm.rs) can inspect
+    /// exactly what TIDAL sends before it goes through `TidalTrack` deserialization.
+    pub async fn search_v2_raw(&mut self, query: &str, limit: u32) -> Result<String, SoneError> {
+        let cc = self.country_code.clone();
+        let limit_str = limit.to_string();
+        // v2 uses a different base URL, so pass the full URL
+        self.api_get_body(
+            &format!("{}/search", TIDAL_API_V2_URL),
+            &[
+                ("query", query),
+                ("countryCode", &cc),
+                ("limit", &limit_str),
+                ("types", "ARTISTS,ALBUMS,TRACKS,PLAYLISTS,VIDEOS"),
+                ("includeContributors", "true"),
+                ("includeUserPlaylists", "true"),
+                ("includeDidYouMean", "true"),
+                ("supportsUserData", "true"),
+                ("locale", "en_US"),
+                ("deviceType", "BROWSER"),
+            ],
+        )
+        .await
+    }
+
     async fn search_v2(
         &mut self,
         query: &str,
         limit: u32,
     ) -> Result<TidalSearchResults, SoneError> {
-        let cc = self.country_code.clone();
-        let limit_str = limit.to_string();
-        // v2 uses a different base URL, so pass the full URL
-        let body = self
-            .api_get_body(
-                &format!("{}/search", TIDAL_API_V2_URL),
-                &[
-                    ("query", query),
-                    ("countryCode", &cc),
-                    ("limit", &limit_str),
-                    ("types", "ARTISTS,ALBUMS,TRACKS,PLAYLISTS,VIDEOS"),
-                    ("includeContributors", "true"),
-                    ("includeUserPlaylists", "true"),
-                    ("includeDidYouMean", "true"),
-                    ("supportsUserData", "true"),
-                    ("locale", "en_US"),
-                    ("deviceType", "BROWSER"),
-                ],
-            )
-            .await?;
+        let body = self.search_v2_raw(query, limit).await?;
         Self::parse_search_response(&body, query, "v2")
     }
 
