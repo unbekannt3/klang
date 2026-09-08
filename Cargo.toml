@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = ["crates/klang-core"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-only"
+repository = "https://github.com/unbekannt3/klang"
+
+# Upstream is lullabyX/sone (GPL-3.0-only). crates/klang-core keeps the file
+# layout of sone's src-tauri/src so scripts/sync-core.sh can three-way merge
+# upstream fixes onto it. See the port plan for which files carry local changes.

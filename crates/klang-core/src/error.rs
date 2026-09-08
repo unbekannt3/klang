@@ -100,8 +100,3 @@ impl From<reqwest::Error> for SoneError {
     }
 }
 
-impl From<tauri::Error> for SoneError {
-    fn from(e: tauri::Error) -> Self {
-        SoneError::Io(e.to_string())
-    }
-}

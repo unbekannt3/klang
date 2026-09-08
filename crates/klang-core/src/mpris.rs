@@ -1,7 +1,7 @@
 use mpris_server::{LoopStatus, Metadata, PlaybackStatus, Player, Time, TrackId};
 use std::rc::Rc;
 use std::time::Duration;
-use tauri::{Emitter, Manager};
+use crate::app::Emitter;
 use tokio::sync::mpsc;
 use tokio::time::MissedTickBehavior;
 
@@ -46,7 +46,7 @@ pub struct MprisHandle {
 }
 
 impl MprisHandle {
-    pub fn new(app_handle: tauri::AppHandle) -> Self {
+    pub fn new(app_handle: crate::app::AppHandle) -> Self {
         let (tx, mut rx) = mpsc::unbounded_channel::<MprisCommand>();
 
         std::thread::spawn(move || {
@@ -63,9 +63,9 @@ impl MprisHandle {
                 // desktop file is exported as <snap>_<app>. Everything else keeps
                 // the reverse-DNS app id (Flathub requires it).
                 let (bus_name, desktop_entry) = if std::env::var("SNAP").is_ok() {
-                    ("sone", "sone_sone")
+                    ("klang", "klang_klang")
                 } else {
-                    ("io.github.lullabyX.sone", "io.github.lullabyX.sone")
+                    ("me.unbk.klang", "me.unbk.klang")
                 };
                 let player = match Player::builder(bus_name)
                     .can_play(true)
@@ -102,7 +102,7 @@ impl MprisHandle {
                 };
 
                 // Identity + desktop entry so KDE/GNOME can associate with the window
-                player.set_identity("SONE").await.ok();
+                player.set_identity("Klang").await.ok();
                 player.set_desktop_entry(desktop_entry).await.ok();
 
                 // Wire control callbacks — reuse existing tray event system
@@ -169,7 +169,7 @@ impl MprisHandle {
 
                 let app = app_handle.clone();
                 player.connect_quit(move |_| {
-                    app.exit(0);
+                    app.window().quit();
                 });
 
                 let app = app_handle.clone();
@@ -210,7 +210,7 @@ impl MprisHandle {
                         if player_for_tick.playback_status() != PlaybackStatus::Playing {
                             continue;
                         }
-                        let Some(state) = app_handle_for_tick.try_state::<crate::AppState>()
+                        let Some(state) = app_handle_for_tick.try_state()
                         else {
                             continue;
                         };

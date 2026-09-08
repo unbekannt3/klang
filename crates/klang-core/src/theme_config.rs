@@ -190,13 +190,11 @@ pub fn write_theme_file(path: &Path, file: &ThemeFile) -> Result<(), String> {
 // Tauri commands
 // ---------------------------------------------------------------------------
 
-#[tauri::command]
 pub fn theme_file_get() -> Result<Option<ThemeFile>, String> {
     let dir = config_sone_dir()?;
     read_theme_file(&dir.join("theme.json"))
 }
 
-#[tauri::command]
 pub fn theme_file_set(file: ThemeFile) -> Result<(), String> {
     let dir = config_sone_dir()?;
     write_theme_file(&dir.join("theme.json"), &file)

@@ -11,7 +11,7 @@
 
 use serde::Serialize;
 use std::sync::Mutex;
-use tauri::Emitter;
+use crate::app::Emitter;
 
 /// Snapshot of the runtime signal path. Sent to the frontend as the payload
 /// of `signal-path-changed` events and as the return of `get_signal_path`.
@@ -67,11 +67,11 @@ pub struct SignalPath {
 
 pub struct SignalPathTracker {
     state: Mutex<SignalPath>,
-    app_handle: tauri::AppHandle,
+    app_handle: crate::app::AppHandle,
 }
 
 impl SignalPathTracker {
-    pub fn new(app_handle: tauri::AppHandle) -> Self {
+    pub fn new(app_handle: crate::app::AppHandle) -> Self {
         Self {
             state: Mutex::new(SignalPath {
                 user_volume: 1.0,

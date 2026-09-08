@@ -1,9 +1,9 @@
 use ksni::menu::{MenuItem, StandardItem};
 use ksni::TrayMethods;
-use tauri::{Emitter, Manager};
+use crate::app::{AppHandle, Emitter};
 
 /// Wrapper around ksni::Handle for tooltip updates.
-/// Stored in Tauri managed state via `app.manage()`.
+/// Stored on `AppState::tray_handle` once the D-Bus connection is up.
 pub struct TrayHandle(ksni::Handle<SoneTray>);
 
 impl TrayHandle {
@@ -17,7 +17,7 @@ impl TrayHandle {
 }
 
 struct SoneTray {
-    app_handle: tauri::AppHandle,
+    app_handle: crate::app::AppHandle,
     tooltip: String,
     icon: ksni::Icon,
 }
@@ -43,38 +43,16 @@ fn rgba_to_argb(rgba: &[u8]) -> Vec<u8> {
     argb
 }
 
-pub(crate) fn restore_window(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.unminimize();
-        let _ = window.set_focus();
-
-        // Wayland GTK CSD workaround: after hide()+show(), GTK client-side
-        // decoration hit-test regions go stale — buttons render but ignore
-        // pointer events.  Toggling decorations forces GTK to recalculate.
-        //
-        // Only relevant when native chrome is active (the escape-hatch path).
-        // The custom React titlebar isn't subject to this hit-test staleness,
-        // so we skip the flicker entirely in the default case.
-        //
-        // Per tauri-apps/tauri#11856 the bug reproduces on KDE Wayland too,
-        // so no desktop-specific skip.
-        if std::env::var("WAYLAND_DISPLAY").is_ok() {
-            let state = app.state::<crate::AppState>();
-            let wants = state
-                .decorations
-                .load(std::sync::atomic::Ordering::Relaxed);
-            if wants {
-                let _ = window.set_decorations(false);
-                let _ = window.set_decorations(true);
-            }
-        }
-    }
+/// Bring the main window back. Under KWin the shell owns the window, so this
+/// is a single call — upstream's GTK client-side-decoration hit-test workaround
+/// (tauri-apps/tauri#11856) has no equivalent here and is gone.
+pub(crate) fn restore_window(app: &crate::app::AppHandle) {
+    app.window().raise();
 }
 
 impl ksni::Tray for SoneTray {
     fn id(&self) -> String {
-        "sone".into()
+        "klang".into()
     }
 
     fn icon_pixmap(&self) -> Vec<ksni::Icon> {
@@ -137,7 +115,7 @@ impl ksni::Tray for SoneTray {
             StandardItem {
                 label: "Quit".into(),
                 activate: Box::new(|this: &mut Self| {
-                    this.app_handle.exit(0);
+                    this.app_handle.window().quit();
                 }),
                 ..Default::default()
             }
@@ -146,11 +124,11 @@ impl ksni::Tray for SoneTray {
     }
 }
 
-/// Spawn the ksni tray on the tokio runtime. Non-blocking — registers the
-/// tray handle in Tauri state once the D-Bus connection is established.
-/// If it fails, logs a warning and disables minimize-to-tray.
-pub fn setup(app: &tauri::App) {
-    let icon_bytes = include_bytes!("../icons/icon.png");
+/// Spawn the ksni tray on the Tokio runtime. Non-blocking — stores the tray
+/// handle on `AppState` once the D-Bus connection is established. If it fails,
+/// logs a warning and disables minimize-to-tray.
+pub fn setup(app: &AppHandle) {
+    let icon_bytes = include_bytes!("../../../assets/icons/icon.png");
     let icon = match image::load_from_memory(icon_bytes) {
         Ok(img) => {
             let rgba = img.to_rgba8();
@@ -168,13 +146,13 @@ pub fn setup(app: &tauri::App) {
     };
 
     let tray = SoneTray {
-        app_handle: app.handle().clone(),
-        tooltip: "Sone".into(),
+        app_handle: app.clone(),
+        tooltip: "Klang".into(),
         icon,
     };
 
-    let app_handle = app.handle().clone();
-    tauri::async_runtime::spawn(async move {
+    let app_handle = app.clone();
+    crate::runtime::spawn(async move {
         // In Flatpak/Snap sandbox, ksni can't own a well-known D-Bus name
         // (would need --own-name with a dynamic PID-based name).
         // disable_dbus_name makes it register via the unique connection name instead.
@@ -182,12 +160,12 @@ pub fn setup(app: &tauri::App) {
             std::env::var("FLATPAK_ID").is_ok() || std::env::var("SNAP").is_ok();
         match tray.disable_dbus_name(is_sandboxed).spawn().await {
             Ok(handle) => {
-                app_handle.manage(TrayHandle(handle));
+                *app_handle.state().tray_handle.lock().unwrap() = Some(TrayHandle(handle));
                 log::info!("ksni tray icon registered");
             }
             Err(e) => {
                 log::warn!("Failed to create ksni tray: {e}");
-                let state = app_handle.state::<crate::AppState>();
+                let state = app_handle.state();
                 state
                     .minimize_to_tray
                     .store(false, std::sync::atomic::Ordering::Relaxed);

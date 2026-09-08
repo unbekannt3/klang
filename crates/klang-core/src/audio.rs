@@ -6,7 +6,7 @@ use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread::JoinHandle;
-use tauri::Emitter;
+use crate::app::Emitter;
 
 type Reply<T> = mpsc::Sender<T>;
 
@@ -752,7 +752,7 @@ fn configure_alsa_hwparams(
 fn spawn_alsa_writer(
     device: &str,
     initial_format: &PcmFormat,
-    app_handle: tauri::AppHandle,
+    app_handle: crate::app::AppHandle,
     tearing_down: Arc<AtomicBool>,
     frames_written: Arc<AtomicU64>,
     current_sample_rate: Arc<AtomicU32>,
@@ -1430,7 +1430,7 @@ pub struct AudioPlayer {
 }
 
 impl AudioPlayer {
-    pub fn new(app_handle: tauri::AppHandle, signal_path: Arc<SignalPathTracker>) -> Self {
+    pub fn new(app_handle: crate::app::AppHandle, signal_path: Arc<SignalPathTracker>) -> Self {
         let (cmd_tx, cmd_rx) = mpsc::channel::<AudioCommand>();
         // Clone a self-sender into the worker so the Normal bus thread can send
         // HandleGaplessAdvance back to this loop (Task 3). `cmd_tx` itself is

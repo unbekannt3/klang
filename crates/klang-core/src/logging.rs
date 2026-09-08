@@ -34,11 +34,11 @@ use std::path::PathBuf;
 /// Returns a `LoggerHandle`. The caller MUST keep this alive for the
 /// process lifetime — dropping it stops the background log writer.
 ///
-/// Default spec `tauri_app_lib=debug,info`: SONE's crate at `debug`,
+/// Default spec `klang_core=debug,info`: klang-core at `debug`,
 /// deps at `info`. `RUST_LOG` overrides it. Falls back to stderr-only
 /// on any file-system error.
 pub fn init_logging(log_dir: PathBuf, file_enabled: bool) -> LoggerHandle {
-    let base = Logger::try_with_env_or_str("tauri_app_lib=debug,info")
+    let base = Logger::try_with_env_or_str("klang_core=debug,info")
         .expect("flexi_logger spec parsing should never fail for a static spec");
 
     if !file_enabled {
@@ -80,7 +80,7 @@ pub fn init_logging(log_dir: PathBuf, file_enabled: bool) -> LoggerHandle {
                 "sone: file logger init failed ({}), falling back to stderr-only logging",
                 e
             );
-            Logger::try_with_env_or_str("tauri_app_lib=debug,info")
+            Logger::try_with_env_or_str("klang_core=debug,info")
                 .unwrap()
                 .log_to_stderr()
                 .write_mode(WriteMode::BufferAndFlush)
