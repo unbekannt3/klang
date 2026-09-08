@@ -50,6 +50,10 @@ pub struct Entry {
     pub album: String,
     #[serde(default)]
     pub cover: String,
+    /// Radio mix for this track, when TIDAL supplies one. Autoplay reads it
+    /// off the last track to keep going past the end of the queue.
+    #[serde(default)]
+    pub track_mix: String,
 }
 
 /// The queue is two lists: tracks queued by hand play before the context
@@ -312,6 +316,7 @@ mod tests {
                 duration: 180.0,
                 album: "Album".into(),
                 cover: String::new(),
+                track_mix: String::new(),
             })
             .collect()
     }
@@ -334,7 +339,7 @@ mod tests {
     #[test]
     fn manual_entries_play_before_the_context() {
         let mut q = queue_of(3);
-        q.enqueue(Entry { id: 99, title: "Queued".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new() });
+        q.enqueue(Entry { id: 99, title: "Queued".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new(), track_mix: String::new() });
         assert_eq!(q.advance(true).unwrap().id, 99);
         // The context resumes where it was, not one further on.
         assert_eq!(q.advance(true).unwrap().id, 1);
@@ -343,8 +348,8 @@ mod tests {
     #[test]
     fn play_next_jumps_the_manual_queue() {
         let mut q = queue_of(2);
-        q.enqueue(Entry { id: 10, title: "Later".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new() });
-        q.play_next(Entry { id: 20, title: "Sooner".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new() });
+        q.enqueue(Entry { id: 10, title: "Later".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new(), track_mix: String::new() });
+        q.play_next(Entry { id: 20, title: "Sooner".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new(), track_mix: String::new() });
         assert_eq!(q.advance(true).unwrap().id, 20);
         assert_eq!(q.advance(true).unwrap().id, 10);
     }
@@ -400,7 +405,7 @@ mod tests {
     fn jumping_the_manual_queue_drops_what_was_skipped() {
         let mut q = queue_of(1);
         for id in [10, 11, 12] {
-            q.enqueue(Entry { id, title: "Q".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new() });
+            q.enqueue(Entry { id, title: "Q".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new(), track_mix: String::new() });
         }
         assert_eq!(q.jump(2, true).unwrap().id, 12);
         assert!(q.manual().is_empty());
@@ -473,7 +478,7 @@ mod tests {
     fn queue_round_trips_through_json() {
         let mut q = queue_of(4);
         q.advance(true);
-        q.enqueue(Entry { id: 50, title: "Queued".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new() });
+        q.enqueue(Entry { id: 50, title: "Queued".into(), artist: "A".into(), duration: 1.0, album: String::new(), cover: String::new(), track_mix: String::new() });
         q.set_shuffle(true);
         q.set_repeat(Repeat::All);
 

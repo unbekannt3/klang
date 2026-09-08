@@ -150,6 +150,15 @@ pub struct Settings {
     pub auth_method: AuthMethod,
     #[serde(default)]
     pub minimize_to_tray: bool,
+    /// Keep playing past the end of the queue, from the last track's radio.
+    /// sone keeps this in the browser's local storage; klang has no such
+    /// store, so it lives with the rest of the settings.
+    #[serde(default)]
+    pub autoplay: bool,
+    /// Whether explicit tracks may be added automatically (radio, autoplay).
+    /// Tracks the user picks by hand are never filtered.
+    #[serde(default = "defaults::yes")]
+    pub allow_explicit: bool,
     #[serde(default)]
     pub decorations: bool,
     /// One-shot flag: was the user migrated from native chrome to the
@@ -211,6 +220,8 @@ impl Default for Settings {
             client_secret: String::new(),
             auth_method: AuthMethod::default(),
             minimize_to_tray: false,
+            autoplay: false,
+            allow_explicit: true,
             decorations: false,
             titlebar_migration_v1: true,
             volume_normalization: false,

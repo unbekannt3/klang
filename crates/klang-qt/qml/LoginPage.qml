@@ -203,6 +203,7 @@ Item {
                     color: Theme.accent
 
                     SequentialAnimation on opacity {
+                        running: Theme.animated
                         loops: Animation.Infinite
                         PauseAnimation { duration: index * 160 }
                         NumberAnimation { to: 0.2; duration: 400 }

@@ -157,6 +157,6 @@ Item {
 
     QQC2.BusyIndicator {
         anchors.centerIn: parent
-        running: feed.loading
+        running: feed.loading && Theme.animated
     }
 }

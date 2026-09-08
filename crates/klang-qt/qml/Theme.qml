@@ -83,6 +83,11 @@ QtObject {
     readonly property int fontSizeHeading: 22
     readonly property int fontSizeDisplay: 42
 
-    readonly property int durationFast: 120
-    readonly property int duration: 180
+    // Animations run only while the window has focus: a hover fade or a
+    // spinner left running in the background keeps the GPU awake for a window
+    // nobody is looking at (sone issue #191). Zero-length animations still
+    // reach their end value, so bindings stay correct either way.
+    readonly property bool animated: Qt.application.active
+    readonly property int durationFast: animated ? 120 : 0
+    readonly property int duration: animated ? 180 : 0
 }

@@ -12,6 +12,8 @@ Item {
     /// JSON string or array of row objects; see klang-qt's rows.rs.
     property var tracks: []
     property string emptyText: "Nothing here"
+    /// Scroll position is remembered per key across navigation.
+    property string scrollKey: ""
     property bool loading: false
     /// Track id to mark as playing.
     property int activeId: 0
@@ -370,6 +372,11 @@ Item {
 
     QQC2.BusyIndicator {
         anchors.centerIn: parent
-        running: root.loading
+        running: root.loading && Theme.animated
+    }
+
+    ScrollMemory {
+        flickable: view
+        pageKey: root.scrollKey
     }
 }

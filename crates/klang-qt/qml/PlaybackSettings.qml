@@ -99,6 +99,24 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
+        label: "Autoplay"
+        description: "When the queue runs out, keep going with a radio built from the last track."
+        toggleMode: true
+        checked: root.settings.autoplay
+        onToggled: (value) => root.settings.apply_autoplay(value)
+    }
+
+    SettingRow {
+        Layout.fillWidth: true
+        label: "Explicit content"
+        description: "Allow explicit tracks in radio and autoplay. Tracks you pick yourself are never filtered."
+        toggleMode: true
+        checked: root.settings.allow_explicit
+        onToggled: (value) => root.settings.apply_allow_explicit(value)
+    }
+
+    SettingRow {
+        Layout.fillWidth: true
         label: "Gapless playback"
         description: root.settings.gapless_supported
                     ? "Removes silence between consecutive tracks."

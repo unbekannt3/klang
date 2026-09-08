@@ -15,6 +15,8 @@ Item {
     property bool loading: false
     property string error: ""
     property string emptyText: "Nothing here"
+    /// Scroll position is remembered per key across navigation.
+    property string scrollKey: ""
 
     signal openAlbum(int albumId)
     signal openArtist(int artistId)
@@ -87,8 +89,13 @@ Item {
         color: Theme.textFaint
     }
 
+    ScrollMemory {
+        flickable: view
+        pageKey: root.scrollKey
+    }
+
     QQC2.BusyIndicator {
         anchors.centerIn: parent
-        running: root.loading
+        running: root.loading && Theme.animated
     }
 }

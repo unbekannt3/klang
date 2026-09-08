@@ -104,6 +104,28 @@ pub fn set_minimize_to_tray(state: &AppState, enabled: bool) -> Result<(), SoneE
     Ok(())
 }
 
+pub fn get_autoplay(state: &AppState) -> bool {
+    state.load_settings().unwrap_or_default().autoplay
+}
+
+pub fn set_autoplay(state: &AppState, enabled: bool) -> Result<(), SoneError> {
+    let mut settings = state.load_settings().unwrap_or_default();
+    settings.autoplay = enabled;
+    state.save_settings(&settings)?;
+    Ok(())
+}
+
+pub fn get_allow_explicit(state: &AppState) -> bool {
+    state.load_settings().unwrap_or_default().allow_explicit
+}
+
+pub fn set_allow_explicit(state: &AppState, allowed: bool) -> Result<(), SoneError> {
+    let mut settings = state.load_settings().unwrap_or_default();
+    settings.allow_explicit = allowed;
+    state.save_settings(&settings)?;
+    Ok(())
+}
+
 pub fn get_volume_normalization(state: &AppState) -> bool {
     state.volume_normalization.load(Ordering::Relaxed)
 }

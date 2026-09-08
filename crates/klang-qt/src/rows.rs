@@ -32,6 +32,17 @@ fn artist_name(track: &TidalTrack) -> String {
         .unwrap_or_default()
 }
 
+/// The id of a track's own radio mix, used by autoplay once the queue runs
+/// out. TIDAL nests it under `mixes.TRACK_MIX`.
+fn track_mix_id(track: &TidalTrack) -> Option<String> {
+    track
+        .mixes
+        .as_ref()?
+        .get("TRACK_MIX")?
+        .as_str()
+        .map(str::to_string)
+}
+
 /// The shape every track list binds to.
 ///
 /// `bpm` and `key` come straight off TIDAL's v1 track payload — upstream never
@@ -55,6 +66,7 @@ pub fn track(index: usize, t: &TidalTrack) -> Value {
         "trackNumber": t.track_number,
         "volumeNumber": t.volume_number,
         "cover": t.album.as_ref().and_then(|a| a.cover.clone()),
+        "trackMix": track_mix_id(t),
     })
 }
 

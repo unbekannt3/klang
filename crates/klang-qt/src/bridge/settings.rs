@@ -44,6 +44,8 @@ pub mod qobject {
         #[qproperty(QString, max_quality)]
         #[qproperty(bool, volume_normalization)]
         #[qproperty(bool, gapless)]
+        #[qproperty(bool, autoplay)]
+        #[qproperty(bool, allow_explicit)]
         #[qproperty(bool, gapless_supported)]
         #[qproperty(bool, exclusive_mode)]
         #[qproperty(bool, bit_perfect)]
@@ -84,6 +86,11 @@ pub mod qobject {
         fn apply_volume_normalization(self: Pin<&mut SettingsController>, enabled: bool);
         #[qinvokable]
         fn apply_gapless(self: Pin<&mut SettingsController>, enabled: bool);
+        #[qinvokable]
+        fn apply_autoplay(self: Pin<&mut SettingsController>, enabled: bool);
+        /// Only filters what klang queues on its own — radio and autoplay.
+        #[qinvokable]
+        fn apply_allow_explicit(self: Pin<&mut SettingsController>, allowed: bool);
         #[qinvokable]
         fn apply_exclusive_mode(self: Pin<&mut SettingsController>, enabled: bool);
         #[qinvokable]
@@ -157,6 +164,8 @@ pub struct SettingsControllerRust {
     max_quality: QString,
     volume_normalization: bool,
     gapless: bool,
+    autoplay: bool,
+    allow_explicit: bool,
     gapless_supported: bool,
     exclusive_mode: bool,
     bit_perfect: bool,
@@ -211,6 +220,9 @@ impl qobject::SettingsController {
         self.as_mut()
             .set_volume_normalization(utility::get_volume_normalization(state));
         self.as_mut().set_gapless(utility::get_gapless(state));
+        self.as_mut().set_autoplay(utility::get_autoplay(state));
+        self.as_mut()
+            .set_allow_explicit(utility::get_allow_explicit(state));
         self.as_mut()
             .set_gapless_supported(utility::get_gapless_supported());
         self.as_mut()
@@ -256,6 +268,20 @@ impl qobject::SettingsController {
     pub fn apply_volume_normalization(mut self: Pin<&mut Self>, enabled: bool) {
         match utility::set_volume_normalization(app::state(), enabled) {
             Ok(()) => self.as_mut().set_volume_normalization(enabled),
+            Err(e) => self.as_mut().set_error(QString::from(&e.to_string())),
+        }
+    }
+
+    pub fn apply_autoplay(mut self: Pin<&mut Self>, enabled: bool) {
+        match utility::set_autoplay(app::state(), enabled) {
+            Ok(()) => self.as_mut().set_autoplay(enabled),
+            Err(e) => self.as_mut().set_error(QString::from(&e.to_string())),
+        }
+    }
+
+    pub fn apply_allow_explicit(mut self: Pin<&mut Self>, allowed: bool) {
+        match utility::set_allow_explicit(app::state(), allowed) {
+            Ok(()) => self.as_mut().set_allow_explicit(allowed),
             Err(e) => self.as_mut().set_error(QString::from(&e.to_string())),
         }
     }

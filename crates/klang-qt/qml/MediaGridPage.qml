@@ -15,11 +15,15 @@ Item {
     property var items: []
     property bool loading: false
     property string error: ""
+    /// Scroll position is remembered per key across navigation.
+    property string scrollKey: ""
 
     signal openAlbum(int albumId)
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
     signal openMix(string mixId, string title)
+    /// Right-click on a card, in this page's coordinates.
+    signal itemContextRequested(var item, real x, real y)
 
     function rows() {
         if (typeof items === "string")
@@ -117,6 +121,11 @@ Item {
                         image: cell.modelData.image || ""
                         kind: cell.modelData.kind || "album"
                         onActivated: root.activate(cell.modelData)
+                        onPlayRequested: root.activate(cell.modelData)
+                        onContextRequested: (x, y) => {
+                            const p = mapToItem(root, x, y)
+                            root.itemContextRequested(cell.modelData, p.x, p.y)
+                        }
                     }
                 }
             }
@@ -130,9 +139,14 @@ Item {
                 color: Theme.textFaint
             }
 
+            ScrollMemory {
+                flickable: grid
+                pageKey: root.scrollKey
+            }
+
             QQC2.BusyIndicator {
                 anchors.centerIn: parent
-                running: root.loading
+                running: root.loading && Theme.animated
             }
         }
     }

@@ -4,8 +4,9 @@ use crate::core as app;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use crate::queue::{Entry, Queue, Repeat};
-use klang_core::api::playback;
+use klang_core::api::{pages, playback, utility};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::pin::Pin;
 use std::sync::Mutex;
 
@@ -412,6 +413,7 @@ impl qobject::PlayerController {
                                     obj.as_mut().set_position_secs(0.0);
                                     obj.as_mut().rust_mut().queue_dirty = true;
                                     push_playback_status(false, 0.0);
+                                    obj.start_autoplay_radio();
                                 }
                             }
                         });
@@ -530,6 +532,7 @@ fn entry_from_json(value: &serde_json::Value) -> Option<Entry> {
         artist: value.get("artist").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
         duration: value.get("duration").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
         album: value.get("album").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+        track_mix: value.get("trackMix").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
         cover: value.get("cover").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
     })
 }
@@ -619,6 +622,59 @@ impl qobject::PlayerController {
                 user_rating: None,
             },
         );
+    }
+
+/// Keep playing past the end of the queue from the last track's radio,
+    /// the way TIDAL's own autoplay does. Tracks already in the history are
+    /// skipped so a short radio does not loop back immediately.
+    fn start_autoplay_radio(self: Pin<&mut Self>) {
+        if !utility::get_autoplay(app::state()) {
+            return;
+        }
+        let (mix_id, heard) = {
+            let queue = self.rust().queue.lock().unwrap();
+            let Some(current) = queue.current() else {
+                return;
+            };
+            if current.track_mix.is_empty() {
+                return;
+            }
+            let mut heard: HashSet<i64> = queue.history().iter().map(|e| e.id).collect();
+            heard.insert(current.id);
+            (current.track_mix.clone(), heard)
+        };
+
+        let allow_explicit = utility::get_allow_explicit(app::state());
+        let qt = self.qt_thread();
+
+        klang_core::runtime::spawn(async move {
+            let Ok(mix) = pages::get_mix_items(app::state(), mix_id.clone()).await else {
+                return;
+            };
+            let entries: Vec<Entry> = mix
+                .tracks
+                .iter()
+                .filter(|t| !heard.contains(&(t.id as i64)))
+                .filter(|t| allow_explicit || !t.explicit.unwrap_or(false))
+                .filter_map(|t| entry_from_json(&crate::rows::track_unindexed(t)))
+                .collect();
+            if entries.is_empty() {
+                return;
+            }
+
+            let _ = qt.queue(move |mut obj| {
+                let first = {
+                    let rust = obj.as_mut().rust_mut();
+                    let mut queue = rust.queue.lock().unwrap();
+                    queue.set_context(entries, 0, format!("radio:{mix_id}"));
+                    queue.current().cloned()
+                };
+                if let Some(entry) = first {
+                    obj.as_mut().set_source_label(QString::from("Radio"));
+                    obj.start(entry);
+                }
+            });
+        });
     }
 
     /// Begin playing an entry that the queue has already selected.
