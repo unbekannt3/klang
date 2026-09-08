@@ -29,7 +29,7 @@ QQC2.ApplicationWindow {
     // resets it, opening a detail pushes onto it.
     property var page: ({ route: "favorites", params: {} })
     property var history: []
-    property bool queueOpen: false
+    property bool nowPlayingOpen: false
     readonly property string route: page.route
 
     function go(route, params) {
@@ -133,6 +133,7 @@ QQC2.ApplicationWindow {
         }
 
         PlayerBar {
+            id: bar
             Layout.fillWidth: true
             visible: playerCtl.track_id !== 0
             player: playerCtl
@@ -144,7 +145,8 @@ QQC2.ApplicationWindow {
             onShuffleToggled: playerCtl.toggle_shuffle()
             onRepeatToggled: playerCtl.toggle_repeat()
             onMuteToggled: playerCtl.toggle_mute()
-            onQueueRequested: root.queueOpen = !root.queueOpen
+            onQueueRequested: root.nowPlayingOpen = !root.nowPlayingOpen
+            onExpandRequested: root.nowPlayingOpen = true
         }
     }
 
@@ -216,6 +218,17 @@ QQC2.ApplicationWindow {
             playlistUuid: root.page.params.uuid || ""
             playlistTitle: root.page.params.title || ""
         }
+    }
+
+    NowPlayingView {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        // The player bar lives in the layout, so it cannot be anchored to.
+        height: parent.height - (bar.visible ? bar.height : 0)
+        player: playerCtl
+        open: root.nowPlayingOpen
+        onCloseRequested: root.nowPlayingOpen = false
     }
 
     ResizeEdges {

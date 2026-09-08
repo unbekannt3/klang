@@ -214,7 +214,10 @@ impl Queue {
         self.current.clone()
     }
 
-    /// Jump to an upcoming entry. `manual` selects which list the index is in.
+    /// Jump to an upcoming entry, counted from the next one. `manual` selects
+    /// which list the index is in; the context list is walked in playback
+    /// order, so this is shuffle-correct. To start at a known position in the
+    /// context, use [`Queue::set_context`] instead.
     pub fn jump(&mut self, index: usize, manual: bool) -> Option<Entry> {
         self.push_history();
         if manual {
@@ -226,10 +229,12 @@ impl Queue {
             self.current = Some(self.manual.remove(0));
             return self.current.clone();
         }
-        if index >= self.context.len() {
-            return None;
-        }
-        self.position = index;
+        // `index` counts within `upcoming()`, which is in playback order, so it
+        // must be resolved through that order rather than used as a raw index.
+        let order = self.order();
+        let slot = order.iter().position(|&i| i == self.position)?;
+        let target = *order.get(slot + 1 + index)?;
+        self.position = target;
         self.current = self.entry_at_position();
         self.current.clone()
     }
@@ -364,8 +369,8 @@ mod tests {
 
     #[test]
     fn shuffle_keeps_the_current_track_first() {
-        let mut q = queue_of(20);
-        q.jump(7, false);
+        let mut q = Queue::default();
+        q.set_context(entries(20), 7, "album:1".into());
         q.set_shuffle(true);
         assert_eq!(q.current().unwrap().id, 7);
         // Every track still appears exactly once.
@@ -379,9 +384,9 @@ mod tests {
 
     #[test]
     fn unshuffling_restores_catalogue_order() {
-        let mut q = queue_of(10);
+        let mut q = Queue::default();
+        q.set_context(entries(10), 4, "album:1".into());
         q.set_shuffle(true);
-        q.jump(4, false);
         q.set_shuffle(false);
         assert_eq!(q.advance(true).unwrap().id, 5);
     }
@@ -405,6 +410,20 @@ mod tests {
         q.set_repeat(Repeat::Off);
         q.advance(true);
         assert!(q.gapless_next().is_none());
+    }
+
+    #[test]
+    fn jumping_upcoming_follows_playback_order() {
+        let mut q = queue_of(6);
+        let expected = q.upcoming()[2].id;
+        assert_eq!(q.jump(2, false).unwrap().id, expected);
+
+        // Under shuffle the raw index and the playback order disagree, which is
+        // the case that used to pick the wrong track.
+        let mut q = queue_of(20);
+        q.set_shuffle(true);
+        let expected = q.upcoming()[3].id;
+        assert_eq!(q.jump(3, false).unwrap().id, expected);
     }
 
     #[test]
@@ -440,7 +459,7 @@ mod tests {
     #[test]
     fn upcoming_reports_what_is_left() {
         let mut q = queue_of(4);
-        q.jump(1, false);
+        q.jump(0, false);
         let ids: Vec<i64> = q.upcoming().iter().map(|e| e.id).collect();
         assert_eq!(ids, vec![2, 3]);
     }

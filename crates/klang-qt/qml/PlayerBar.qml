@@ -19,6 +19,7 @@ Rectangle {
     signal repeatToggled()
     signal muteToggled()
     signal queueRequested()
+    signal expandRequested()
 
     implicitHeight: Theme.playerBarHeight
     color: Theme.surface
@@ -75,15 +76,22 @@ Rectangle {
             Layout.preferredWidth: Theme.sidebarWidth
             spacing: Theme.spaceSm
 
+            // Cover and title open the full view, as tidal.com does.
             CoverArt {
                 Layout.preferredWidth: Theme.coverThumb + 16
                 Layout.preferredHeight: Theme.coverThumb + 16
                 uuid: root.player.cover
+
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                TapHandler { onSingleTapped: root.expandRequested() }
             }
 
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
+
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                TapHandler { onSingleTapped: root.expandRequested() }
 
                 Text {
                     Layout.fillWidth: true
