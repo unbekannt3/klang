@@ -1,8 +1,8 @@
 // Outbound HTTP/SOCKS5 proxy for the TIDAL API and scrobble providers.
 //
-// Text fields hold a local draft; only Enter (or blur after Enter) commits it
-// with apply_proxy_json, the same "commit, don't sync every keystroke"
-// pattern ThemePicker's HexField uses for hex input. The toggle and proxy
+// Text fields hold a local draft; only Enter commits it with
+// apply_proxy_json, the same "commit, don't sync every keystroke" pattern
+// ThemePicker's HexField uses for hex input. The toggle and proxy
 // type are single-tap choices, so those commit immediately.
 
 import QtQuick
@@ -77,42 +77,6 @@ ColumnLayout {
         }
     }
 
-    component Field: Rectangle {
-        id: field
-        property alias text: input.text
-        property bool isPassword: false
-        property string placeholder: ""
-        signal committed()
-
-        implicitHeight: 32
-        radius: Theme.radiusXs
-        color: Theme.inset
-        border.color: input.activeFocus ? Theme.accent : Theme.border
-        border.width: 1
-
-        TextInput {
-            id: input
-            anchors.fill: parent
-            anchors.leftMargin: Theme.spaceSm
-            anchors.rightMargin: Theme.spaceSm
-            verticalAlignment: TextInput.AlignVCenter
-            echoMode: field.isPassword ? TextInput.Password : TextInput.Normal
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSize
-            color: Theme.textPrimary
-            selectionColor: Theme.accent
-            selectedTextColor: Theme.onAccent
-            onAccepted: field.committed()
-
-            Text {
-                visible: input.text.length === 0
-                text: field.placeholder
-                font: input.font
-                color: Theme.textFaint
-            }
-        }
-    }
-
     SettingRow {
         Layout.fillWidth: true
         label: "Use a proxy"
@@ -154,14 +118,14 @@ ColumnLayout {
 
             RowLayout {
                 spacing: Theme.spaceSm
-                Field {
+                SettingsField {
                     implicitWidth: 180
                     placeholder: "proxy.example.com"
                     text: root.draftHost
                     onTextChanged: root.draftHost = text
                     onCommitted: root.commit()
                 }
-                Field {
+                SettingsField {
                     implicitWidth: 70
                     placeholder: "1080"
                     text: root.draftPort
@@ -178,14 +142,14 @@ ColumnLayout {
 
             RowLayout {
                 spacing: Theme.spaceSm
-                Field {
+                SettingsField {
                     implicitWidth: 140
                     placeholder: "Username"
                     text: root.draftUsername
                     onTextChanged: root.draftUsername = text
                     onCommitted: root.commit()
                 }
-                Field {
+                SettingsField {
                     implicitWidth: 140
                     isPassword: true
                     placeholder: "Password"

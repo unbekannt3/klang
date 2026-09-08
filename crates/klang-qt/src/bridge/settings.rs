@@ -13,11 +13,18 @@
 //! for every `#[qproperty]`, so a same-named `#[qinvokable]` is a duplicate
 //! definition. QML must call `apply_*` to persist a change — writing the
 //! property directly only updates the in-memory value, it does not save.
+//!
+//! No MCP or overlay properties here yet: `Settings` (in `klang-core/src/
+//! lib.rs`) already has `mcp_enabled`/`mcp_port`/`mcp_token` and
+//! `overlay_enabled`/`overlay_host`/`overlay_port`, and `mcp::start_server`/
+//! `overlay::start_server` use them, but `klang-core/src/api/` has no
+//! getter/setter wrapping them — so there is nothing for this bridge to call
+//! without reaching past the facade.
 
 use crate::core as app;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
-use klang_core::api::{scrobble, utility};
+use klang_core::api::{mcp, overlay, scrobble, utility};
 use klang_core::scrobble::ProviderStatus;
 use klang_core::{ProxySettings, SoneError};
 use std::pin::Pin;
@@ -57,6 +64,13 @@ pub mod qobject {
         #[qproperty(QString, scrobble_pending_provider)]
         #[qproperty(QString, scrobble_auth_url)]
         #[qproperty(bool, scrobble_busy)]
+
+        /// Serialised `McpConnectionInfo` plus the token, and the matching
+        /// `OverlayConnectionInfo`. Both are whole objects rather than split
+        /// properties because a server's enabled/url/port only make sense
+        /// together — a stale port next to a fresh url reads as a bug.
+        #[qproperty(QString, mcp_json)]
+        #[qproperty(QString, overlay_json)]
         type SettingsController = super::SettingsControllerRust;
 
         /// Populate every property from persisted/runtime state. Call once
@@ -88,6 +102,8 @@ pub mod qobject {
         fn apply_minimize_to_tray(self: Pin<&mut SettingsController>, enabled: bool);
         #[qinvokable]
         fn apply_enable_logging(self: Pin<&mut SettingsController>, enabled: bool);
+        #[qinvokable]
+        fn open_log_folder(self: Pin<&mut SettingsController>);
 
         /// `json` is a serialised `ProxySettings`.
         #[qinvokable]
@@ -114,6 +130,22 @@ pub mod qobject {
         fn connect_listenbrainz(self: Pin<&mut SettingsController>, token: &QString);
         #[qinvokable]
         fn disconnect_scrobbler(self: Pin<&mut SettingsController>, provider: &QString);
+
+        #[qinvokable]
+        fn refresh_mcp(self: Pin<&mut SettingsController>);
+        #[qinvokable]
+        fn apply_mcp_enabled(self: Pin<&mut SettingsController>, enabled: bool);
+        #[qinvokable]
+        fn regenerate_mcp_token(self: Pin<&mut SettingsController>);
+
+        #[qinvokable]
+        fn refresh_overlay(self: Pin<&mut SettingsController>);
+        #[qinvokable]
+        fn apply_overlay_enabled(self: Pin<&mut SettingsController>, enabled: bool);
+        #[qinvokable]
+        fn apply_overlay_host(self: Pin<&mut SettingsController>, host: &QString);
+        #[qinvokable]
+        fn apply_overlay_port(self: Pin<&mut SettingsController>, port: i32);
     }
 
     impl cxx_qt::Threading for SettingsController {}
@@ -142,6 +174,8 @@ pub struct SettingsControllerRust {
     scrobble_pending_provider: QString,
     scrobble_auth_url: QString,
     scrobble_busy: bool,
+    mcp_json: QString,
+    overlay_json: QString,
     /// Request token for an in-flight Last.fm/Libre.fm browser auth. Not a
     /// Q_PROPERTY: QML never needs the raw token, only whether a provider is
     /// pending confirmation.
@@ -307,6 +341,12 @@ impl qobject::SettingsController {
         }
     }
 
+    pub fn open_log_folder(mut self: Pin<&mut Self>) {
+        if let Err(e) = utility::open_log_folder() {
+            self.as_mut().set_error(QString::from(&e));
+        }
+    }
+
     pub fn apply_proxy_json(mut self: Pin<&mut Self>, json: &QString) {
         let settings = match proxy_from_json(&json.to_string()) {
             Some(s) => s,
@@ -469,5 +509,102 @@ impl qobject::SettingsController {
                 apply_scrobble_status(obj.as_mut(), statuses);
             });
         });
+    }
+
+    pub fn refresh_mcp(self: Pin<&mut Self>) {
+        let qt = self.qt_thread();
+        klang_core::runtime::spawn(async move {
+            let info = mcp::mcp_get_connection_info(app::state()).await;
+            let token = mcp::mcp_token(app::state());
+            let _ = qt.queue(move |obj| publish_mcp(obj, info, token));
+        });
+    }
+
+    pub fn apply_mcp_enabled(self: Pin<&mut Self>, enabled: bool) {
+        let qt = self.qt_thread();
+        klang_core::runtime::spawn(async move {
+            let info = mcp::mcp_set_enabled(app::state(), &app::handle(), enabled).await;
+            let token = mcp::mcp_token(app::state());
+            let _ = qt.queue(move |obj| publish_mcp(obj, info, token));
+        });
+    }
+
+    pub fn regenerate_mcp_token(self: Pin<&mut Self>) {
+        let qt = self.qt_thread();
+        klang_core::runtime::spawn(async move {
+            let info = mcp::mcp_regenerate_token(app::state(), &app::handle()).await;
+            let token = mcp::mcp_token(app::state());
+            let _ = qt.queue(move |obj| publish_mcp(obj, info, token));
+        });
+    }
+
+    pub fn refresh_overlay(self: Pin<&mut Self>) {
+        let qt = self.qt_thread();
+        klang_core::runtime::spawn(async move {
+            let info = overlay::overlay_get_connection_info(app::state()).await;
+            let _ = qt.queue(move |obj| publish_overlay(obj, info));
+        });
+    }
+
+    pub fn apply_overlay_enabled(self: Pin<&mut Self>, enabled: bool) {
+        let qt = self.qt_thread();
+        klang_core::runtime::spawn(async move {
+            let info = overlay::overlay_set_enabled(app::state(), enabled).await;
+            let _ = qt.queue(move |obj| publish_overlay(obj, info));
+        });
+    }
+
+    pub fn apply_overlay_host(self: Pin<&mut Self>, host: &QString) {
+        let host = host.to_string();
+        let qt = self.qt_thread();
+        klang_core::runtime::spawn(async move {
+            let info = overlay::overlay_set_host(app::state(), host).await;
+            let _ = qt.queue(move |obj| publish_overlay(obj, info));
+        });
+    }
+
+    pub fn apply_overlay_port(self: Pin<&mut Self>, port: i32) {
+        let port = port.clamp(0, u16::MAX as i32) as u16;
+        let qt = self.qt_thread();
+        klang_core::runtime::spawn(async move {
+            let info = overlay::overlay_set_port(app::state(), port).await;
+            let _ = qt.queue(move |obj| publish_overlay(obj, info));
+        });
+    }
+}
+
+/// Both servers report the same way: on success replace the whole info
+/// object, on failure keep the last known state and surface the message, so
+/// a rejected port does not blank the panel.
+fn publish_mcp(
+    mut obj: Pin<&mut qobject::SettingsController>,
+    info: Result<mcp::McpConnectionInfo, SoneError>,
+    token: String,
+) {
+    match info {
+        Ok(info) => {
+            let json = serde_json::json!({
+                "enabled": info.enabled,
+                "url": info.url,
+                "port": info.port,
+                "token": token,
+            });
+            obj.as_mut()
+                .set_mcp_json(QString::from(&json.to_string()));
+        }
+        Err(e) => obj.as_mut().set_error(QString::from(&e.to_string())),
+    }
+}
+
+fn publish_overlay(
+    mut obj: Pin<&mut qobject::SettingsController>,
+    info: Result<overlay::OverlayConnectionInfo, SoneError>,
+) {
+    match info {
+        Ok(info) => {
+            let json = serde_json::to_string(&info).unwrap_or_else(|_| "{}".into());
+            obj.as_mut().set_overlay_json(QString::from(&json));
+        }
+        Err(e) => obj.as_mut().set_error(QString::from(&e.to_string())),
     }
 }

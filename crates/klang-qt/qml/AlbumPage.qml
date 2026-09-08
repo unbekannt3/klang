@@ -29,8 +29,18 @@ Item {
     }
 
     function reload() {
-        if (albumId !== 0)
-            catalog.load_album(albumId)
+        if (albumId === 0)
+            return
+        catalog.load_album(albumId)
+        catalog.load_album_credits(albumId)
+    }
+
+    function credits() {
+        return JSON.parse(catalog.album_credits_json || "[]")
+    }
+
+    function review() {
+        return JSON.parse(catalog.album_review_json || "{}")
     }
 
     onAlbumIdChanged: reload()
@@ -209,6 +219,103 @@ Item {
                 font.pixelSize: Theme.fontSizeSm
                 color: Theme.textFaint
             }
+
+            // TIDAL's editorial blurb, where the album has one.
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.spaceLg
+                Layout.rightMargin: Theme.spaceLg
+                spacing: Theme.spaceSm
+                visible: root.review().text.length > 0
+
+                Text {
+                    text: "About this album"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeHeading
+                    font.weight: Font.Bold
+                    color: Theme.textPrimary
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: 760
+                    text: root.review().text
+                    textFormat: Text.RichText
+                    wrapMode: Text.WordWrap
+                    lineHeight: 1.4
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize
+                    color: Theme.textSecondary
+                }
+
+                Text {
+                    visible: root.review().source.length > 0
+                    text: root.review().source
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSm
+                    color: Theme.textFaint
+                }
+            }
+
+            // Credits, grouped by role the way TIDAL lists them.
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.spaceLg
+                Layout.rightMargin: Theme.spaceLg
+                Layout.bottomMargin: Theme.spaceXl
+                spacing: Theme.space
+                visible: root.credits().length > 0
+
+                Text {
+                    text: "Credits"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeHeading
+                    font.weight: Font.Bold
+                    color: Theme.textPrimary
+                }
+
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: Math.max(1, Math.floor(width / 280))
+                    columnSpacing: Theme.spaceXl
+                    rowSpacing: Theme.space
+
+                    Repeater {
+                        model: root.credits()
+
+                        ColumnLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignTop
+                            spacing: 2
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: modelData.role
+                                elide: Text.ElideRight
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeSm
+                                color: Theme.textFaint
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: modelData.contributors.join(", ")
+                                wrapMode: Text.WordWrap
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSize
+                                color: Theme.textPrimary
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
+
+    ScrollMemory {
+        flickable: flick
+        pageKey: "album:" + root.albumId
+    }
+
 }

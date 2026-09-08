@@ -65,8 +65,8 @@ pub async fn get_album_detail(
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AlbumPageCached {
-    page: AlbumPageResponse,
-    is_stale: bool,
+    pub page: AlbumPageResponse,
+    pub is_stale: bool,
 }
 
 pub async fn get_album_page(

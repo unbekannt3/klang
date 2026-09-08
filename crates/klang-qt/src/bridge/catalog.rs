@@ -28,6 +28,8 @@ pub mod qobject {
         #[qproperty(QString, error)]
         #[qproperty(QString, album_json)]
         #[qproperty(QString, album_tracks_json)]
+        #[qproperty(QString, album_credits_json)]
+        #[qproperty(QString, album_review_json)]
         #[qproperty(QString, artist_json)]
         #[qproperty(QString, artist_top_tracks_json)]
         #[qproperty(QString, artist_albums_json)]
@@ -37,6 +39,13 @@ pub mod qobject {
         /// (`album_tracks_json`).
         #[qinvokable]
         fn load_album(self: Pin<&mut CatalogController>, album_id: i64);
+
+        /// Load an album's credits (`album_credits_json`) and editorial
+        /// review (`album_review_json`). Separate from `load_album` because
+        /// it hits TIDAL's page endpoint rather than the album endpoints,
+        /// and the album header must not wait on it.
+        #[qinvokable]
+        fn load_album_credits(self: Pin<&mut CatalogController>, album_id: i64);
 
         /// Load an artist's header (`artist_json`, bio included), their top
         /// tracks (`artist_top_tracks_json`) and their albums
@@ -54,6 +63,8 @@ pub struct CatalogControllerRust {
     error: QString,
     album_json: QString,
     album_tracks_json: QString,
+    album_credits_json: QString,
+    album_review_json: QString,
     artist_json: QString,
     artist_top_tracks_json: QString,
     artist_albums_json: QString,
@@ -121,7 +132,53 @@ fn artist_row(artist: &TidalArtistDetail, bio: &str) -> serde_json::Value {
     })
 }
 
+/// Flatten one credit role: TIDAL groups contributors by role
+/// ("Producer", "Mixer", ...), which is how the album page lists them.
+fn credit_row(credit: &klang_core::tidal_api::TidalCredit) -> serde_json::Value {
+    serde_json::json!({
+        "role": credit.credit_type,
+        "contributors": credit
+            .contributors
+            .iter()
+            .map(|c| c.name.clone())
+            .collect::<Vec<_>>(),
+    })
+}
+
 impl qobject::CatalogController {
+    pub fn load_album_credits(mut self: Pin<&mut Self>, album_id: i64) {
+        self.as_mut().set_album_credits_json(QString::from("[]"));
+        self.as_mut().set_album_review_json(QString::from("{}"));
+        let qt = self.qt_thread();
+        let album_id = album_id.max(0) as u64;
+
+        klang_core::runtime::spawn(async move {
+            let result = pages::get_album_page(app::state(), &app::handle(), album_id).await;
+            let _ = qt.queue(move |mut obj| {
+                let page = match result {
+                    Ok(cached) => cached.page,
+                    // The header and track list already rendered; a missing
+                    // credits section is not worth an error banner.
+                    Err(e) => {
+                        log::warn!("album credits: {e}");
+                        return;
+                    }
+                };
+                let credits: Vec<_> = page.credits.iter().map(credit_row).collect();
+                let review = serde_json::json!({
+                    "source": page.review.as_ref().and_then(|r| r.source.clone()).unwrap_or_default(),
+                    "text": page.review.as_ref().and_then(|r| r.text.clone()).unwrap_or_default(),
+                });
+                obj.as_mut().set_album_credits_json(QString::from(
+                    &serde_json::to_string(&credits).unwrap_or_else(|_| "[]".into()),
+                ));
+                obj.as_mut().set_album_review_json(QString::from(
+                    &serde_json::to_string(&review).unwrap_or_else(|_| "{}".into()),
+                ));
+            });
+        });
+    }
+
     pub fn load_album(mut self: Pin<&mut Self>, album_id: i64) {
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));

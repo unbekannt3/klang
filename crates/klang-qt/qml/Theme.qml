@@ -73,6 +73,8 @@ QtObject {
     // ---- type -----------------------------------------------------------
     // Square Sans Text is TIDAL's and will not resolve on a stock Fedora.
     readonly property string fontFamily: "Square Sans Text, Inter, Noto Sans, DejaVu Sans, sans-serif"
+    /// For values that are copied rather than read: tokens, URLs, ports.
+    readonly property string fontFamilyMono: "JetBrains Mono, Fira Code, DejaVu Sans Mono, monospace"
     readonly property string monoFamily: "monospace"
 
     readonly property int fontSizeSm: 12
