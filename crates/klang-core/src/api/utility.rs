@@ -396,7 +396,10 @@ pub async fn set_proxy_settings(
 }
 
 pub async fn inhibit_idle(app: &AppHandle) -> Result<(), SoneError> {
-    app.state().idle_inhibitor.lock().await.inhibit(app).await;
+    // The Wayland handles have to be read on the GUI thread; the shell
+    // caches them, so this is just a lookup.
+    let surface = app.window().wayland_surface();
+    app.state().idle_inhibitor.lock().await.inhibit(surface).await;
     Ok(())
 }
 

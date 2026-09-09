@@ -4,10 +4,9 @@ pub mod state;
 pub use server::{start_server, OverlayHandle};
 pub use state::{new_state, OverlayStateRef, OverlayTrackState};
 
-pub(crate) async fn ensure_overlay_started(app: &tauri::AppHandle) {
-    use tauri::Manager;
-
-    let state = app.state::<crate::AppState>();
+pub(crate) async fn ensure_overlay_started(app: &crate::app::AppHandle) {
+    
+    let state = app.state();
     let mut guard = state.overlay_handle.lock().await;
     if guard.is_some() {
         return;

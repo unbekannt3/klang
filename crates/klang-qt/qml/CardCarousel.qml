@@ -22,6 +22,8 @@ ColumnLayout {
 
     /// Shows a "View all" affordance next to the title.
     property bool hasViewAll: false
+    /// FavoritesController; without one the cards' hearts stay hidden.
+    property var favorites: null
 
     spacing: Theme.spaceSm
 
@@ -124,10 +126,36 @@ ColumnLayout {
 
         delegate: MediaCard {
             required property var modelData
+
+            // Mixes have no favourite endpoint; the heart is hidden for them
+            // rather than shown inert.
+            readonly property bool inLibrary: {
+                if (!root.favorites || !modelData)
+                    return false
+                const _revision = root.favorites.revision
+                switch (modelData.kind) {
+                case "album":    return root.favorites.is_album(Number(modelData.id))
+                case "artist":   return root.favorites.is_artist(Number(modelData.id))
+                case "playlist": return root.favorites.is_playlist(String(modelData.id))
+                default:         return false
+                }
+            }
+
+            function toggleFavorite() {
+                switch (modelData.kind) {
+                case "album":    root.favorites.toggle_album(Number(modelData.id)); break
+                case "artist":   root.favorites.toggle_artist(Number(modelData.id)); break
+                case "playlist": root.favorites.toggle_playlist(String(modelData.id)); break
+                }
+            }
+
             title: modelData.title || ""
             subtitle: modelData.subtitle || ""
             image: modelData.image || ""
             kind: modelData.kind || "album"
+            favorited: inLibrary
+            showControls: !!root.favorites || modelData.kind !== "mix"
+            onFavoriteToggled: toggleFavorite()
             onActivated: root.itemActivated(modelData)
             onPlayRequested: root.itemPlayRequested(modelData)
             onContextRequested: (x, y) => {

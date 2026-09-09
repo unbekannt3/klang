@@ -1,7 +1,4 @@
-use std::sync::mpsc;
-
-use gtk::glib::translate::ToGlibPtr;
-use gtk::prelude::*;
+use crate::app::WaylandSurface;
 use wayland_client::backend::{Backend, ObjectId};
 use wayland_client::globals::{registry_queue_init, GlobalListContents};
 use wayland_client::protocol::wl_registry::WlRegistry;
@@ -31,32 +28,22 @@ impl Dispatch<ZwpIdleInhibitorV1, ()> for State {
         _: &Connection, _: &QueueHandle<Self>) {}
 }
 
-/// All fields are Send (wayland-client sys objects are Send+Sync). Only the
-/// initial pointer acquisition + create_inhibitor must run on the GTK main thread.
+/// All fields are Send (wayland-client sys objects are Send+Sync). The shell
+/// hands over the raw handles; getting those is what must happen on the GUI
+/// thread, and it has already happened by the time we are called.
 pub struct WaylandInhibitor {
     _conn: Connection,
     inhibitor: ZwpIdleInhibitorV1,
 }
 
 impl WaylandInhibitor {
-    /// Build an inhibitor for the given window. MUST be called from the GTK main
-    /// thread (does GDK pointer access). Returns None if not on Wayland, the
-    /// surface isn't realized, or the compositor lacks idle-inhibit.
-    fn build(window: &tauri::WebviewWindow) -> Option<Self> {
-        let gtk_win = window.gtk_window().ok()?;
-        let gdk_win = gtk_win.window()?; // realized only after show
-        let gdk_display = gdk_win.display();
-
-        let display_ptr_gdk: *mut gdk::ffi::GdkDisplay = gdk_display.to_glib_none().0;
-        let window_ptr_gdk: *mut gdk::ffi::GdkWindow = gdk_win.to_glib_none().0;
-        let display_ptr = unsafe {
-            gdk_wayland_sys::gdk_wayland_display_get_wl_display(display_ptr_gdk as *mut _)
-        };
-        let surface_ptr = unsafe {
-            gdk_wayland_sys::gdk_wayland_window_get_wl_surface(window_ptr_gdk as *mut _)
-        };
+    /// Build an inhibitor over the shell's own wl_display and wl_surface.
+    /// Upstream dug these out of GDK; the shell hands them over directly.
+    fn build(surface_handles: WaylandSurface) -> Option<Self> {
+        let display_ptr = surface_handles.display;
+        let surface_ptr = surface_handles.surface;
         if display_ptr.is_null() || surface_ptr.is_null() {
-            log::warn!("GDK wl_display/wl_surface unavailable (not realized or not Wayland)");
+            log::warn!("shell reported no wl_display/wl_surface");
             return None;
         }
 
@@ -87,22 +74,10 @@ impl WaylandInhibitor {
         Some(Self { _conn: conn, inhibitor })
     }
 
-    /// Public entry: hops to the GTK main thread to build the inhibitor.
-    pub fn start(window: &tauri::WebviewWindow) -> Option<Self> {
-        let (tx, rx) = mpsc::channel::<Option<WaylandInhibitor>>();
-        let win = window.clone();
-        if window.run_on_main_thread(move || {
-            let _ = tx.send(WaylandInhibitor::build(&win));
-        }).is_err() {
-            return None;
-        }
-        match rx.recv_timeout(std::time::Duration::from_secs(5)) {
-            Ok(inhibitor) => inhibitor,
-            Err(e) => {
-                log::warn!("Wayland inhibitor build timed out or disconnected: {e}");
-                None
-            }
-        }
+    /// Public entry. The handles come from the shell, which read them on its
+    /// GUI thread, so there is no thread hop left to make here.
+    pub fn start(surface_handles: Option<WaylandSurface>) -> Option<Self> {
+        Self::build(surface_handles?)
     }
 
     pub fn stop(self) {

@@ -5,7 +5,7 @@ use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::model::{Implementation, ProtocolVersion, ServerCapabilities, ServerInfo};
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService};
-use tauri::AppHandle;
+use crate::app::AppHandle;
 use tokio_util::sync::CancellationToken;
 
 use crate::error::SoneError;

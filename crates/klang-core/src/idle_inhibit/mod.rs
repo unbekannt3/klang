@@ -55,7 +55,7 @@ impl IdleInhibitor {
 
     /// Inhibit screen blanking + system sleep. Runs every applicable layer for
     /// the detected display server — no short-circuit.
-    pub async fn inhibit(&mut self, window: &tauri::WebviewWindow) {
+    pub async fn inhibit(&mut self, surface: Option<crate::app::WaylandSurface>) {
         if self.active {
             return;
         }
@@ -67,7 +67,7 @@ impl IdleInhibitor {
         // Layer 1: display-server native.
         match server {
             DisplayServer::Wayland => {
-                self.wayland = wayland::WaylandInhibitor::start(window);
+                self.wayland = wayland::WaylandInhibitor::start(surface);
             }
             DisplayServer::X11 => {
                 self.x11 = x11::X11Inhibitor::start();

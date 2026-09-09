@@ -67,6 +67,8 @@ QtObject {
     /// less its padding.
     readonly property int coverPlayer: 64
 
+    /// A card's inner padding, and the gap under its cover.
+    readonly property int cardPadding: 12
     readonly property int spaceXs: 4
     readonly property int spaceSm: 8
     readonly property int space: 16
@@ -97,7 +99,16 @@ QtObject {
     //
     // This is focus, not visibility — Qt keeps animating hidden items, so a
     // looping animation must be gated on its own `visible` as well.
+    // Fixed rather than theme-derived: these sit on top of artwork, where the
+    // palette behind them is whatever the cover happens to be.
+    readonly property color textOnImage: "#FFFFFF"
+    readonly property color scrimSoft: "#33000000"
+    readonly property color scrim: "#80000000"
+    readonly property color scrimStrong: "#B3000000"
+
     readonly property bool animated: Qt.application.active
     readonly property int durationFast: animated ? 120 : 0
     readonly property int duration: animated ? 180 : 0
+    /// Card hover: sone lets the artwork settle over half a second.
+    readonly property int durationSlow: animated ? 500 : 0
 }

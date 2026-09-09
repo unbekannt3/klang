@@ -3,7 +3,7 @@ use rmcp::model::CallToolResult;
 use rmcp::schemars::JsonSchema;
 use rmcp::{ErrorData, tool_router};
 use serde::Deserialize;
-use tauri::{Emitter, Manager};
+use crate::app::Emitter;
 
 use crate::AppState;
 use crate::mcp::events::{
@@ -110,7 +110,7 @@ impl SoneMcpServer {
         &self,
         Parameters(_): Parameters<NoArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let mut client = state.tidal_client.lock().await;
         let user_id = require_user_id(&client)?;
         let owned = client
@@ -143,7 +143,7 @@ impl SoneMcpServer {
         &self,
         Parameters(args): Parameters<GetPlaylistTracksArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let mut client = state.tidal_client.lock().await;
         let user_id = require_user_id(&client)?;
         let uuid = resolve_playlist_uuid(
@@ -177,7 +177,7 @@ impl SoneMcpServer {
             return Err(ErrorData::invalid_params("Playlist name required", None));
         }
         let description = args.description.unwrap_or_default();
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let client = state.tidal_client.lock().await;
         let user_id = require_user_id(&client)?;
         let playlist = client
@@ -227,7 +227,7 @@ impl SoneMcpServer {
         &self,
         Parameters(args): Parameters<UpdatePlaylistArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let mut client = state.tidal_client.lock().await;
         // Fetch current playlist details to use as fallback for unchanged fields.
         let current = client
@@ -289,7 +289,7 @@ impl SoneMcpServer {
         &self,
         Parameters(args): Parameters<DeletePlaylistArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let client = state.tidal_client.lock().await;
         let user_id = require_user_id(&client)?;
         client
@@ -330,7 +330,7 @@ impl SoneMcpServer {
         if args.track_ids.is_empty() {
             return Err(ErrorData::invalid_params("track_ids must not be empty", None));
         }
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let mut client = state.tidal_client.lock().await;
         let user_id = require_user_id(&client)?;
         let uuid = resolve_playlist_uuid(
@@ -372,7 +372,7 @@ impl SoneMcpServer {
         &self,
         Parameters(args): Parameters<RemoveTrackFromPlaylistArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let client = state.tidal_client.lock().await;
         client
             .remove_track_from_playlist(&args.playlist_uuid, args.index)

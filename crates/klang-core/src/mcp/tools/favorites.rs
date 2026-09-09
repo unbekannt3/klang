@@ -3,7 +3,7 @@ use rmcp::model::CallToolResult;
 use rmcp::schemars::JsonSchema;
 use rmcp::{ErrorData, tool_router};
 use serde::Deserialize;
-use tauri::{Emitter, Manager};
+use crate::app::Emitter;
 
 use crate::AppState;
 use crate::mcp::events::{EV_FAVORITE_CHANGED, FavoriteChangedPayload};
@@ -45,7 +45,7 @@ impl SoneMcpServer {
     ) -> Result<CallToolResult, ErrorData> {
         let limit = args.limit.unwrap_or(50).min(100);
         let offset = args.offset.unwrap_or(0);
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let mut client = state.tidal_client.lock().await;
         let user_id = require_user_id(&client)?;
         let resp = client
@@ -75,7 +75,7 @@ impl SoneMcpServer {
     ) -> Result<CallToolResult, ErrorData> {
         let limit = args.limit.unwrap_or(50).min(100);
         let offset = args.offset.unwrap_or(0);
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let mut client = state.tidal_client.lock().await;
         let user_id = require_user_id(&client)?;
         let resp = client
@@ -105,7 +105,7 @@ impl SoneMcpServer {
     ) -> Result<CallToolResult, ErrorData> {
         let limit = args.limit.unwrap_or(50).min(100);
         let offset = args.offset.unwrap_or(0);
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let mut client = state.tidal_client.lock().await;
         let user_id = require_user_id(&client)?;
         let resp = client
@@ -133,7 +133,7 @@ impl SoneMcpServer {
         &self,
         Parameters(args): Parameters<TrackIdArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let client = state.tidal_client.lock().await;
         let user_id = require_user_id(&client)?;
         let favorited = client
@@ -160,7 +160,7 @@ impl SoneMcpServer {
                 None,
             ));
         }
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let client = state.tidal_client.lock().await;
         let user_id = require_user_id(&client)?;
         if args.action == "add" {
@@ -206,7 +206,7 @@ impl SoneMcpServer {
                 None,
             ));
         }
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let client = state.tidal_client.lock().await;
         let user_id = require_user_id(&client)?;
         if args.action == "add" {
@@ -252,7 +252,7 @@ impl SoneMcpServer {
                 None,
             ));
         }
-        let state = self.app_handle.state::<AppState>();
+        let state = self.app_handle.state();
         let client = state.tidal_client.lock().await;
         let user_id = require_user_id(&client)?;
         if args.action == "add" {

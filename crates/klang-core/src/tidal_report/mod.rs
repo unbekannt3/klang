@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use tauri::{AppHandle, Manager};
+use crate::app::AppHandle;
 use tokio::sync::Mutex;
 
 use crate::crypto::Crypto;
@@ -401,7 +401,7 @@ impl TidalReporter {
     /// Snapshot (access_token, oauth_client_id) from the TIDAL client without
     /// holding the lock across any network I/O.
     async fn token_snapshot(&self) -> Option<(String, String)> {
-        let state = self.app_handle.state::<crate::AppState>();
+        let state = self.app_handle.state();
         let client = state.tidal_client.lock().await;
         client
             .tokens
@@ -410,7 +410,7 @@ impl TidalReporter {
     }
 
     async fn refresh_snapshot(&self) -> Option<(String, String)> {
-        let state = self.app_handle.state::<crate::AppState>();
+        let state = self.app_handle.state();
         let mut client = state.tidal_client.lock().await;
         match client.refresh_token().await {
             Ok(_) => client
@@ -446,8 +446,8 @@ impl TidalReporter {
                 .unwrap_or_else(|| "<none>".into())
         );
         let handle = self.app_handle.clone();
-        tauri::async_runtime::spawn(async move {
-            let state = handle.state::<crate::AppState>();
+        crate::runtime::spawn(async move {
+            let state = handle.state();
             let reporter = &state.tidal_reporter;
             let Some(body) = reporter.build_body(&ev).await else {
                 log::warn!(

@@ -15,6 +15,8 @@ Item {
     property var items: []
     property bool loading: false
     property string error: ""
+    /// FavoritesController; without one the cards' hearts stay hidden.
+    property var favorites: null
     /// Scroll position is remembered per key across navigation.
     property string scrollKey: ""
 
@@ -103,12 +105,38 @@ Item {
 
                     MediaCard {
                         anchors.fill: parent
+
+                        // Mixes have no favourite endpoint; the heart is hidden for them
+                        // rather than shown inert.
+                        readonly property bool inLibrary: {
+                            if (!root.favorites || !cell.modelData)
+                                return false
+                            const _revision = root.favorites.revision
+                            switch (cell.modelData.kind) {
+                            case "album":    return root.favorites.is_album(Number(cell.modelData.id))
+                            case "artist":   return root.favorites.is_artist(Number(cell.modelData.id))
+                            case "playlist": return root.favorites.is_playlist(String(cell.modelData.id))
+                            default:         return false
+                            }
+                        }
+
+                        function toggleFavorite() {
+                            switch (cell.modelData.kind) {
+                            case "album":    root.favorites.toggle_album(Number(cell.modelData.id)); break
+                            case "artist":   root.favorites.toggle_artist(Number(cell.modelData.id)); break
+                            case "playlist": root.favorites.toggle_playlist(String(cell.modelData.id)); break
+                            }
+                        }
+
                         anchors.rightMargin: Theme.spaceLg
                         anchors.bottomMargin: Theme.spaceLg
                         title: cell.modelData.title || ""
                         subtitle: cell.modelData.subtitle || ""
                         image: cell.modelData.image || ""
                         kind: cell.modelData.kind || "album"
+                        favorited: inLibrary
+                        showControls: !!root.favorites || cell.modelData.kind !== "mix"
+                        onFavoriteToggled: toggleFavorite()
                         onActivated: root.activate(cell.modelData)
                         onPlayRequested: root.activate(cell.modelData)
                         onContextRequested: (x, y) => {

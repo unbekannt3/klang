@@ -1,6 +1,14 @@
 use cxx_qt_build::{CxxQtBuilder, QmlFile, QmlModule};
 
 fn main() {
+    // cxx-qt-build only tells cargo to watch the .rs bridges and the qrc, so
+    // a QML-only edit silently kept the previous binary — every screenshot
+    // after one showed the old UI.
+    for entry in std::fs::read_dir("qml").expect("qml directory") {
+        let path = entry.expect("qml entry").path();
+        println!("cargo::rerun-if-changed={}", path.display());
+    }
+
     // Paths are used verbatim as the Qt resource alias, so a "../" here would
     // produce an unreachable qrc URL and a window that never appears.
     CxxQtBuilder::new_qml_module(

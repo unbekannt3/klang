@@ -20,6 +20,7 @@ Item {
     id: root
 
     required property var player
+    property var favorites: null
     property string title: ""
 
     /// Loaded once, no pagination — a home/library section's "View all".
@@ -178,6 +179,7 @@ Item {
         }
 
         MediaGridPage {
+            favorites: root.favorites
             visible: root.gridMode
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -230,6 +232,7 @@ Item {
             Layout.fillHeight: true
 
             SectionList {
+                favorites: root.favorites
                 visible: !viewAll.is_nav_section
                 anchors.fill: parent
                 player: root.player

@@ -13,10 +13,9 @@ pub use state_mirror::{
 /// Holds the `mcp_handle` lock across the whole check→bind→store so that
 /// concurrent callers (startup spawn + login restore) cannot both bind the
 /// port. No-op if MCP is disabled or a server is already running.
-pub(crate) async fn ensure_mcp_started(app: &tauri::AppHandle) {
-    use tauri::Manager;
-
-    let state = app.state::<crate::AppState>();
+pub(crate) async fn ensure_mcp_started(app: &crate::app::AppHandle) {
+    
+    let state = app.state();
     let mut guard = state.mcp_handle.lock().await;
     if guard.is_some() {
         return;

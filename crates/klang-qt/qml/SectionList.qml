@@ -15,6 +15,7 @@ Item {
     property bool loading: false
     property string error: ""
     property string emptyText: Tr.t("Nothing here")
+    property var favorites: null
     /// Scroll position is remembered per key across navigation.
     property string scrollKey: ""
 
@@ -66,6 +67,7 @@ Item {
 
         delegate: CardCarousel {
             required property var modelData
+            favorites: root.favorites
             width: view.width
             title: modelData.title || ""
             items: modelData.items || []

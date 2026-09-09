@@ -3,7 +3,7 @@ use rmcp::model::CallToolResult;
 use rmcp::schemars::JsonSchema;
 use rmcp::{ErrorData, tool_router};
 use serde::Deserialize;
-use tauri::Emitter;
+use crate::app::Emitter;
 
 use crate::mcp::events::{
     EV_CLEAR_QUEUE, EV_PAUSE, EV_PLAY_SOURCE, EV_PLAY_TRACKS, EV_REMOVE_FROM_QUEUE, EV_RESUME,

@@ -7,6 +7,7 @@ Item {
     id: root
 
     required property var player
+    property var favorites: null
     /// Navigation requests bubble up to Main.qml.
     signal openAlbum(int albumId)
     signal openArtist(int artistId)
@@ -22,6 +23,7 @@ Item {
     Rectangle { anchors.fill: parent; color: Theme.base }
 
     SectionList {
+        favorites: root.favorites
         onItemContextRequested: (item, x, y) => root.itemContextRequested(item, x, y)
         onOpenSection: (section) => root.openSection(section)
         scrollKey: "home"

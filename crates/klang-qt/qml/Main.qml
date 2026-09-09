@@ -260,6 +260,7 @@ QQC2.ApplicationWindow {
         id: homePage
         HomePage {
             player: playerCtl
+            favorites: favoritesCtl
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
@@ -276,6 +277,7 @@ QQC2.ApplicationWindow {
         id: exploreRootPage
         ViewAllPage {
             player: playerCtl
+            favorites: favoritesCtl
             title: Tr.t("Explore")
             apiPath: "pages/explore"
             sectioned: true
@@ -365,6 +367,7 @@ QQC2.ApplicationWindow {
         id: viewAllPage
         ViewAllPage {
             player: playerCtl
+            favorites: favoritesCtl
             title: root.page.params.title || ""
             apiPath: root.page.params.apiPath || ""
             sectioned: root.page.params.sectioned || false
@@ -418,6 +421,7 @@ QQC2.ApplicationWindow {
         id: itemGridPage
         MediaGridPage {
             player: playerCtl
+            favorites: favoritesCtl
             title: root.page.params.title || ""
             items: root.page.params.items || []
             scrollKey: "item-grid:" + (root.page.params.title || "")
@@ -466,6 +470,7 @@ QQC2.ApplicationWindow {
     // through; ViewAllPage handles the paging and the sort control.
     component CollectionGrid: ViewAllPage {
         player: playerCtl
+        favorites: favoritesCtl
         userId: authCtl.user_id
         onOpenAlbum: (id) => root.go("album", { albumId: id })
         onOpenArtist: (id) => root.go("artist", { artistId: id })
