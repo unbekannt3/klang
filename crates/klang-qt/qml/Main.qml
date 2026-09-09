@@ -255,6 +255,7 @@ QQC2.ApplicationWindow {
                         case "fav-artists":   return favArtistsPage
                         case "fav-playlists": return favPlaylistsPage
                         case "fav-videos":    return favVideosPage
+                        case "fav-mixes":     return favMixesPage
                         default:          return favoritesPage
                     }
                 }
@@ -556,6 +557,15 @@ QQC2.ApplicationWindow {
             title: Tr.t("Artists")
             libraryKind: "artists"
             scrollKey: "fav-artists"
+        }
+    }
+
+    Component {
+        id: favMixesPage
+        CollectionGrid {
+            title: Tr.t("Mixes")
+            libraryKind: "mixes"
+            scrollKey: "fav-mixes"
         }
     }
 

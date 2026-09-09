@@ -95,6 +95,7 @@ QtObject {
         "Artists": "Künstler",
         "Playlists": "Playlists",
         "Videos": "Videos",
+        "Mixes": "Mixe",
         "Search": "Suchen",
         "Profile": "Profil",
         "Log out": "Abmelden",

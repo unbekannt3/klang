@@ -50,6 +50,12 @@ pub mod qobject {
         #[qinvokable]
         fn load_more_favorites(self: Pin<&mut LibraryController>);
 
+        /// Keep paging until the whole collection is in `tracks_json`.
+        /// Playback starts from what is loaded, so the queue only covers the
+        /// whole collection once this has run.
+        #[qinvokable]
+        fn load_all_favorites(self: Pin<&mut LibraryController>);
+
         /// Load favourite albums as card rows (`albums_json`).
         #[qinvokable]
         fn load_albums(self: Pin<&mut LibraryController>, user_id: i64, limit: i32);
@@ -97,6 +103,8 @@ pub struct LibraryControllerRust {
     fav_limit: i32,
     /// How many loved tracks are already in `tracks_json`.
     fav_loaded: i32,
+    /// Set while paging to the end for `load_all_favorites`.
+    fav_fill_all: bool,
     has_more: bool,
 }
 
@@ -119,6 +127,7 @@ impl Default for LibraryControllerRust {
             fav_user_id: 0,
             fav_limit: 0,
             fav_loaded: 0,
+            fav_fill_all: false,
             has_more: false,
         }
     }
@@ -242,6 +251,16 @@ impl qobject::LibraryController {
         self.fetch_favorites_page();
     }
 
+    pub fn load_all_favorites(mut self: Pin<&mut Self>) {
+        if !*self.has_more() {
+            return;
+        }
+        self.as_mut().rust_mut().fav_fill_all = true;
+        if !*self.loading() {
+            self.fetch_favorites_page();
+        }
+    }
+
     /// Fetch one page and append it. The rows cross to QML as one JSON array,
     /// so appending means parsing what is already there — cheap next to the
     /// round-trip, and it keeps the single-property contract every list binds
@@ -291,8 +310,18 @@ impl qobject::LibraryController {
 
                         let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
                         obj.as_mut().set_tracks_json(QString::from(&json));
+
+                        if obj.rust().fav_fill_all && *obj.has_more() {
+                            obj.as_mut().fetch_favorites_page();
+                        } else {
+                            obj.as_mut().rust_mut().fav_fill_all = false;
+                        }
                     }
-                    Err(e) => obj.as_mut().set_error(QString::from(&e.to_string())),
+                    Err(e) => {
+                        // Stop rather than hammer the endpoint page after page.
+                        obj.as_mut().rust_mut().fav_fill_all = false;
+                        obj.as_mut().set_error(QString::from(&e.to_string()));
+                    }
                 }
             });
         });

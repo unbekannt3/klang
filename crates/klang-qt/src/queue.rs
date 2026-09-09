@@ -155,6 +155,43 @@ impl Queue {
         self.current = self.entry_at_position();
     }
 
+    /// Append tracks the source has since loaded, keeping what is playing.
+    ///
+    /// A paginated collection only has its first page in hand when playback
+    /// starts, so the rest arrives here. Entries already in the context are
+    /// skipped, which makes this safe to call on every page.
+    pub fn extend_context(&mut self, entries: Vec<Entry>) -> usize {
+        let known: std::collections::HashSet<i64> =
+            self.context.iter().map(|e| e.id).collect();
+        let fresh: Vec<Entry> = entries
+            .into_iter()
+            .filter(|e| !known.contains(&e.id))
+            .collect();
+        if fresh.is_empty() {
+            return 0;
+        }
+        let added = fresh.len();
+        let first_new = self.context.len();
+        self.context.extend(fresh);
+        if self.is_shuffled() {
+            // Shuffled into what is left rather than appended in order, but
+            // never ahead of the track playing now.
+            use rand::seq::SliceRandom;
+            let played = self
+                .shuffle_order
+                .iter()
+                .position(|&i| i == self.position)
+                .map(|slot| slot + 1)
+                .unwrap_or(0);
+            let mut rest: Vec<usize> = self.shuffle_order[played..].to_vec();
+            rest.extend(first_new..self.context.len());
+            rest.shuffle(&mut rand::rng());
+            self.shuffle_order.truncate(played);
+            self.shuffle_order.extend(rest);
+        }
+        added
+    }
+
     /// Play next, ahead of the context.
     pub fn play_next(&mut self, entry: Entry) {
         self.manual.insert(0, entry);
@@ -336,6 +373,35 @@ mod tests {
         let mut q = Queue::default();
         q.set_context(entries(n), 0, "album:1".into());
         q
+    }
+
+    #[test]
+    fn extend_context_appends_only_what_is_new() {
+        let mut q = Queue::default();
+        q.set_context(entries(3), 0, "favorites".into());
+        // The same page again plus two more, as a second fetch would hand back.
+        let mut second = entries(3);
+        second.extend(
+            (3..5).map(|i| Entry { id: i, title: format!("Track {i}"), ..Default::default() }),
+        );
+        assert_eq!(q.extend_context(second), 2);
+        assert_eq!(q.upcoming().len(), 4);
+        assert_eq!(q.upcoming().last().unwrap().id, 4);
+    }
+
+    #[test]
+    fn extend_context_keeps_the_playing_track() {
+        let mut q = Queue::default();
+        q.set_context(entries(3), 1, "favorites".into());
+        let playing = q.current().map(|e| e.id);
+        q.extend_context((3..8).map(|i| Entry { id: i, ..Default::default() }).collect());
+        assert_eq!(q.current().map(|e| e.id), playing);
+        // Shuffled, the new tracks land after the one playing, never before.
+        q.set_shuffle(true);
+        q.extend_context((8..12).map(|i| Entry { id: i, ..Default::default() }).collect());
+        assert_eq!(q.current().map(|e| e.id), playing);
+        // Three plus five plus four, less the one playing.
+        assert_eq!(q.upcoming().len(), 11);
     }
 
     #[test]

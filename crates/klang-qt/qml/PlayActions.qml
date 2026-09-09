@@ -16,11 +16,17 @@ RowLayout {
     /// Playback source label, e.g. "album:12345".
     required property string source
 
+    /// Playback has started from `tracks`. A paginated page uses this to pull
+    /// the rest of the collection in behind it.
+    signal played()
+
     spacing: Theme.space
 
     function playAll() {
-        if (root.tracks.length > 2)
+        if (root.tracks.length > 2) {
             root.player.play_context(root.tracks, 0, root.source)
+            root.played()
+        }
     }
 
     function shufflePlay() {

@@ -23,6 +23,22 @@ Item {
             library.load_favorites(userId, 100)
     }
 
+    // Playback starts from the page that is loaded; the rest is pulled in
+    // behind it and appended to the queue as it lands, so a collection plays
+    // past its first hundred without waiting for one.
+    function fillQueue() {
+        library.load_all_favorites()
+        root.player.extend_context(library.tracks_json, "favorites")
+    }
+
+    Connections {
+        target: library
+        function onTracks_jsonChanged() {
+            if (root.player.source === "favorites")
+                root.player.extend_context(library.tracks_json, "favorites")
+        }
+    }
+
     Timer {
         id: reloadDebounce
         interval: 0
@@ -72,6 +88,7 @@ Item {
                 player: root.player
                 tracks: library.tracks_json
                 source: "favorites"
+                onPlayed: root.fillQueue()
             }
         }
     }
@@ -99,8 +116,10 @@ Item {
             if (rows[index])
                 root.trackContextRequested(rows[index], x, y)
         }
-        onTrackActivated: (index) =>
-                root.player.play_context(library.tracks_json, index, "favorites")
+        onTrackActivated: (index) => {
+            root.player.play_context(library.tracks_json, index, "favorites")
+            root.fillQueue()
+        }
         onArtistActivated: (id) => root.openArtist(id)
         onAlbumActivated: (id) => root.openAlbum(id)
     }

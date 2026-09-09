@@ -99,6 +99,15 @@ pub mod qobject {
         #[qinvokable]
         fn jump_to(self: Pin<&mut PlayerController>, index: i32, manual: bool);
 
+        /// Append what a paginated source has loaded since playback started.
+        /// A no-op unless the queue still comes from `source`.
+        #[qinvokable]
+        fn extend_context(
+            self: Pin<&mut PlayerController>,
+            tracks_json: &QString,
+            source: &QString,
+        );
+
         #[qinvokable]
         fn remove_queued(self: Pin<&mut PlayerController>, index: i32);
 
@@ -790,6 +799,25 @@ impl qobject::PlayerController {
         {
             self.as_mut().rust_mut().queue.lock().unwrap().enqueue(entry);
             self.as_mut().publish_queue();
+            self.on_queue_changed();
+        }
+    }
+
+    pub fn extend_context(mut self: Pin<&mut Self>, tracks_json: &QString, source: &QString) {
+        let entries = entries_from_json(&tracks_json.to_string());
+        if entries.is_empty() {
+            return;
+        }
+        let source = source.to_string();
+        let added = {
+            let queue = &self.rust().queue;
+            let mut queue = queue.lock().unwrap();
+            if queue.source() != source {
+                return;
+            }
+            queue.extend_context(entries)
+        };
+        if added > 0 {
             self.on_queue_changed();
         }
     }
