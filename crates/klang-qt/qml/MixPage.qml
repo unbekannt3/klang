@@ -120,6 +120,7 @@ Item {
             scrollKey: "mix:" + root.mixId
             // A generated mix has no running order worth numbering.
             numbered: false
+            showBlock: true
             Layout.fillWidth: true
             Layout.fillHeight: true
             tracks: root.mixItems

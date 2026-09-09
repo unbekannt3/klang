@@ -237,6 +237,7 @@ QQC2.ApplicationWindow {
                 Layout.fillHeight: true
                 visible: authCtl.logged_in
                 current: root.route
+                userId: authCtl.user_id
                 playlists: playlistsCtl.playlists_json
                 onNavigate: (r) => root.goRoot(r)
                 onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })

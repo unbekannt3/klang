@@ -53,6 +53,12 @@ QtObject {
         "Nothing playing yet": "Es läuft noch nichts",
         "PLAYLISTS": "PLAYLISTS",
         "Rename folder": "Ordner umbenennen",
+        "Recently updated": "Zuletzt aktualisiert",
+        "Recently created": "Zuletzt erstellt",
+        "Alphabetical": "Alphabetisch",
+        "All playlists": "Alle Playlists",
+        "Your playlists": "Deine Playlists",
+        "Other playlists": "Andere Playlists",
         "Top level": "Oberste Ebene",
 
         "%1 tracks": "%1 Titel",

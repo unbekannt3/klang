@@ -29,6 +29,10 @@ Item {
     property var favorites: null
 
     /// Column the list is sorted by, or "" when the page does not sort.
+    /// tidal.com puts a block control in the row on mix pages only, where
+    /// keeping a track out of future mixes is the point.
+    property bool showBlock: false
+
     /// Collections know when a track was added; a catalogue listing does not.
     property bool showDateAdded: false
 
@@ -178,6 +182,7 @@ Item {
         { name: "length",  width: 66, basis: 0,   shown: true },
         { name: "bpm",     width: 52, basis: 0,   shown: root.showBpm },
         { name: "key",     width: 48, basis: 0,   shown: root.showKey },
+        { name: "block",   width: 24, basis: 0,   shown: root.showBlock },
         { name: "heart",   width: 24, basis: 0,   shown: root.favorites !== null },
     ]
 
@@ -669,6 +674,37 @@ Item {
                     font.family: Theme.fontFamilyMono
                     font.pixelSize: Theme.fontSizeSm
                     color: Theme.textDisabled
+                }
+            }
+
+            // Blocking keeps a track out of future mixes; on a mix page that
+            // is a first-class action rather than a context-menu entry.
+            Item {
+                id: blockCell
+                visible: root.showBlock && root.favorites !== null
+                x: root.columnX("block")
+                width: root.columnWidth("block")
+                height: 24
+                anchors.verticalCenter: parent.verticalCenter
+
+                readonly property bool blocked: root.favorites
+                    && root.favorites.revision >= 0
+                    && root.favorites.is_blocked("track", row.track.id)
+
+                Icon {
+                    anchors.centerIn: parent
+                    width: 16
+                    height: 16
+                    visible: blockCell.blocked || hover.hovered
+                    name: "block"
+                    color: blockCell.blocked ? Theme.error
+                         : blockHover.hovered ? Theme.textPrimary
+                         : Theme.textFaint
+                }
+
+                HoverHandler { id: blockHover }
+                TapHandler {
+                    onSingleTapped: root.favorites.toggle_block("track", row.track.id)
                 }
             }
 

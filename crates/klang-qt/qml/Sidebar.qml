@@ -54,13 +54,39 @@ Rectangle {
         root.collapsed = next
     }
 
+    /// "all" | "mine" | "others" — tidal.com separates the playlists you
+    /// made from the ones you follow.
+    property string playlistFilter: "all"
+    /// "updated" | "created" | "name"
+    property string playlistSort: "updated"
+    /// Whose playlists count as yours.
+    property int userId: 0
+
+    function matchesFilter(playlist) {
+        if (root.playlistFilter === "all")
+            return true
+        const mine = root.userId !== 0 && playlist.ownerId === root.userId
+        return root.playlistFilter === "mine" ? mine : !mine
+    }
+
+    function sorted(playlists) {
+        const by = root.playlistSort
+        return playlists.slice().sort((a, b) => {
+            if (by === "name")
+                return (a.title || "").localeCompare(b.title || "")
+            const key = by === "created" ? "created" : "updated"
+            return (b[key] || "").localeCompare(a[key] || "")
+        })
+    }
+
     /// Flattens folders and their playlists into one display list — a
     /// folder header row followed by its playlists when expanded, then
     /// every playlist that isn't inside a folder.
     function treeRows() {
         const all = root.allRows()
         const folders = all.filter((r) => r.kind === "folder")
-        const items = all.filter((r) => r.kind === "playlist")
+        const items = root.sorted(all.filter((r) => r.kind === "playlist"
+                                                    && root.matchesFilter(r)))
         const rows = []
 
         for (const f of folders) {
@@ -378,6 +404,27 @@ Rectangle {
                 color: Theme.textFaint
             }
 
+            // Sort and filter, as tidal.com's own playlist rail has.
+            Item {
+                implicitWidth: 20
+                implicitHeight: 20
+
+                HoverHandler { id: sortHover }
+                TapHandler {
+                    onSingleTapped: (event) =>
+                        playlistSortMenu.openAt(Qt.point(event.position.x, event.position.y),
+                                                parent)
+                }
+
+                Icon {
+                    anchors.centerIn: parent
+                    width: 15
+                    height: 15
+                    name: "more"
+                    color: sortHover.hovered ? Theme.textPrimary : Theme.textFaint
+                }
+            }
+
             Item {
                 // Icon.qml has no plain "+" glyph and is off-limits here, so
                 // this is a Text glyph rather than a drawn vector icon.
@@ -397,7 +444,26 @@ Rectangle {
             }
         }
 
-        ListView {
+            ContextMenu {
+            id: playlistSortMenu
+            model: [
+                { label: Tr.t("Recently updated"), checked: root.playlistSort === "updated",
+                  onTriggered: () => root.playlistSort = "updated" },
+                { label: Tr.t("Recently created"), checked: root.playlistSort === "created",
+                  onTriggered: () => root.playlistSort = "created" },
+                { label: Tr.t("Alphabetical"), checked: root.playlistSort === "name",
+                  onTriggered: () => root.playlistSort = "name" },
+                { separator: true },
+                { label: Tr.t("All playlists"), checked: root.playlistFilter === "all",
+                  onTriggered: () => root.playlistFilter = "all" },
+                { label: Tr.t("Your playlists"), checked: root.playlistFilter === "mine",
+                  onTriggered: () => root.playlistFilter = "mine" },
+                { label: Tr.t("Other playlists"), checked: root.playlistFilter === "others",
+                  onTriggered: () => root.playlistFilter = "others" },
+            ]
+        }
+
+    ListView {
             Layout.fillWidth: true
             Layout.fillHeight: true
             id: playlistView

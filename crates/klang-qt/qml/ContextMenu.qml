@@ -1,7 +1,8 @@
 // Reusable themed popup menu, opened at a point and flipped away from
 // whichever window edge it would otherwise spill past.
 //
-// Model item: { label, icon, danger, separator, submenu, onTriggered }. A
+// Model item: { label, icon, danger, separator, submenu, checked, onTriggered }.
+// `checked` draws a tick on the right, for the menus that pick one of a set. A
 // separator needs only `separator: true`; `submenu` nests one more level of
 // the same shape (exactly one — a submenu row's own `submenu` is ignored);
 // `onTriggered` runs, and the whole menu closes, when a leaf row is picked.
@@ -106,6 +107,15 @@ QQC2.Popup {
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize
                 color: rowItem.rowColor
+            }
+
+            Icon {
+                visible: !!rowItem.entry.checked
+                Layout.preferredWidth: 14
+                Layout.preferredHeight: 14
+                Layout.rightMargin: Theme.spaceSm
+                name: "check"
+                color: Theme.accent
             }
 
             Icon {

@@ -205,6 +205,10 @@ fn folder_item(item: &serde_json::Value) -> serde_json::Value {
             "image": image,
             "public": data.get("publicPlaylist").and_then(|v| v.as_bool()).unwrap_or(false),
             "parent": parent,
+            // For the sidebar's own sort and its yours/others filter.
+            "ownerId": data.get("creator").and_then(|c| c.get("id")).and_then(|v| v.as_i64()),
+            "created": data.get("created").and_then(|v| v.as_str()),
+            "updated": data.get("lastUpdated").and_then(|v| v.as_str()),
         })
     }
 }
