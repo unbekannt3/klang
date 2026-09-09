@@ -3,7 +3,6 @@
 
 import QtQuick
 import QtQuick.Controls as QQC2
-import QtQuick.Layouts
 import me.unbk.klang
 
 Item {
@@ -92,44 +91,55 @@ Item {
     // not enough: it splits surplus space evenly between fillWidth items
     // regardless of their preferred sizes, and the two ended up disagreeing.
     readonly property int rowInset: Theme.spaceLg + Theme.spaceSm
-    readonly property int columnGap: Theme.space
+    // tidal.com's columns abut, with their own padding; a wide gap here
+    // would cost the title and album columns their room.
+    readonly property int columnGap: Theme.spaceSm
 
+    /// Fixed widths, and the flex bases tidal.com uses for the three
+    /// columns that grow: its own table is `flex: 1 0 282px` for the title,
+    /// `1 1 170px` for the artist and `1 1 112px` for the album, with the
+    /// surplus split evenly between them.
     readonly property var columnSpec: [
-        { name: "number",  width: 28, shown: root.numbered },
-        { name: "cover",   width: Theme.coverThumb, shown: root.showCovers },
-        { name: "title",   width: 0,  shown: true },
-        { name: "artist",  width: 0,  shown: root.showArtist },
-        { name: "album",   width: 0,  shown: root.showAlbum },
-        { name: "quality", width: 56, shown: true },
-        { name: "bpm",     width: 52, shown: root.showBpm },
-        { name: "key",     width: 48, shown: root.showKey },
-        { name: "heart",   width: 24, shown: root.favorites !== null },
-        { name: "length",  width: 64, shown: true },
+        { name: "number",  width: 42, basis: 0,   shown: root.numbered },
+        { name: "cover",   width: Theme.coverThumb, basis: 0, shown: root.showCovers },
+        { name: "title",   width: 0,  basis: 282, shown: true },
+        { name: "artist",  width: 0,  basis: 170, shown: root.showArtist },
+        { name: "album",   width: 0,  basis: 112, shown: root.showAlbum },
+        { name: "quality", width: 56, basis: 0,   shown: true },
+        { name: "bpm",     width: 52, basis: 0,   shown: root.showBpm },
+        { name: "key",     width: 48, basis: 0,   shown: root.showKey },
+        { name: "heart",   width: 24, basis: 0,   shown: root.favorites !== null },
+        { name: "length",  width: 66, basis: 0,   shown: true },
     ]
 
-    /// Left edge and width of every shown column, in row-local coordinates.
+    /// Left edge and width of every shown column, in list-local coordinates.
     readonly property var columns: {
         const shown = root.columnSpec.filter((c) => c.shown)
-        const flexible = shown.filter((c) => c.width === 0)
-        const fixed = shown.reduce((sum, c) => sum + c.width, 0)
+        const growing = shown.filter((c) => c.width === 0)
+        const reserved = shown.reduce((sum, c) => sum + (c.width || c.basis), 0)
         const available = root.width - root.rowInset * 2 - Theme.spaceSm
-                        - fixed - root.columnGap * (shown.length - 1)
-        // Roughly tidal.com's proportions between title, artist and album.
-        const share = { title: 0.44, artist: 0.28, album: 0.28 }
-        const total = flexible.reduce((sum, c) => sum + share[c.name], 0) || 1
-        const free = Math.max(120, available)
+                        - root.columnGap * (shown.length - 1)
+        const surplus = available - reserved
+        // Growing columns share what is left over, and absorb the shortfall
+        // when the window is too narrow — down to a floor, so a column never
+        // collapses to nothing.
+        const grant = growing.length > 0 ? Math.floor(surplus / growing.length) : 0
 
         const out = {}
         let x = root.rowInset
         for (const column of shown) {
             const width = column.width > 0
                 ? column.width
-                : Math.round(free * share[column.name] / total)
+                : Math.max(64, column.basis + grant)
             out[column.name] = { x: x, width: width }
             x += width + root.columnGap
         }
         return out
     }
+
+    /// Where the first row starts, for overlays drawn on top of the list.
+    readonly property real rowsTop: view.y
+    readonly property real listRowHeight: Theme.rowHeight
 
     function columnX(name) {
         return root.columns[name] ? root.columns[name].x : 0

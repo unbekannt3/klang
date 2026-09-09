@@ -89,20 +89,6 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: headerRow.implicitHeight + Theme.spaceLg * 2
 
-                Rectangle {
-                    anchors.fill: parent
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Theme.accent }
-                        GradientStop { position: 1.0; color: Theme.base }
-                    }
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: Theme.base
-                    opacity: 0.55
-                }
-
                 RowLayout {
                     id: headerRow
                     anchors.left: parent.left
@@ -207,6 +193,7 @@ Item {
                 Layout.preferredHeight: root.trackListHeight
 
                 TrackList {
+                    id: trackList
                     filterable: true
                     anchors.fill: parent
                     tracks: playlists.tracks_json
@@ -224,18 +211,19 @@ Item {
                             root.player.play_context(playlists.tracks_json, index, "playlist:" + root.playlistUuid)
                 }
 
-                // Drag-to-reorder overlay. TrackList itself is off-limits, so
-                // the grips live in the left gutter its rows already leave
-                // empty (x < Theme.spaceLg) and the drop index is computed
-                // from pointer position against its known header height (34)
-                // and Theme.rowHeight, rather than reaching into its delegates.
+                // Drag-to-reorder overlay: the grips live in the left gutter
+                // the rows leave empty, and the drop index comes from the
+                // pointer position against the list's own row geometry rather
+                // than from reaching into its delegates.
                 Item {
                     id: reorderLayer
                     anchors.fill: parent
                     visible: root.trackRows.length > 1 && !playlists.loading
 
-                    readonly property int headerHeight: 34
+                    readonly property real headerHeight: trackList.rowsTop
                     property int dragFromIndex: -1
+
+                    HoverHandler { id: layerHover }
                     property int dropIndex: -1
 
                     function commit() {
@@ -282,8 +270,11 @@ Item {
 
                             HoverHandler { id: gripHover; cursorShape: Qt.SizeAllCursor }
 
+                            // Only while the pointer is over the list, so a
+                            // playlist at rest looks like every other page.
                             Text {
                                 anchors.centerIn: parent
+                                visible: layerHover.hovered || dragHandler.active
                                 text: "⋮⋮"
                                 rotation: 90
                                 font.pixelSize: 10

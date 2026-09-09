@@ -114,20 +114,9 @@ Item {
             width: flick.width
             spacing: Theme.spaceLg
 
-            Rectangle {
+            Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: root.coverSize + Theme.spaceLg * 2
-
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Theme.accent }
-                    GradientStop { position: 1.0; color: Theme.base }
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: Theme.base
-                    opacity: 0.55
-                }
 
                 RowLayout {
                     anchors.left: parent.left
