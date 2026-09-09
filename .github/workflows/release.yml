@@ -19,7 +19,7 @@ jobs:
             git rpm-build rpmdevtools cargo rust gcc-c++ pkgconf-pkg-config \
             qt6-qtbase-devel qt6-qtdeclarative-devel \
             alsa-lib-devel gstreamer1-devel gstreamer1-plugins-base-devel \
-            glib2-devel openssl-devel libsecret-devel \
+            glib2-devel dbus-devel openssl-devel libsecret-devel \
             desktop-file-utils libappstream-glib
 
       - uses: actions/checkout@v4
@@ -50,7 +50,7 @@ jobs:
             git ca-certificates cargo rustc g++ pkg-config \
             qt6-base-dev qt6-declarative-dev \
             libasound2-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-            libglib2.0-dev libssl-dev libsecret-1-dev \
+            libglib2.0-dev libdbus-1-dev libssl-dev libsecret-1-dev \
             dpkg-dev lintian
 
       - uses: actions/checkout@v4
@@ -74,7 +74,7 @@ jobs:
         run: |
           pacman -Syu --noconfirm --needed \
             git base-devel rust qt6-base qt6-declarative \
-            alsa-lib gstreamer gst-plugins-base libsecret sudo
+            alsa-lib gstreamer gst-plugins-base dbus libsecret sudo
 
       - uses: actions/checkout@v4
         with:

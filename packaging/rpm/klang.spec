@@ -25,6 +25,7 @@ BuildRequires:  alsa-lib-devel
 BuildRequires:  gstreamer1-devel
 BuildRequires:  gstreamer1-plugins-base-devel
 BuildRequires:  glib2-devel
+BuildRequires:  dbus-devel
 BuildRequires:  openssl-devel
 BuildRequires:  libsecret-devel
 BuildRequires:  desktop-file-utils

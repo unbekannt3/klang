@@ -1,0 +1,81 @@
+# Maintainer: klang contributors <klang@unbk.me>
+#
+# The tarball is produced by scripts/build-arch.sh from git, not downloaded, so
+# there is nothing stable to checksum.
+
+pkgname=klang
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Lossless TIDAL client for KDE"
+arch=('x86_64' 'aarch64')
+url="https://github.com/unbekannt3/klang"
+license=('GPL-3.0-only')
+
+# Everything past qt6-base is resolved at runtime and would not show up in the
+# ELF: the QML imports QtQuick, QtQuick.Controls, QtQuick.Dialogs,
+# QtQuick.Layouts, QtQuick.Shapes, QtQuick.Window (qt6-declarative) and
+# QtMultimedia; TIDAL's streams need FLAC and ALAC from gst-plugins-good and
+# AAC from gst-libav; libsecret holds the TIDAL tokens in the session keyring.
+#
+# qt6-declarative>=6.8 is a hard floor — the QML uses PathRectangle (6.8) and
+# Shape.CurveRenderer (6.6). cxx-qt links Qt private API on top of that, so the
+# package only runs against the exact Qt 6 minor version it was built against;
+# rebuild it whenever Arch moves Qt 6.
+depends=(
+  'alsa-lib'
+  'gcc-libs'
+  'glib2'
+  'glibc'
+  'gst-libav'
+  'gst-plugins-base'
+  'gst-plugins-good'
+  'gstreamer'
+  'hicolor-icon-theme'
+  'libsecret'
+  'openssl'
+  'qt6-base'
+  'qt6-declarative>=6.8'
+  'qt6-multimedia'
+)
+makedepends=('appstream' 'desktop-file-utils' 'pkgconf' 'rust')
+
+source=("$pkgname-$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+# makepkg's default LTO puts -flto in CFLAGS, which cc-rs passes to the C++ side
+# of cxx-qt; rustc then links those objects without the plugin and fails.
+options=('!lto')
+
+build() {
+  cd "$pkgname-$pkgver"
+  # cxx-qt shells out to qmake/moc/qmltyperegistrar, which Arch keeps out of
+  # $PATH.
+  export PATH="/usr/lib/qt6/bin:$PATH"
+  export CARGO_HOME="$srcdir/cargo"
+  cargo build --release --locked -p klang-qt
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  desktop-file-validate assets/me.unbk.klang.desktop
+  appstreamcli validate --no-net --pedantic assets/me.unbk.klang.metainfo.xml
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+
+  install -Dm755 target/release/klang "$pkgdir/usr/bin/klang"
+  install -Dm644 assets/me.unbk.klang.desktop \
+    "$pkgdir/usr/share/applications/me.unbk.klang.desktop"
+  install -Dm644 assets/me.unbk.klang.metainfo.xml \
+    "$pkgdir/usr/share/metainfo/me.unbk.klang.metainfo.xml"
+
+  local size
+  for size in 16 22 32 48 64 128 256 512; do
+    install -Dm644 "assets/icons/klang-$size.png" \
+      "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/klang.png"
+  done
+
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

@@ -23,7 +23,7 @@ jobs:
             git cargo rust gcc-c++ pkgconf-pkg-config \
             qt6-qtbase-devel qt6-qtdeclarative-devel \
             alsa-lib-devel gstreamer1-devel gstreamer1-plugins-base-devel \
-            glib2-devel openssl-devel libsecret-devel
+            glib2-devel dbus-devel openssl-devel libsecret-devel
 
       - uses: actions/checkout@v4
 
