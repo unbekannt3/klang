@@ -1,0 +1,22 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: klang
+Upstream-Contact: klang contributors <klang@unbk.me>
+Source: https://github.com/unbekannt3/klang
+Comment: A private fork of sone by lullabyX, rebuilt on Qt Quick.
+
+Files: *
+Copyright: 2024-2026 lullabyX
+           2026 klang contributors
+License: GPL-3.0-only
+
+License: GPL-3.0-only
+ This program is free software: you can redistribute it and/or modify it under
+ the terms of the GNU General Public License version 3 as published by the Free
+ Software Foundation.
+ .
+ This program is distributed in the hope that it will be useful, but WITHOUT ANY
+ WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ .
+ On Debian systems the full text of the GNU General Public License version 3 is
+ in /usr/share/common-licenses/GPL-3.

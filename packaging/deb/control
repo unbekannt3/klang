@@ -1,0 +1,61 @@
+Source: klang
+Section: sound
+Priority: optional
+Maintainer: klang contributors <klang@unbk.me>
+# Debian 13 (trixie) is the floor: the QML uses PathRectangle (Qt 6.8) and
+# Shape.CurveRenderer (6.6). Ubuntu 24.04 ships Qt 6.4 and cannot work — do not
+# retarget this at noble, the build succeeds and the window comes up empty.
+Build-Depends: debhelper-compat (= 13),
+               cargo,
+               rustc,
+               g++,
+               pkgconf,
+               qt6-base-dev (>= 6.8),
+               qt6-declarative-dev (>= 6.8),
+               libasound2-dev,
+               libgstreamer1.0-dev,
+               libgstreamer-plugins-base1.0-dev,
+               libglib2.0-dev,
+               libssl-dev,
+               libsecret-1-dev,
+               desktop-file-utils,
+               appstream
+Standards-Version: 4.7.0
+Homepage: https://github.com/unbekannt3/klang
+Rules-Requires-Root: no
+
+Package: klang
+Architecture: amd64 arm64
+# ${shlibs:Depends} covers everything the ELF links. The rest is resolved at
+# runtime and no amount of dpkg-shlibdeps will find it:
+#  - QML modules, imported by name from the .qml files;
+#  - GStreamer decoders for what TIDAL serves — FLAC and ALAC live in
+#    plugins-good, AAC in libav;
+#  - the Secret Service implementation behind libsecret, which holds the
+#    TIDAL tokens.
+# cxx-qt links Qt private API, so the versioned Qt deps shlibdeps generates are
+# not paranoia: this binary is tied to the Qt 6 minor version it was built
+# against and must be rebuilt when Debian moves Qt.
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         qml6-module-qtquick,
+         qml6-module-qtquick-controls,
+         qml6-module-qtquick-dialogs,
+         qml6-module-qtquick-layouts,
+         qml6-module-qtquick-shapes,
+         qml6-module-qtquick-window,
+         qml6-module-qtmultimedia,
+         qt6-qpa-plugins,
+         gstreamer1.0-plugins-base,
+         gstreamer1.0-plugins-good,
+         gstreamer1.0-libav,
+         libsecret-1-0
+Description: Lossless TIDAL client for KDE
+ Klang plays TIDAL on Linux without a browser engine: a Qt Quick interface
+ driven from Rust, following tidal.com's own layout, on a themeable palette.
+ .
+ It keeps the audio path short — bit-perfect ALSA output, gapless playback,
+ replay-gain handling — and reports what the stream actually delivered rather
+ than what was asked for.
+ .
+ A private fork of sone by lullabyX, rebuilt on Qt Quick.

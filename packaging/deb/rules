@@ -1,0 +1,35 @@
+#!/usr/bin/make -f
+
+APPID := me.unbk.klang
+
+# cxx-qt shells out to qmake/moc/qmltyperegistrar, which Debian keeps out of
+# $PATH.
+export PATH := /usr/lib/qt6/bin:$(PATH)
+# Keep the crates cargo downloads inside the build tree.
+export CARGO_HOME := $(CURDIR)/debian/cargo
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	cargo build --release --locked -p klang-qt
+
+# Nothing is installed yet at this point in the dh sequence, so validate the
+# sources — they are shipped verbatim.
+override_dh_auto_test:
+	desktop-file-validate assets/$(APPID).desktop
+	appstreamcli validate --no-net --pedantic assets/$(APPID).metainfo.xml
+
+override_dh_auto_install:
+	install -Dm755 target/release/klang debian/klang/usr/bin/klang
+	install -Dm644 assets/$(APPID).desktop \
+	  debian/klang/usr/share/applications/$(APPID).desktop
+	install -Dm644 assets/$(APPID).metainfo.xml \
+	  debian/klang/usr/share/metainfo/$(APPID).metainfo.xml
+	for size in 16 22 32 48 64 128 256 512; do \
+	  install -Dm644 assets/icons/klang-$$size.png \
+	    debian/klang/usr/share/icons/hicolor/$${size}x$${size}/apps/klang.png; \
+	done
+
+override_dh_auto_clean:
+	rm -rf target debian/cargo

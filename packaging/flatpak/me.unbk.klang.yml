@@ -14,6 +14,9 @@ sdk: org.kde.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
 command: klang
+# Flatpak's own branch, not a git one: flatpak-builder defaults to "master"
+# and the .flatpakref has to name the same string.
+branch: stable
 
 finish-args:
   - --share=ipc

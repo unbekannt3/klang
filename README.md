@@ -56,6 +56,33 @@ three and nothing else. Its `Emitter` trait mirrors `tauri::Emitter` down to the
 method name and `Result` return, so all ~87 `.emit(...)` call sites in the core
 are unchanged from upstream and never conflict on merge.
 
+## Installing
+
+Tagged builds carry packages for Fedora, Debian, Arch and Flatpak.
+
+```sh
+# Fedora
+sudo dnf install ./klang-0.1.0-1.fc44.x86_64.rpm
+
+# Debian 13 or newer (Qt 6.8 is the floor)
+sudo apt install ./klang_0.1.0_amd64.deb
+
+# Arch
+sudo pacman -U klang-0.1.0-1-x86_64.pkg.tar.zst
+
+# Flatpak, from klang's own repo — it is not on Flathub
+flatpak install --from https://unbekannt3.github.io/klang/me.unbk.klang.flatpakref
+```
+
+Or build a package yourself:
+
+```sh
+scripts/build-rpm.sh --install
+scripts/build-deb.sh
+scripts/build-arch.sh
+scripts/build-flatpak.sh --install   # needs flatpak-builder
+```
+
 ## Building
 
 Fedora 44:
