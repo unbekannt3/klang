@@ -11,7 +11,7 @@ use crate::core as app;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use klang_core::api::library;
-use klang_core::tidal_api::{TidalAlbumDetail, TidalArtistDetail, TidalFavoriteMix, TidalPlaylist, TidalVideo};
+use klang_core::tidal_api::TidalVideo;
 use serde_json::{json, Value};
 use std::pin::Pin;
 
@@ -31,11 +31,7 @@ pub mod qobject {
         #[qproperty(i32, total)]
         /// Whether another page of loved tracks is waiting.
         #[qproperty(bool, has_more)]
-        #[qproperty(QString, albums_json)]
-        #[qproperty(QString, artists_json)]
-        #[qproperty(QString, playlists_json)]
         #[qproperty(QString, videos_json)]
-        #[qproperty(QString, mixes_json)]
         #[qproperty(QString, sort_order)]
         #[qproperty(QString, sort_direction)]
         type LibraryController = super::LibraryControllerRust;
@@ -56,26 +52,13 @@ pub mod qobject {
         #[qinvokable]
         fn load_all_favorites(self: Pin<&mut LibraryController>);
 
-        /// Load favourite albums as card rows (`albums_json`).
-        #[qinvokable]
-        fn load_albums(self: Pin<&mut LibraryController>, user_id: i64, limit: i32);
 
-        /// Load favourite artists as card rows (`artists_json`).
-        #[qinvokable]
-        fn load_artists(self: Pin<&mut LibraryController>, user_id: i64, limit: i32);
 
-        /// Load favourite playlists as card rows (`playlists_json`).
-        #[qinvokable]
-        fn load_playlists(self: Pin<&mut LibraryController>, user_id: i64, limit: i32);
 
         /// Load favourite videos as card rows (`videos_json`).
         #[qinvokable]
         fn load_videos(self: Pin<&mut LibraryController>, user_id: i64);
 
-        /// Load favourite mixes as card rows (`mixes_json`). Mixes are not
-        /// keyed by user id — see `load_mixes`.
-        #[qinvokable]
-        fn load_mixes(self: Pin<&mut LibraryController>, limit: i32);
 
         /// Change the loved-tracks sort and reload it with the user/limit
         /// from the last `load_favorites` call.
@@ -91,11 +74,7 @@ pub struct LibraryControllerRust {
     tracks_json: QString,
     error: QString,
     total: i32,
-    albums_json: QString,
-    artists_json: QString,
-    playlists_json: QString,
     videos_json: QString,
-    mixes_json: QString,
     sort_order: QString,
     sort_direction: QString,
     /// Remembered so `set_sort` can redo the same load with a new order.
@@ -117,11 +96,7 @@ impl Default for LibraryControllerRust {
             tracks_json: QString::default(),
             error: QString::default(),
             total: 0,
-            albums_json: QString::default(),
-            artists_json: QString::default(),
-            playlists_json: QString::default(),
             videos_json: QString::default(),
-            mixes_json: QString::default(),
             sort_order: QString::from("DATE"),
             sort_direction: QString::from("DESC"),
             fav_user_id: 0,
@@ -133,19 +108,7 @@ impl Default for LibraryControllerRust {
     }
 }
 
-/// Artist name for an album card, the same `artist`/`artists` fallback chain
-/// `rows::track` uses for tracks — TIDAL populates whichever field the
-/// endpoint favours.
-fn album_artist_name(album: &TidalAlbumDetail) -> String {
-    album
-        .artist
-        .as_ref()
-        .map(|a| a.name.clone())
-        .or_else(|| album.artists.as_ref().and_then(|list| list.first().map(|a| a.name.clone())))
-        .unwrap_or_default()
-}
-
-/// Same fallback as `album_artist_name`, for `TidalVideo`'s identical
+/// Artist name with the same fallback, for `TidalVideo`'s identical
 /// `artist`/`artists` pair.
 fn video_artist_name(video: &TidalVideo) -> String {
     video
@@ -154,47 +117,6 @@ fn video_artist_name(video: &TidalVideo) -> String {
         .map(|a| a.name.clone())
         .or_else(|| video.artists.as_ref().and_then(|list| list.first().map(|a| a.name.clone())))
         .unwrap_or_default()
-}
-
-/// Card row for an album: the same `{id, title, subtitle, image, kind}` shape
-/// `CardCarousel`/`MediaCard` already consume (see `home.rs`), plus
-/// `releaseDate` — album cards show the year.
-fn album_card_row(album: &TidalAlbumDetail) -> Value {
-    json!({
-        "id": album.id,
-        "title": album.title,
-        "subtitle": album_artist_name(album),
-        "image": album.cover.clone().unwrap_or_default(),
-        "kind": "album",
-        "releaseDate": album.release_date.clone().unwrap_or_default(),
-    })
-}
-
-fn artist_card_row(artist: &TidalArtistDetail) -> Value {
-    json!({
-        "id": artist.id,
-        "title": artist.name,
-        "subtitle": "",
-        "image": artist.picture.clone().unwrap_or_default(),
-        "kind": "artist",
-    })
-}
-
-/// Subtitle falls back to a track count, same as `home.rs`'s playlist rows.
-fn playlist_card_row(playlist: &TidalPlaylist) -> Value {
-    let subtitle = playlist
-        .creator
-        .as_ref()
-        .and_then(|c| c.name.clone())
-        .or_else(|| playlist.number_of_tracks.map(|n| format!("{n} tracks")))
-        .unwrap_or_default();
-    json!({
-        "id": playlist.uuid,
-        "title": playlist.title,
-        "subtitle": subtitle,
-        "image": playlist.image.clone().unwrap_or_default(),
-        "kind": "playlist",
-    })
 }
 
 /// TIDAL's favourites endpoint pages like the rest; `VIDEO_LIMIT` only stops
@@ -209,25 +131,6 @@ fn video_card_row(video: &TidalVideo) -> Value {
         "subtitle": video_artist_name(video),
         "image": video.image_id.clone().unwrap_or_default(),
         "kind": "video",
-    })
-}
-
-/// `TidalFavoriteMix.images` is `small`/`medium`/`large`, each already a full
-/// URL — unlike other kinds' bare TIDAL image UUID (see `home.rs`'s mix
-/// handling for the same distinction).
-fn mix_card_row(mix: &TidalFavoriteMix) -> Value {
-    let image = mix
-        .images
-        .as_ref()
-        .and_then(|i| i.large.as_ref().or(i.medium.as_ref()).or(i.small.as_ref()))
-        .map(|u| u.url.clone())
-        .unwrap_or_default();
-    json!({
-        "id": mix.id,
-        "title": mix.title.clone().unwrap_or_default(),
-        "subtitle": mix.sub_title.clone().unwrap_or_default(),
-        "image": image,
-        "kind": "mix",
     })
 }
 
@@ -339,109 +242,6 @@ impl qobject::LibraryController {
         }
     }
 
-    pub fn load_albums(mut self: Pin<&mut Self>, user_id: i64, limit: i32) {
-        self.as_mut().set_loading(true);
-        self.as_mut().set_error(QString::from(""));
-        let qt = self.qt_thread();
-
-        klang_core::runtime::spawn(async move {
-            let result = library::get_favorite_albums(
-                app::state(),
-                app::handle(),
-                user_id as u64,
-                0,
-                limit.max(1) as u32,
-                "DATE".to_string(),
-                "DESC".to_string(),
-            )
-            .await;
-
-            let _ = qt.queue(move |mut obj| {
-                obj.as_mut().set_loading(false);
-                match result {
-                    Ok(page) => {
-                        let rows: Vec<_> = page.items.iter().map(album_card_row).collect();
-                        let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
-                        obj.as_mut().set_albums_json(QString::from(&json));
-                    }
-                    Err(e) => {
-                        obj.as_mut().set_albums_json(QString::from("[]"));
-                        obj.as_mut().set_error(QString::from(&e.to_string()));
-                    }
-                }
-            });
-        });
-    }
-
-    pub fn load_artists(mut self: Pin<&mut Self>, user_id: i64, limit: i32) {
-        self.as_mut().set_loading(true);
-        self.as_mut().set_error(QString::from(""));
-        let qt = self.qt_thread();
-
-        klang_core::runtime::spawn(async move {
-            let result = library::get_favorite_artists(
-                app::state(),
-                app::handle(),
-                user_id as u64,
-                0,
-                limit.max(1) as u32,
-                "DATE".to_string(),
-                "DESC".to_string(),
-            )
-            .await;
-
-            let _ = qt.queue(move |mut obj| {
-                obj.as_mut().set_loading(false);
-                match result {
-                    Ok(page) => {
-                        let rows: Vec<_> = page.items.iter().map(artist_card_row).collect();
-                        let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
-                        obj.as_mut().set_artists_json(QString::from(&json));
-                    }
-                    Err(e) => {
-                        obj.as_mut().set_artists_json(QString::from("[]"));
-                        obj.as_mut().set_error(QString::from(&e.to_string()));
-                    }
-                }
-            });
-        });
-    }
-
-    /// `get_favorite_playlists` takes no `order`/`orderDirection` — unlike
-    /// albums, artists, mixes and tracks, TIDAL's favourite-playlists
-    /// endpoint doesn't accept them.
-    pub fn load_playlists(mut self: Pin<&mut Self>, user_id: i64, limit: i32) {
-        self.as_mut().set_loading(true);
-        self.as_mut().set_error(QString::from(""));
-        let qt = self.qt_thread();
-
-        klang_core::runtime::spawn(async move {
-            let result = library::get_favorite_playlists(
-                app::state(),
-                app::handle(),
-                user_id as u64,
-                0,
-                limit.max(1) as u32,
-            )
-            .await;
-
-            let _ = qt.queue(move |mut obj| {
-                obj.as_mut().set_loading(false);
-                match result {
-                    Ok(page) => {
-                        let rows: Vec<_> = page.items.iter().map(playlist_card_row).collect();
-                        let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
-                        obj.as_mut().set_playlists_json(QString::from(&json));
-                    }
-                    Err(e) => {
-                        obj.as_mut().set_playlists_json(QString::from("[]"));
-                        obj.as_mut().set_error(QString::from(&e.to_string()));
-                    }
-                }
-            });
-        });
-    }
-
     /// `get_favorite_videos` takes no `app_handle` and returns a plain
     /// `Vec` — unlike the others, it isn't disk-cached with a background
     /// refresh, and it reports no total, so a short page is what ends this.
@@ -487,38 +287,4 @@ impl qobject::LibraryController {
         });
     }
 
-    /// Mixes are global to the signed-in user's token, not keyed by an id —
-    /// `get_favorite_mixes` takes no `user_id`.
-    pub fn load_mixes(mut self: Pin<&mut Self>, limit: i32) {
-        self.as_mut().set_loading(true);
-        self.as_mut().set_error(QString::from(""));
-        let qt = self.qt_thread();
-
-        klang_core::runtime::spawn(async move {
-            let result = library::get_favorite_mixes(
-                app::state(),
-                app::handle(),
-                0,
-                limit.max(1) as u32,
-                "DATE".to_string(),
-                "DESC".to_string(),
-            )
-            .await;
-
-            let _ = qt.queue(move |mut obj| {
-                obj.as_mut().set_loading(false);
-                match result {
-                    Ok(page) => {
-                        let rows: Vec<_> = page.items.iter().map(mix_card_row).collect();
-                        let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
-                        obj.as_mut().set_mixes_json(QString::from(&json));
-                    }
-                    Err(e) => {
-                        obj.as_mut().set_mixes_json(QString::from("[]"));
-                        obj.as_mut().set_error(QString::from(&e.to_string()));
-                    }
-                }
-            });
-        });
-    }
 }
