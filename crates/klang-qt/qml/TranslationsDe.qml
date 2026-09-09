@@ -44,6 +44,22 @@ QtObject {
         "Your public profile will show links to social media accounts you add here.":
             "Dein öffentliches Profil zeigt die hier hinterlegten Social-Media-Links.",
 
+        "Clear": "Leeren",
+        "Delete folder": "Ordner löschen",
+        "HISTORY": "VERLAUF",
+        "MY COLLECTION": "MEINE MUSIK",
+        "NEXT IN QUEUE": "ALS NÄCHSTES",
+        "NOW PLAYING": "WIRD GESPIELT",
+        "Nothing playing yet": "Es läuft noch nichts",
+        "PLAYLISTS": "PLAYLISTS",
+        "Rename folder": "Ordner umbenennen",
+        "Top level": "Oberste Ebene",
+
+        "%1 tracks": "%1 Titel",
+        "%1 track": "%1 Titel",
+        "%1 playlists": "%1 Playlists",
+        "%1 item": "%1 Eintrag",
+        "%1 items": "%1 Einträge",
         // Navigation
         "Removes silence between consecutive tracks.":
             "Entfernt Stille zwischen aufeinanderfolgenden Titeln.",

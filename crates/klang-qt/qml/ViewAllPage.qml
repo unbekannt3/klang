@@ -146,7 +146,7 @@ Item {
 
             Text {
                 visible: root.libraryMode && viewAll.total > 0
-                text: viewAll.total + (viewAll.total === 1 ? " item" : " items")
+                text: Tr.t(viewAll.total === 1 ? "%1 item" : "%1 items").arg(viewAll.total)
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeSm
                 color: Theme.textMuted
@@ -216,7 +216,7 @@ Item {
             Text {
                 id: loadMoreLabel
                 anchors.centerIn: parent
-                text: "Show more"
+                text: Tr.t("Show more")
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeSm
                 font.weight: Font.DemiBold

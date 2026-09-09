@@ -14,7 +14,7 @@ Item {
     property var sections: []
     property bool loading: false
     property string error: ""
-    property string emptyText: "Nothing here"
+    property string emptyText: Tr.t("Nothing here")
     /// Scroll position is remembered per key across navigation.
     property string scrollKey: ""
 

@@ -144,7 +144,7 @@ Item {
                 if (rows[index])
                     root.trackContextRequested(rows[index], x, y)
             }
-            emptyText: viewAll.error.length > 0 ? viewAll.error : "No tracks"
+            emptyText: viewAll.error.length > 0 ? viewAll.error : Tr.t("No tracks")
             onTrackActivated: (index) =>
                     root.player.play_context(viewAll.tracks_json, index, "artist-tracks:" + root.artistId)
     }

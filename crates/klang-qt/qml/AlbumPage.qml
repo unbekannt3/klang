@@ -74,7 +74,7 @@ Item {
         if (a.originalReleaseDate && a.originalReleaseDate !== a.releaseDate)
             text += " (" + root.formatDate(a.originalReleaseDate) + ")"
         const count = a.trackCount || 0
-        text += " · " + count + (count === 1 ? " track" : " tracks")
+        text += " · " + Tr.t(count === 1 ? "%1 track" : "%1 tracks").arg(count)
         text += " (" + Format.duration(a.duration) + ")"
         if (a.copyright)
             text += " · " + a.copyright
@@ -148,7 +148,7 @@ Item {
 
                         Text {
                             text: [root.year(root.album().releaseDate),
-                                   (root.album().trackCount || 0) + " tracks",
+                                   Tr.t("%1 tracks").arg(root.album().trackCount || 0),
                                    Format.duration(root.album().duration)].join(" · ")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSm
@@ -303,7 +303,7 @@ Item {
             showCovers: false
             showBpm: false
             showKey: false
-            emptyText: catalog.error.length > 0 ? catalog.error : "No tracks"
+            emptyText: catalog.error.length > 0 ? catalog.error : Tr.t("No tracks")
             onTrackActivated: (index) =>
                     root.player.play_context(catalog.album_tracks_json, index, "album:" + root.albumId)
         scrollKey: "album:" + root.albumId

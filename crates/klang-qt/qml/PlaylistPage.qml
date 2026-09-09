@@ -38,7 +38,7 @@ Item {
         if (meta.owner)
             parts.push(meta.owner)
         const count = meta.trackCount || 0
-        parts.push(count + (count === 1 ? " track" : " tracks"))
+        parts.push(Tr.t(count === 1 ? "%1 track" : "%1 tracks").arg(count))
         parts.push(Format.duration(meta.duration))
         return parts.join(" · ")
     }

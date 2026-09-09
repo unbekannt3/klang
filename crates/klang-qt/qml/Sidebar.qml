@@ -81,9 +81,9 @@ Rectangle {
 
     function openFolderMenu(folder, point) {
         folderMenu.model = [
-            { label: "Rename folder", onTriggered: () => namePrompt.renameFolder(folder.id, folder.name) },
+            { label: Tr.t("Rename folder"), onTriggered: () => namePrompt.renameFolder(folder.id, folder.name) },
             { separator: true },
-            { label: "Delete folder", danger: true, onTriggered: () => writer.delete_folder(folder.id) },
+            { label: Tr.t("Delete folder"), danger: true, onTriggered: () => writer.delete_folder(folder.id) },
         ]
         folderMenu.openAt(point, root)
     }
@@ -91,7 +91,7 @@ Rectangle {
     function openPlaylistMenu(playlist, point) {
         const moveEntries = []
         if (playlist.parent)
-            moveEntries.push({ label: "Top level", onTriggered: () => writer.move_to_folder(playlist.id, "") })
+            moveEntries.push({ label: Tr.t("Top level"), onTriggered: () => writer.move_to_folder(playlist.id, "") })
         for (const f of root.folderRows()) {
             if (f.id === playlist.parent)
                 continue
@@ -99,12 +99,12 @@ Rectangle {
         }
 
         const items = [
-            { label: "Edit playlist", onTriggered: () => root.openEditDialog(playlist) },
+            { label: Tr.t("Edit playlist"), onTriggered: () => root.openEditDialog(playlist) },
         ]
         if (moveEntries.length > 0)
-            items.push({ label: "Move to folder", submenu: moveEntries })
+            items.push({ label: Tr.t("Move to folder"), submenu: moveEntries })
         items.push({ separator: true })
-        items.push({ label: "Delete playlist", danger: true, onTriggered: () => writer.remove(playlist.id) })
+        items.push({ label: Tr.t("Delete playlist"), danger: true, onTriggered: () => writer.remove(playlist.id) })
 
         playlistMenu.model = items
         playlistMenu.openAt(point, root)
@@ -263,7 +263,7 @@ Rectangle {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "Cancel"
+                        text: Tr.t("Cancel")
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeSm
                         color: Theme.textSecondary
@@ -282,7 +282,7 @@ Rectangle {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "Save"
+                        text: Tr.t("Save")
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeSm
                         font.weight: Font.DemiBold
@@ -325,9 +325,9 @@ Rectangle {
             }
         }
 
-        NavItem { route: "home";      label: "Home";         iconName: "home" }
-        NavItem { route: "explore";   label: "Explore";      iconName: "explore" }
-        NavItem { route: "feed";      label: "Feed";         iconName: "queue" }
+        NavItem { route: "home";      label: Tr.t("Home");         iconName: "home" }
+        NavItem { route: "explore";   label: Tr.t("Explore");      iconName: "explore" }
+        NavItem { route: "feed";      label: Tr.t("Feed");         iconName: "queue" }
 
         Rectangle {
             Layout.fillWidth: true
@@ -338,7 +338,7 @@ Rectangle {
 
         Text {
             Layout.leftMargin: Theme.spaceSm
-            text: "MY COLLECTION"
+            text: Tr.t("MY COLLECTION")
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeSm - 1
             font.weight: Font.DemiBold
@@ -346,11 +346,11 @@ Rectangle {
             color: Theme.textFaint
         }
 
-        NavItem { route: "favorites";     label: "Tracks";    iconName: "heart" }
-        NavItem { route: "fav-albums";    label: "Albums";    iconName: "album" }
-        NavItem { route: "fav-artists";   label: "Artists";   iconName: "artist" }
-        NavItem { route: "fav-playlists"; label: "Playlists"; iconName: "playlist" }
-        NavItem { route: "settings";      label: "Settings";  iconName: "settings" }
+        NavItem { route: "favorites";     label: Tr.t("Tracks");    iconName: "heart" }
+        NavItem { route: "fav-albums";    label: Tr.t("Albums");    iconName: "album" }
+        NavItem { route: "fav-artists";   label: Tr.t("Artists");   iconName: "artist" }
+        NavItem { route: "fav-playlists"; label: Tr.t("Playlists"); iconName: "playlist" }
+        NavItem { route: "settings";      label: Tr.t("Settings");  iconName: "settings" }
 
         // Divider
         Rectangle {
@@ -368,7 +368,7 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
-                text: "PLAYLISTS"
+                text: Tr.t("PLAYLISTS")
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeSm - 1
                 font.weight: Font.DemiBold
@@ -471,7 +471,8 @@ Rectangle {
                         Text {
                             Layout.fillWidth: true
                             visible: row.modelData.trackCount > 0
-                            text: row.modelData.trackCount + (row.isFolder ? " playlists" : " tracks")
+                            text: Tr.t(row.isFolder ? "%1 playlists" : "%1 tracks")
+                                    .arg(row.modelData.trackCount)
                             elide: Text.ElideRight
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSm - 1

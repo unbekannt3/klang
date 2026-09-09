@@ -20,7 +20,8 @@ Item {
     // layout choice, not something the rest of the app needs to know about.
     property bool expanded: false
     property int activeTab: 0
-    readonly property var tabs: ["Play queue", "Suggested tracks", "Lyrics", "Credits"]
+    readonly property var tabs: [Tr.t("Play queue"), Tr.t("Suggested tracks"),
+                                 Tr.t("Lyrics"), Tr.t("Credits")]
 
     clip: true
 
@@ -76,13 +77,13 @@ Item {
         const rows = []
 
         if (root.historyRows.length > 0)
-            rows.push({ type: "label", gap: Theme.spaceXl, text: "HISTORY" })
+            rows.push({ type: "label", gap: Theme.spaceXl, text: Tr.t("HISTORY") })
         // History rows are a no-op: there is nothing to jump back to.
         for (const t of root.historyRows)
             rows.push({ type: "track", track: t, mode: "history" })
 
         if (root.player.track_id !== 0) {
-            rows.push({ type: "label", gap: Theme.space, text: "NOW PLAYING" })
+            rows.push({ type: "label", gap: Theme.space, text: Tr.t("NOW PLAYING") })
             rows.push({ type: "track", mode: "current", track: {
                 title: root.player.title, artist: root.player.artist,
                 cover: root.player.cover, duration: root.player.duration_secs,
@@ -96,7 +97,7 @@ Item {
                         clearable: manual.length > 0 })
 
         if (manual.length > 0) {
-            rows.push({ type: "label", gap: Theme.spaceXs, text: "NEXT IN QUEUE" })
+            rows.push({ type: "label", gap: Theme.spaceXs, text: Tr.t("NEXT IN QUEUE") })
             // Index is the row's position within manualRows itself, matching
             // jump_to's "manual" list — same convention as QueuePanel.
             manual.forEach((t, i) => rows.push({ type: "track", track: t, mode: "manual", index: i }))
@@ -519,7 +520,7 @@ Item {
 
                                             Text {
                                                 visible: entry.modelData.clearable
-                                                text: "Clear"
+                                                text: Tr.t("Clear")
                                                 font.family: Theme.fontFamily
                                                 font.pixelSize: Theme.fontSizeSm
                                                 color: clearHover.hovered ? Theme.textPrimary
@@ -559,7 +560,7 @@ Item {
                             visible: root.activeTab === 0 && root.queueModel.length === 0
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
-                            text: "Nothing playing yet"
+                            text: Tr.t("Nothing playing yet")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
                             color: Theme.textFaint
@@ -576,7 +577,7 @@ Item {
                                 favorites: root.favorites
                                 showBpm: false
                                 showKey: false
-                                emptyText: "No suggestions for this track"
+                                emptyText: Tr.t("No suggestions for this track")
                                 onTrackActivated: (index) =>
                                         root.player.play_context(panels.suggested_json, index,
                                                                  "radio:" + root.player.track_id)

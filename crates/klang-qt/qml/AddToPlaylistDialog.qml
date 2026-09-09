@@ -334,8 +334,9 @@ Item {
 
                                 Text {
                                     Layout.fillWidth: true
-                                    text: row.modelData.trackCount
-                                          + (row.modelData.trackCount === 1 ? " track" : " tracks")
+                                    text: Tr.t(row.modelData.trackCount === 1
+                                               ? "%1 track" : "%1 tracks")
+                                            .arg(row.modelData.trackCount)
                                     elide: Text.ElideRight
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeSm

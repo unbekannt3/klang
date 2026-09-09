@@ -407,7 +407,7 @@ QQC2.ApplicationWindow {
             userId: authCtl.user_id
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
             onViewAllPlaylistsRequested: (playlists, name) =>
-                    root.go("item-grid", { items: playlists, title: "Public playlists" })
+                    root.go("item-grid", { items: playlists, title: Tr.t("Public playlists") })
             onBackRequested: root.back()
         }
     }
@@ -477,7 +477,7 @@ QQC2.ApplicationWindow {
     Component {
         id: favAlbumsPage
         CollectionGrid {
-            title: "Albums"
+            title: Tr.t("Albums")
             libraryKind: "albums"
             scrollKey: "fav-albums"
         }
@@ -486,7 +486,7 @@ QQC2.ApplicationWindow {
     Component {
         id: favArtistsPage
         CollectionGrid {
-            title: "Artists"
+            title: Tr.t("Artists")
             libraryKind: "artists"
             scrollKey: "fav-artists"
         }
@@ -495,7 +495,7 @@ QQC2.ApplicationWindow {
     Component {
         id: favPlaylistsPage
         CollectionGrid {
-            title: "Playlists"
+            title: Tr.t("Playlists")
             libraryKind: "playlists"
             scrollKey: "fav-playlists"
         }

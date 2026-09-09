@@ -219,7 +219,7 @@ Item {
                 if (rows[index])
                     root.trackContextRequested(rows[index], x, y)
             }
-            emptyText: catalog.error.length > 0 ? catalog.error : "No tracks"
+            emptyText: catalog.error.length > 0 ? catalog.error : Tr.t("No tracks")
             onTrackActivated: (index) =>
                     root.player.play_context(catalog.artist_top_tracks_json, index, "artist:" + root.artistId)
     }

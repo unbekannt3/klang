@@ -10,7 +10,7 @@ Item {
 
     /// JSON string or array of row objects; see klang-qt's rows.rs.
     property var tracks: []
-    property string emptyText: "Nothing here"
+    property string emptyText: Tr.t("Nothing here")
     /// Scroll position is remembered per key across navigation.
     property string scrollKey: ""
     property bool loading: false

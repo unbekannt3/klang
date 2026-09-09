@@ -104,7 +104,7 @@ Item {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "Keyboard shortcuts"
+                    text: Tr.t("Keyboard shortcuts")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeLg
                     font.weight: Font.DemiBold

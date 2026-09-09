@@ -95,7 +95,8 @@ Item {
                     }
 
                     Text {
-                        text: root.trackRows.length > 0 ? root.trackRows.length + " tracks" : ""
+                        text: root.trackRows.length > 0
+                              ? Tr.t("%1 tracks").arg(root.trackRows.length) : ""
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeSm
                         color: Theme.textMuted

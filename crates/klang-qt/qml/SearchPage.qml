@@ -45,7 +45,7 @@ Item {
     readonly property var playlistCards: JSON.parse(search.playlists_json || "[]").map(p => ({
         id: p.uuid,
         title: p.title,
-        subtitle: p.numberOfTracks + " tracks",
+        subtitle: Tr.t("%1 tracks").arg(p.numberOfTracks),
         image: p.image,
         kind: "playlist"
     }))
