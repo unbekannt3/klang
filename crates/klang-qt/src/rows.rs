@@ -86,6 +86,9 @@ pub fn track(index: usize, t: &TidalTrack) -> Value {
         "trackNumber": t.track_number,
         "volumeNumber": t.volume_number,
         "cover": t.album.as_ref().and_then(|a| a.cover.clone()),
+        // Only collections fill this in; a catalogue listing has no
+        // "added" to speak of.
+        "dateAdded": t.date_added,
         "trackMix": track_mix_id(t),
     })
 }

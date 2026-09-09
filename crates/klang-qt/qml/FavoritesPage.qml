@@ -102,6 +102,7 @@ Item {
         activeId: root.player.track_id
         favorites: root.favorites
         filterable: true
+        showDateAdded: true
         // TIDAL's own sort keys, which is what the column names are.
         sortColumn: library.sort_order
         sortDescending: library.sort_direction === "DESC"

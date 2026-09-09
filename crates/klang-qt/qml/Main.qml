@@ -759,6 +759,13 @@ QQC2.ApplicationWindow {
         }
     }
 
+    // Above the pages, below the modals: the card is a peek, not a dialog.
+    ArtistHoverCard {
+        z: 400
+        favorites: favoritesCtl
+        onOpenArtist: (id) => root.go("artist", { artistId: id })
+    }
+
     ResizeEdges {
         window: root
     }

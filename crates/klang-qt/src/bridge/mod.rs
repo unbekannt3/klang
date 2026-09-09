@@ -1,6 +1,7 @@
 //! The cxx-qt QObjects QML binds to, plus the helpers they share.
 
 pub mod auth;
+pub mod artistcard;
 pub mod catalog;
 pub mod favorites;
 pub mod feed;

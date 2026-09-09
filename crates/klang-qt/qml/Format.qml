@@ -42,6 +42,24 @@ QtObject {
     }
 
     /// Seconds to m:ss, or h:mm:ss past an hour.
+    /// When a track joined the collection. Recent days read as words, the
+    /// rest as the locale's short date — the column is 96px wide.
+    function added(iso) {
+        if (!iso)
+            return ""
+        const when = new Date(iso)
+        if (isNaN(when.getTime()))
+            return ""
+        const midnight = new Date()
+        midnight.setHours(0, 0, 0, 0)
+        const days = Math.floor((midnight.getTime() - when.getTime()) / 86400000)
+        if (days < 0)
+            return Tr.t("Today")
+        if (days < 1)
+            return Tr.t("Yesterday")
+        return when.toLocaleDateString(Qt.locale(), Locale.ShortFormat)
+    }
+
     /// Unknown reads as unknown — "0:00" beside a running clock looks broken.
     function duration(secs) {
         if (!secs || secs < 0)

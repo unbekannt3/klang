@@ -175,6 +175,7 @@ Item {
         anchors.fill: parent
         pageHeader: header
         filterable: true
+        showDateAdded: true
         tracks: playlists.tracks_json
         loading: playlists.loading
         activeId: root.player.track_id

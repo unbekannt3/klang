@@ -29,6 +29,9 @@ Item {
     property var favorites: null
 
     /// Column the list is sorted by, or "" when the page does not sort.
+    /// Collections know when a track was added; a catalogue listing does not.
+    property bool showDateAdded: false
+
     property string sortColumn: ""
     property bool sortDescending: true
 
@@ -79,10 +82,14 @@ Item {
             color: cell.linked && cellHover.hovered ? Theme.textPrimary : Theme.textMuted
         }
 
+        signal peeked()
+        signal unpeeked()
+
         HoverHandler {
             id: cellHover
             enabled: cell.linked
             cursorShape: Qt.PointingHandCursor
+            onHoveredChanged: hovered ? cell.peeked() : cell.unpeeked()
         }
 
         TapHandler {
@@ -166,11 +173,12 @@ Item {
         { name: "title",   width: 0,  basis: 282, shown: true },
         { name: "artist",  width: 0,  basis: 170, shown: root.showArtist },
         { name: "album",   width: 0,  basis: 112, shown: root.showAlbum },
+        { name: "added",   width: 96, basis: 0,   shown: root.showDateAdded },
         { name: "quality", width: 56, basis: 0,   shown: true },
+        { name: "length",  width: 66, basis: 0,   shown: true },
         { name: "bpm",     width: 52, basis: 0,   shown: root.showBpm },
         { name: "key",     width: 48, basis: 0,   shown: root.showKey },
         { name: "heart",   width: 24, basis: 0,   shown: root.favorites !== null },
-        { name: "length",  width: 66, basis: 0,   shown: true },
     ]
 
     /// Left edge and width of every shown column, in list-local coordinates.
@@ -312,6 +320,16 @@ Item {
                     anchors.bottomMargin: Theme.spaceSm
                     label: Tr.t("ALBUM")
                     column: "ALBUM"
+                }
+
+                SortableHeading {
+                    visible: root.showDateAdded
+                    x: root.columnX("added")
+                    width: root.columnWidth("added")
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: Theme.spaceSm
+                    label: Tr.t("ADDED")
+                    column: "DATE"
                 }
 
                 Text {
@@ -467,6 +485,7 @@ Item {
             // Artist and album are their own columns, as on tidal.com,
             // rather than one subtitle line under the title.
             LinkCell {
+                id: artistCell
                 visible: root.showArtist
                 x: root.columnX("artist")
                 width: root.columnWidth("artist")
@@ -474,6 +493,25 @@ Item {
                 text: row.track.artist
                 linked: !!row.track.artistId
                 onActivated: root.artistActivated(row.track.artistId)
+                // Resting on the name brings up the card, as on tidal.com.
+                onPeeked: {
+                    const p = artistCell.mapToItem(null, artistCell.width / 2,
+                                                   artistCell.height)
+                    ArtistPeek.open(row.track.artistId, p)
+                }
+                onUnpeeked: ArtistPeek.close()
+            }
+
+            Text {
+                visible: root.showDateAdded
+                x: root.columnX("added")
+                width: root.columnWidth("added")
+                anchors.verticalCenter: parent.verticalCenter
+                text: Format.added(row.track.dateAdded)
+                elide: Text.ElideRight
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeSm
+                color: Theme.textMuted
             }
 
             LinkCell {
