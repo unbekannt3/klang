@@ -35,6 +35,7 @@ fn main() {
             QmlFile::from("qml/MediaCard.qml"),
             QmlFile::from("qml/ModalShield.qml"),
             QmlFile::from("qml/CoverWash.qml"),
+            QmlFile::from("qml/Glass.qml"),
             QmlFile::from("qml/OverlayStack.qml").singleton(true),
             QmlFile::from("qml/CardCarousel.qml"),
             QmlFile::from("qml/SectionList.qml"),

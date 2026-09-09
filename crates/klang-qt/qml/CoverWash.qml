@@ -4,6 +4,7 @@
 // this needs no shader and works under the software renderer too.
 
 import QtQuick
+import QtQuick.Effects
 import me.unbk.klang
 
 Item {
@@ -18,6 +19,12 @@ Item {
     property real veilNear: 0.80
     property real veilFar: 0.95
     property color veilColor: Theme.base
+    /// Covers are rarely as saturated as the wash wants to look.
+    property real saturation: 0.6
+
+    /// MultiEffect draws nothing under the software renderer, so there the
+    /// upscaled image is the blur; anywhere else it would double up with it.
+    readonly property bool effects: GraphicsInfo.api !== GraphicsInfo.Software
 
     clip: true
 
@@ -27,8 +34,11 @@ Item {
     }
 
     Image {
+        id: art
         // Oversized and centred: bilinear upscaling softens the edges, and
-        // the overhang keeps the crop's borders off-screen.
+        // the overhang keeps the crop's borders off-screen. That upscale is
+        // the whole blur under the software renderer, where MultiEffect below
+        // draws nothing.
         anchors.centerIn: parent
         width: parent.width * 1.6
         height: parent.height * 1.6
@@ -40,10 +50,26 @@ Item {
         smooth: true
         source: root.uuid ? Theme.coverUrl(root.uuid, 160) : ""
         opacity: status === Image.Ready ? 1 : 0
+        visible: !root.effects
+        layer.enabled: root.effects
+        layer.smooth: true
 
         Behavior on opacity {
             NumberAnimation { duration: Theme.durationSlow }
         }
+    }
+
+    // The colour a flat dark veil would otherwise wash out: pushing
+    // saturation up lets the veil stay dark enough for the text on top.
+    MultiEffect {
+        anchors.fill: art
+        source: art
+        visible: root.effects
+        blurEnabled: true
+        blur: 1.0
+        blurMax: 64
+        saturation: root.saturation
+        opacity: art.opacity
     }
 
     Rectangle {

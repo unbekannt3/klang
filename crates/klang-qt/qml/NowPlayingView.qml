@@ -354,12 +354,64 @@ Item {
                     width: Math.min(parent.width - Theme.spaceXl * 2, 560)
                     spacing: Theme.space
 
-                    CoverArt {
+                    // Tilts towards the cursor, as tidal.com's does.
+                    Item {
+                        id: coverTilt
                         Layout.alignment: Qt.AlignHCenter
                         Layout.preferredWidth: Math.min(parent.width,
                                                         sheet.height - Theme.spaceXl * 2)
                         Layout.preferredHeight: Layout.preferredWidth
-                        uuid: root.player.cover
+
+                        readonly property real maxTilt: 7
+                        readonly property point centre: Qt.point(width / 2, height / 2)
+
+                        CoverArt {
+                            id: cover
+                            anchors.fill: parent
+                            uuid: root.player.cover
+
+                            transform: [
+                                Rotation {
+                                    origin.x: cover.width / 2
+                                    origin.y: cover.height / 2
+                                    axis { x: 1; y: 0; z: 0 }
+                                    angle: tiltHover.hovered
+                                        ? -coverTilt.maxTilt
+                                          * (tiltHover.point.position.y - coverTilt.centre.y)
+                                          / coverTilt.centre.y
+                                        : 0
+
+                                    Behavior on angle {
+                                        NumberAnimation { duration: Theme.duration }
+                                    }
+                                },
+                                Rotation {
+                                    origin.x: cover.width / 2
+                                    origin.y: cover.height / 2
+                                    axis { x: 0; y: 1; z: 0 }
+                                    angle: tiltHover.hovered
+                                        ? coverTilt.maxTilt
+                                          * (tiltHover.point.position.x - coverTilt.centre.x)
+                                          / coverTilt.centre.x
+                                        : 0
+
+                                    Behavior on angle {
+                                        NumberAnimation { duration: Theme.duration }
+                                    }
+                                }
+                            ]
+
+                            scale: tiltHover.hovered ? 1.02 : 1
+
+                            Behavior on scale {
+                                NumberAnimation {
+                                    duration: Theme.duration
+                                    easing.type: Easing.OutCubic
+                                }
+                            }
+                        }
+
+                        HoverHandler { id: tiltHover }
                     }
 
                     Text {
