@@ -6,6 +6,11 @@
 //! by running the actual TS functions), so any drift in the port is caught
 //! immediately rather than silently shipping a slightly-off palette.
 
+/// WCAG AA for body text, and the 1.4.11 floor for anything that is a shape
+/// rather than a glyph.
+const AA_TEXT: f64 = 4.5;
+const AA_NON_TEXT: f64 = 3.0;
+
 /// Full derived color palette for a theme. Field names mirror `DerivedTheme`
 /// in `src/lib/theme.ts` (camelCase -> snake_case). Every field holds a CSS
 /// color string exactly as the TypeScript would produce it: most fields are
@@ -42,6 +47,10 @@ pub struct DerivedTheme {
 
     // Border / scrollbar
     pub border_subtle: String,
+    /// For a control whose outline is the only thing that makes it visible —
+    /// an off switch, an empty checkbox. Meets WCAG 1.4.11 against the
+    /// surface behind it, which `border_subtle` deliberately does not.
+    pub border_strong: String,
     pub scrollbar: String,
     pub scrollbar_hover: String,
 
@@ -162,6 +171,70 @@ fn scale_brightness(hex: &str, factor: f64) -> String {
     hsl_to_hex(h, s, clamp(l * factor, 0.0, 100.0))
 }
 
+// ---------------------------------------------------------------------------
+// Contrast
+// ---------------------------------------------------------------------------
+//
+// This part is klang's, not a port. theme.ts hands out one fixed text ramp
+// whatever the background is, and on the near-black backgrounds every preset
+// but the light ones uses, its two dimmest tiers land at 3.3:1 and 2.5:1 —
+// under WCAG AA either way. Deriving them from the background instead keeps
+// the ramp legible on every palette, including one the user picks themselves.
+
+/// Channel value in linear light, per the sRGB transfer function WCAG 2.1
+/// defines relative luminance in terms of.
+fn to_linear(channel: f64) -> f64 {
+    if channel <= 0.04045 {
+        channel / 12.92
+    } else {
+        ((channel + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+/// Inverse of `to_linear`.
+fn to_srgb(linear: f64) -> f64 {
+    if linear <= 0.0031308 {
+        linear * 12.92
+    } else {
+        1.055 * linear.powf(1.0 / 2.4) - 0.055
+    }
+}
+
+/// Relative luminance of an opaque `#rrggbb` colour (WCAG 2.1).
+fn relative_luminance(hex: &str) -> f64 {
+    let h = hex.trim_start_matches('#');
+    let byte = |start: usize| -> f64 {
+        let pair = h.get(start..start + 2).unwrap_or("00");
+        u8::from_str_radix(pair, 16).unwrap_or(0) as f64 / 255.0
+    };
+    0.2126 * to_linear(byte(0)) + 0.7152 * to_linear(byte(2)) + 0.0722 * to_linear(byte(4))
+}
+
+/// WCAG contrast ratio between two opaque colours, 1.0 (identical) to 21.0
+/// (black on white).
+pub fn contrast_ratio(a: &str, b: &str) -> f64 {
+    let (la, lb) = (relative_luminance(a), relative_luminance(b));
+    let (hi, lo) = if la > lb { (la, lb) } else { (lb, la) };
+    (hi + 0.05) / (lo + 0.05)
+}
+
+/// The grey that sits exactly `ratio` from a background of `background`
+/// luminance, on the `lighter` side of it. Clamped to white or black where
+/// the ratio cannot be reached, which is the best that side has to offer.
+fn grey_at_contrast(background: f64, ratio: f64, lighter: bool) -> String {
+    let target = if lighter {
+        ratio * (background + 0.05) - 0.05
+    } else {
+        (background + 0.05) / ratio - 0.05
+    };
+    // Rounded away from the background, never towards it: rounding to the
+    // nearest byte otherwise lands a hair under the target often enough to
+    // matter when the target *is* the standard.
+    let exact = to_srgb(clamp(target, 0.0, 1.0)) * 255.0;
+    let value = clamp(if lighter { exact.ceil() } else { exact.floor() }, 0.0, 255.0) as u8;
+    format!("#{value:02x}{value:02x}{value:02x}")
+}
+
 /// Normalize a `#RGB`/`#RrGgBb` color to uppercase `#RRGGBB`. Mirrors
 /// `normalizeHex` in theme.ts.
 pub fn normalize_hex(input: &str) -> Option<String> {
@@ -207,13 +280,24 @@ pub fn derive_theme(accent: &str, bg_base: &str) -> DerivedTheme {
     // dark themes, white text on light themes.
     let on_accent = if is_dark { "#000000" } else { "#ffffff" }.to_string();
 
-    // Text: for dark backgrounds, use light text at varying opacities.
-    // For light backgrounds, use dark text.
-    let (text_primary, text_secondary, text_muted, text_faint, text_disabled) = if is_dark {
-        ("#ffffff", "#b3b3b3", "#a6a6a6", "#666666", "#535353")
-    } else {
-        ("#111111", "#444444", "#666666", "#666666", "#aaaaaa")
-    };
+    // Text, derived rather than fixed — see the contrast section above.
+    //
+    // The reference is bg_surface_hover: the lightest surface body text sits
+    // on in a dark theme, the darkest in a light one. A tier that clears its
+    // target there clears it by more on every surface below.
+    let reference = relative_luminance(&bg_surface_hover);
+    let text_primary = if is_dark { "#ffffff" } else { "#111111" }.to_string();
+    let text_secondary = grey_at_contrast(reference, 7.0, is_dark);
+    let text_muted = grey_at_contrast(reference, 5.5, is_dark);
+    // AA for body text. Descriptions under every settings label are this tier,
+    // which is what made upstream's #666666 a real problem and not a nicety.
+    let text_faint = grey_at_contrast(reference, AA_TEXT, is_dark);
+    // Disabled text is exempt from AA, but unreadable is not the same as
+    // inactive: 3:1 still reads as clearly greyed out.
+    let text_disabled = grey_at_contrast(reference, AA_NON_TEXT, is_dark);
+    // A control's own outline, for the ones whose shape is the only thing
+    // saying they are there — an off switch has no fill to speak of.
+    let border_strong = grey_at_contrast(reference, AA_NON_TEXT, is_dark);
 
     // Borders / scrollbar
     let border_subtle = if is_dark {
@@ -278,12 +362,13 @@ pub fn derive_theme(accent: &str, bg_base: &str) -> DerivedTheme {
         accent: accent.to_string(),
         accent_hover,
         on_accent,
-        text_primary: text_primary.to_string(),
-        text_secondary: text_secondary.to_string(),
-        text_muted: text_muted.to_string(),
-        text_faint: text_faint.to_string(),
-        text_disabled: text_disabled.to_string(),
+        text_primary,
+        text_secondary,
+        text_muted,
+        text_faint,
+        text_disabled,
         border_subtle,
+        border_strong,
         scrollbar,
         scrollbar_hover,
         hl_faint,
@@ -360,11 +445,12 @@ mod tests {
                 accent_hover: "#952ff5".to_string(),
                 on_accent: "#000000".to_string(),
                 text_primary: "#ffffff".to_string(),
-                text_secondary: "#b3b3b3".to_string(),
-                text_muted: "#a6a6a6".to_string(),
-                text_faint: "#666666".to_string(),
-                text_disabled: "#535353".to_string(),
+                text_secondary: "#aeaeae".to_string(),
+                text_muted: "#9a9a9a".to_string(),
+                text_faint: "#8b8b8b".to_string(),
+                text_disabled: "#6d6d6d".to_string(),
                 border_subtle: "rgba(255,255,255,0.06)".to_string(),
+                border_strong: "#6d6d6d".to_string(),
                 scrollbar: "#342947".to_string(),
                 scrollbar_hover: "#403257".to_string(),
                 hl_faint: "rgba(255,255,255,0.04)".to_string(),
@@ -400,11 +486,12 @@ mod tests {
                 accent_hover: "#e0e0e0".to_string(),
                 on_accent: "#000000".to_string(),
                 text_primary: "#ffffff".to_string(),
-                text_secondary: "#b3b3b3".to_string(),
-                text_muted: "#a6a6a6".to_string(),
-                text_faint: "#666666".to_string(),
-                text_disabled: "#535353".to_string(),
+                text_secondary: "#a4a4a4".to_string(),
+                text_muted: "#909090".to_string(),
+                text_faint: "#818181".to_string(),
+                text_disabled: "#656565".to_string(),
                 border_subtle: "rgba(255,255,255,0.06)".to_string(),
+                border_strong: "#656565".to_string(),
                 scrollbar: "#262626".to_string(),
                 scrollbar_hover: "#323232".to_string(),
                 hl_faint: "rgba(255,255,255,0.04)".to_string(),
@@ -440,11 +527,12 @@ mod tests {
                 accent_hover: "#1452db".to_string(),
                 on_accent: "#ffffff".to_string(),
                 text_primary: "#111111".to_string(),
-                text_secondary: "#444444".to_string(),
-                text_muted: "#666666".to_string(),
-                text_faint: "#666666".to_string(),
-                text_disabled: "#aaaaaa".to_string(),
+                text_secondary: "#464646".to_string(),
+                text_muted: "#565656".to_string(),
+                text_faint: "#636363".to_string(),
+                text_disabled: "#7f7f7f".to_string(),
                 border_subtle: "rgba(0,0,0,0.08)".to_string(),
+                border_strong: "#7f7f7f".to_string(),
                 scrollbar: "#dbd3c1".to_string(),
                 scrollbar_hover: "#d1c8b1".to_string(),
                 hl_faint: "rgba(0,0,0,0.05)".to_string(),
@@ -480,6 +568,51 @@ mod tests {
         assert_eq!(normalize_hex("#GGGGGG"), None);
         assert_eq!(normalize_hex(""), None);
         assert_eq!(normalize_hex("#1234567"), None);
+    }
+
+    /// The point of deriving the ramp instead of fixing it. Every tier is
+    /// checked on the surface it is derived against *and* on bg_base, where
+    /// most of it is actually read.
+    #[test]
+    fn every_preset_meets_wcag_aa() {
+        for (name, accent, bg) in PRESET_THEMES {
+            let d = derive_theme(accent, bg);
+            for surface in [&d.bg_base, &d.bg_surface, &d.bg_elevated, &d.bg_surface_hover] {
+                for (tier, text) in [
+                    ("primary", &d.text_primary),
+                    ("secondary", &d.text_secondary),
+                    ("muted", &d.text_muted),
+                    ("faint", &d.text_faint),
+                ] {
+                    let ratio = contrast_ratio(text, surface);
+                    assert!(
+                        ratio >= AA_TEXT,
+                        "{name}: {tier} {text} on {surface} is {ratio:.2}:1, under AA",
+                    );
+                }
+                for (part, colour) in [
+                    ("disabled text", &d.text_disabled),
+                    ("control outline", &d.border_strong),
+                ] {
+                    let ratio = contrast_ratio(colour, surface);
+                    assert!(
+                        ratio >= AA_NON_TEXT,
+                        "{name}: {part} {colour} on {surface} is {ratio:.2}:1, under 1.4.11",
+                    );
+                }
+            }
+        }
+    }
+
+    /// Known ratios, so a change to the derivation shows up as a number and
+    /// not just as a still-passing threshold.
+    #[test]
+    fn contrast_ratio_matches_wcag_worked_examples() {
+        assert!((contrast_ratio("#ffffff", "#000000") - 21.0).abs() < 0.001);
+        assert!((contrast_ratio("#ffffff", "#ffffff") - 1.0).abs() < 0.001);
+        // The two tiers this whole section exists to fix, at upstream's values.
+        assert!(contrast_ratio("#666666", "#121212") < AA_TEXT);
+        assert!(contrast_ratio("#535353", "#121212") < AA_NON_TEXT);
     }
 
     #[test]

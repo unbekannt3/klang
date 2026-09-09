@@ -26,17 +26,6 @@ Rectangle {
     /// keeps cutting the same circle.
     property real zoom: 1
 
-    function url(id, px) {
-        if (!id)
-            return ""
-        if (id.startsWith("http"))
-            return id
-        // Dashes become path separators; the CDN serves 160/320/640/1280.
-        const path = id.replace(/-/g, "/")
-        const valid = px <= 160 ? 160 : px <= 320 ? 320 : px <= 640 ? 640 : 1280
-        return "https://resources.tidal.com/images/" + path + "/" + valid + "x" + valid + ".jpg"
-    }
-
     Text {
         anchors.centerIn: parent
         visible: image.status !== Image.Ready
@@ -57,7 +46,7 @@ Rectangle {
         sourceSize.height: Math.round(root.height * Screen.devicePixelRatio)
         fillMode: Image.PreserveAspectCrop
         scale: root.zoom
-        source: root.url(root.uuid, root.width * Screen.devicePixelRatio)
+        source: Theme.coverUrl(root.uuid, root.width * Screen.devicePixelRatio)
         opacity: status === Image.Ready ? 1 : 0
 
         Behavior on opacity {

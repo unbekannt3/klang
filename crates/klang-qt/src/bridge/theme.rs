@@ -59,6 +59,7 @@ pub mod qobject {
         #[qproperty(QString, text_faint)]
         #[qproperty(QString, text_disabled)]
         #[qproperty(QString, border_subtle)]
+        #[qproperty(QString, border_strong)]
         // Highlights (adaptive overlays)
         #[qproperty(QString, hl_faint)]
         #[qproperty(QString, hl_med)]
@@ -120,6 +121,7 @@ pub struct ThemeControllerRust {
     text_faint: QString,
     text_disabled: QString,
     border_subtle: QString,
+    border_strong: QString,
     hl_faint: QString,
     hl_med: QString,
     hl_strong: QString,
@@ -197,6 +199,7 @@ fn fields_from_derived(preset_name: &str, dt: &DerivedTheme) -> ThemeControllerR
         text_faint: QString::from(&to_qml_color(&dt.text_faint)),
         text_disabled: QString::from(&to_qml_color(&dt.text_disabled)),
         border_subtle: QString::from(&to_qml_color(&dt.border_subtle)),
+        border_strong: QString::from(&to_qml_color(&dt.border_strong)),
         hl_faint: QString::from(&to_qml_color(&dt.hl_faint)),
         hl_med: QString::from(&to_qml_color(&dt.hl_med)),
         hl_strong: QString::from(&to_qml_color(&dt.hl_strong)),
@@ -237,6 +240,7 @@ fn apply_derived(mut ctrl: Pin<&mut qobject::ThemeController>, preset_name: &str
     ctrl.as_mut().set_text_faint(f.text_faint);
     ctrl.as_mut().set_text_disabled(f.text_disabled);
     ctrl.as_mut().set_border_subtle(f.border_subtle);
+    ctrl.as_mut().set_border_strong(f.border_strong);
     ctrl.as_mut().set_hl_faint(f.hl_faint);
     ctrl.as_mut().set_hl_med(f.hl_med);
     ctrl.as_mut().set_hl_strong(f.hl_strong);

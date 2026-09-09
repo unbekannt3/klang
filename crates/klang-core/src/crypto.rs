@@ -109,20 +109,51 @@ fn load_or_generate_key(config_dir: &Path) -> Result<[u8; 32], SoneError> {
     Ok(key)
 }
 
-fn load_key_from_keyring() -> Result<[u8; 32], String> {
-    let entry = keyring::Entry::new("sone", "master-key").map_err(|e| e.to_string())?;
-    let secret = entry.get_secret().map_err(|e| e.to_string())?;
-    if secret.len() != 32 {
-        return Err(format!("keyring key wrong length: {}", secret.len()));
+/// sone's names: a machine that has run both keeps one master key.
+const KEYRING_SERVICE: &str = "sone";
+const KEYRING_ENTRY: &str = "master-key";
+
+/// Hex, not raw bytes: keyring 3 labels every secret `text/plain`, and a
+/// Secret Service that enforces that (KWallet) refuses 32 random bytes.
+fn encode_key(key: &[u8; 32]) -> String {
+    key.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn decode_key(text: &str) -> Option<[u8; 32]> {
+    let text = text.trim();
+    if text.len() != 64 {
+        return None;
     }
     let mut key = [0u8; 32];
-    key.copy_from_slice(&secret);
+    for (i, byte) in key.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(text.get(i * 2..i * 2 + 2)?, 16).ok()?;
+    }
+    Some(key)
+}
+
+fn load_key_from_keyring() -> Result<[u8; 32], String> {
+    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_ENTRY).map_err(|e| e.to_string())?;
+
+    // Backends that did take raw bytes hold it unencoded.
+    if let Ok(text) = entry.get_password() {
+        if let Some(key) = decode_key(&text) {
+            return Ok(key);
+        }
+    }
+
+    let secret = entry.get_secret().map_err(|e| e.to_string())?;
+    let key: [u8; 32] = secret
+        .as_slice()
+        .try_into()
+        .map_err(|_| format!("keyring key wrong length: {}", secret.len()))?;
     Ok(key)
 }
 
 fn store_key_in_keyring(key: &[u8; 32]) -> Result<(), String> {
-    let entry = keyring::Entry::new("sone", "master-key").map_err(|e| e.to_string())?;
-    entry.set_secret(key).map_err(|e| e.to_string())
+    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_ENTRY).map_err(|e| e.to_string())?;
+    entry
+        .set_password(&encode_key(key))
+        .map_err(|e| e.to_string())
 }
 
 fn load_key_from_file(path: &Path) -> Result<[u8; 32], SoneError> {
@@ -155,3 +186,25 @@ fn store_key_in_file(path: &Path, key: &[u8; 32]) -> Result<(), SoneError> {
 
 // Use rand's fill_bytes via the aead OsRng re-export
 use aes_gcm::aead::rand_core::RngCore;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn key_survives_the_keyring_encoding() {
+        let key: [u8; 32] = core::array::from_fn(|i| (i as u8).wrapping_mul(37));
+        let text = encode_key(&key);
+        assert_eq!(text.len(), 64);
+        // The whole point: what goes to the Secret Service is valid text.
+        assert!(text.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_eq!(decode_key(&text), Some(key));
+    }
+
+    #[test]
+    fn decode_key_rejects_what_is_not_a_key() {
+        assert_eq!(decode_key(""), None);
+        assert_eq!(decode_key("beef"), None);
+        assert_eq!(decode_key(&"z".repeat(64)), None);
+    }
+}

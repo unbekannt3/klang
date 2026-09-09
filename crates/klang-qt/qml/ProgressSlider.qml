@@ -16,8 +16,14 @@ Item {
 
     implicitHeight: 16
 
-    readonly property real span: Math.max(to - from, 0.000001)
-    readonly property real ratio: Math.max(0, Math.min(1, (value - from) / span))
+    /// False while the length is unknown — `to` still sits at `from`. The
+    /// fill then stays empty rather than dividing by a stand-in span and
+    /// landing at 100%, which reads as a track played to the end.
+    readonly property bool measured: root.to > root.from
+    readonly property real span: root.measured ? root.to - root.from : 1
+    readonly property real ratio: root.measured
+        ? Math.max(0, Math.min(1, (root.value - root.from) / root.span))
+        : 0
 
     function valueAt(x) {
         const r = Math.max(0, Math.min(1, x / Math.max(width, 1)))
@@ -53,11 +59,13 @@ Item {
     HoverHandler { id: hover }
 
     TapHandler {
+        enabled: root.measured
         onSingleTapped: (point) => root.seeked(root.valueAt(point.position.x))
     }
 
     DragHandler {
         id: drag
+        enabled: root.measured
         target: null
         xAxis.enabled: true
         yAxis.enabled: false

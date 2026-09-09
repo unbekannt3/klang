@@ -33,8 +33,10 @@ Rectangle {
     signal contextRequested(real x, real y)
 
     readonly property bool circular: kind === "artist"
+    /// 16:9 artwork, so the card is wider and its cover shorter.
+    readonly property bool wide: kind === "video"
 
-    implicitWidth: Theme.cardSize
+    implicitWidth: root.wide ? Theme.videoCardSize : Theme.cardSize
     implicitHeight: coverFrame.height + captions.implicitHeight
                     + Theme.cardPadding * 3
 
@@ -91,7 +93,7 @@ Rectangle {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: Theme.cardPadding
-        height: width
+        height: root.wide ? Math.round(width * 9 / 16) : width
         clip: true
 
         CoverArt {

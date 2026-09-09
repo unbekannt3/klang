@@ -23,6 +23,7 @@ Item {
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
     signal openMix(string mixId, string title)
+    signal openVideo(int videoId)
     /// Right-click on a card, in this list's coordinates.
     signal itemContextRequested(var item, real x, real y)
     /// A section header opened in full.
@@ -40,6 +41,7 @@ Item {
             artist: root.openArtist,
             playlist: root.openPlaylist,
             mix: root.openMix,
+            video: root.openVideo,
             play: (it) => root.player.play(parseInt(it.id), it.title, it.subtitle, 0, it.image),
         })
     }

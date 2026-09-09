@@ -81,10 +81,6 @@ Item {
         color: Theme.base
     }
 
-    ColumnLayout {
-        anchors.fill: parent
-        spacing: 0
-
     Component {
         id: pageHeaderContent
 
@@ -103,64 +99,63 @@ Item {
             width: parent ? parent.width : 0
             spacing: Theme.spaceLg
 
+            CardCarousel {
+                Layout.fillWidth: true
+                visible: root.albumCards.length > 0
+                title: Tr.t("Albums")
+                items: root.albumCards
+                onItemActivated: (item) => root.openAlbum(item.id)
+            }
 
-                CardCarousel {
-                    Layout.fillWidth: true
-                    visible: root.albumCards.length > 0
-                    title: Tr.t("Albums")
-                    items: root.albumCards
-                    onItemActivated: (item) => root.openAlbum(item.id)
-                }
+            CardCarousel {
+                Layout.fillWidth: true
+                visible: root.artistCards.length > 0
+                title: Tr.t("Artists")
+                items: root.artistCards
+                onItemActivated: (item) => root.openArtist(item.id)
+            }
 
-                CardCarousel {
-                    Layout.fillWidth: true
-                    visible: root.artistCards.length > 0
-                    title: Tr.t("Artists")
-                    items: root.artistCards
-                    onItemActivated: (item) => root.openArtist(item.id)
-                }
+            CardCarousel {
+                Layout.fillWidth: true
+                visible: root.playlistCards.length > 0
+                title: Tr.t("Playlists")
+                items: root.playlistCards
+                onItemActivated: (item) => root.openPlaylist(item.id, item.title)
+            }
 
-                CardCarousel {
-                    Layout.fillWidth: true
-                    visible: root.playlistCards.length > 0
-                    title: Tr.t("Playlists")
-                    items: root.playlistCards
-                    onItemActivated: (item) => root.openPlaylist(item.id, item.title)
-                }
+            CardCarousel {
+                Layout.fillWidth: true
+                visible: root.videoCards.length > 0
+                title: Tr.t("Videos")
+                items: root.videoCards
+                onItemActivated: (item) => root.openVideo(parseInt(item.id))
+                onItemPlayRequested: (item) => root.openVideo(parseInt(item.id))
+            }
 
-                CardCarousel {
-                    Layout.fillWidth: true
-                    visible: root.videoCards.length > 0
-                    title: Tr.t("Videos")
-                    items: root.videoCards
-                    onItemActivated: (item) => root.openVideo(parseInt(item.id))
-                    onItemPlayRequested: (item) => root.openVideo(parseInt(item.id))
-                }
-
-                Item { Layout.preferredHeight: Theme.spaceLg }
+            Item { Layout.preferredHeight: Theme.spaceLg }
         }
     }
 
+    // The carousels ride in the footer: one scroller, rows stay virtualised.
+    // Never gated on track rows — the footer carries the other kinds.
     TrackList {
         id: trackList
         anchors.fill: parent
         scrollKey: "search:" + root.query
         pageHeader: pageHeaderContent
         pageFooter: pageFooterContent
-                Layout.fillWidth: true
-                visible: root.trackRows.length > 0
-                tracks: search.tracks_json
-                activeId: root.player.track_id
-                favorites: root.favorites
-                onContextRequested: (index, x, y) => {
-                    const rows = JSON.parse(search.tracks_json || "[]")
-                    if (rows[index])
-                        root.trackContextRequested(rows[index], x, y)
-                }
-                onTrackActivated: (index) =>
-                    root.player.play_context(search.tracks_json, index, "search")
-    }
-
+        tracks: search.tracks_json
+        activeId: root.player.track_id
+        favorites: root.favorites
+        // The page draws its own "no results" line, covering every kind.
+        emptyText: ""
+        onContextRequested: (index, x, y) => {
+            const rows = JSON.parse(search.tracks_json || "[]")
+            if (rows[index])
+                root.trackContextRequested(rows[index], x, y)
+        }
+        onTrackActivated: (index) =>
+            root.player.play_context(search.tracks_json, index, "search")
     }
 
     QQC2.BusyIndicator {

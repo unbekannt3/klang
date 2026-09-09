@@ -43,6 +43,7 @@ Item {
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
     signal openMix(string mixId, string title)
+    signal openVideo(int videoId)
     /// A genre/mood/decade link was activated (Explore link-grid mode).
     signal openExplorePage(string apiPath, string title)
     signal itemContextRequested(var item, real x, real y)
@@ -192,6 +193,7 @@ Item {
             onOpenArtist: (id) => root.openArtist(id)
             onOpenPlaylist: (uuid, t) => root.openPlaylist(uuid, t)
             onOpenMix: (mixId, t) => root.openMix(mixId, t)
+            onOpenVideo: (id) => root.openVideo(id)
             onItemContextRequested: (item, x, y) => root.itemContextRequested(item, x, y)
         }
 
@@ -246,6 +248,7 @@ Item {
                 onOpenArtist: (id) => root.openArtist(id)
                 onOpenPlaylist: (uuid, t) => root.openPlaylist(uuid, t)
                 onOpenMix: (mixId, t) => root.openMix(mixId, t)
+                onOpenVideo: (id) => root.openVideo(id)
             }
 
             GridView {

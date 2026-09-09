@@ -34,6 +34,16 @@ Item {
         return items || []
     }
 
+    /// A carousel or grid holds one kind, so the card geometry follows the
+    /// first row: video artwork is 16:9 and its card wider than the rest.
+    readonly property bool wideCards: {
+        const rows = root.rows()
+        return rows.length > 0 && rows[0].kind === "video"
+    }
+    readonly property int cardWidth: root.wideCards ? Theme.videoCardSize : Theme.cardSize
+    readonly property int coverHeight: root.wideCards
+        ? Math.round(root.cardWidth * 9 / 16) : root.cardWidth
+
     function activate(item) {
         MediaRoute.open(item, {
             album: root.openAlbum,
@@ -84,9 +94,10 @@ Item {
 
                 // At least one column; more once the width fits another card
                 // plus its gutter. Cells then stretch to fill each row evenly.
-                readonly property int columns: Math.max(1, Math.floor(width / (Theme.cardSize + Theme.spaceLg)))
+                readonly property int columns: Math.max(1,
+                    Math.floor(width / (root.cardWidth + Theme.spaceLg)))
                 cellWidth: width / columns
-                cellHeight: Theme.cardSize + 52 + Theme.spaceLg
+                cellHeight: root.coverHeight + 52 + Theme.spaceLg
 
                 HoverHandler { id: gridHover }
 

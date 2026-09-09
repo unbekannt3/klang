@@ -69,12 +69,10 @@ Item {
         }
     }
 
-    Rectangle {
-        anchors.fill: parent
-        color: Theme.overlay
-        opacity: 0.55
-
-        TapHandler { onSingleTapped: root.closeRequested() }
+    ModalShield {
+        blocksPage: true
+        scrim: Qt.alpha(Theme.overlay, 0.55)
+        onDismissed: root.closeRequested()
     }
 
     Rectangle {
@@ -89,7 +87,8 @@ Item {
 
         // Claims clicks landing on the panel so they don't fall through to
         // the scrim behind it.
-        TapHandler {}
+        // Keeps clicks on the panel from also reaching the scrim.
+        ModalShield {}
 
         ColumnLayout {
             id: content

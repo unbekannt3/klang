@@ -42,9 +42,10 @@ QtObject {
     }
 
     /// Seconds to m:ss, or h:mm:ss past an hour.
+    /// Unknown reads as unknown — "0:00" beside a running clock looks broken.
     function duration(secs) {
         if (!secs || secs < 0)
-            return "0:00"
+            return "–:––"
         const total = Math.floor(secs)
         const h = Math.floor(total / 3600)
         const m = Math.floor((total % 3600) / 60)

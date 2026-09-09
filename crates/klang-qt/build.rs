@@ -33,6 +33,9 @@ fn main() {
             QmlFile::from("qml/Icon.qml"),
             QmlFile::from("qml/CoverArt.qml"),
             QmlFile::from("qml/MediaCard.qml"),
+            QmlFile::from("qml/ModalShield.qml"),
+            QmlFile::from("qml/CoverWash.qml"),
+            QmlFile::from("qml/OverlayStack.qml").singleton(true),
             QmlFile::from("qml/CardCarousel.qml"),
             QmlFile::from("qml/SectionList.qml"),
             QmlFile::from("qml/ThemePicker.qml"),
@@ -99,6 +102,7 @@ fn main() {
         "src/bridge/viewall.rs",
         "src/bridge/video.rs",
         "src/bridge/theme.rs",
+        "src/bridge/window.rs",
     ])
     .build();
 }

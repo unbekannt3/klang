@@ -37,6 +37,10 @@ QtObject {
 
     // ---- lines and overlays ---------------------------------------------
     readonly property color border: controller.border_subtle
+    /// For a control whose outline is what makes it visible at all —
+    /// an off switch has no fill to speak of. Meets WCAG 1.4.11 where
+    /// `border` deliberately does not.
+    readonly property color borderStrong: controller.border_strong
     readonly property color hlFaint: controller.hl_faint
     readonly property color hlMed: controller.hl_med
     readonly property color hlStrong: controller.hl_strong
@@ -61,6 +65,10 @@ QtObject {
     readonly property int sidebarWidth: 220
     readonly property int playerBarHeight: 88
     readonly property int cardSize: 174
+    /// Video artwork is 16:9, not square, so a video card is wider and
+    /// shorter than the rest — cropping it to a square is what TIDAL
+    /// pointedly does not do.
+    readonly property int videoCardSize: 260
     readonly property int rowHeight: 56
     readonly property int coverThumb: 40
     /// The now-playing cover in the player bar, sized to the bar's height
@@ -105,6 +113,18 @@ QtObject {
     readonly property color scrimSoft: "#33000000"
     readonly property color scrim: "#80000000"
     readonly property color scrimStrong: "#B3000000"
+
+    /// TIDAL image UUID (or a full URL) to a CDN URL at the nearest bracket.
+    function coverUrl(id, px) {
+        if (!id)
+            return ""
+        if (id.startsWith("http"))
+            return id
+        // Dashes become path separators; the CDN serves 160/320/640/1280.
+        const path = id.replace(/-/g, "/")
+        const valid = px <= 160 ? 160 : px <= 320 ? 320 : px <= 640 ? 640 : 1280
+        return "https://resources.tidal.com/images/" + path + "/" + valid + "x" + valid + ".jpg"
+    }
 
     readonly property bool animated: Qt.application.active
     readonly property int durationFast: animated ? 120 : 0

@@ -29,9 +29,10 @@ RowLayout {
         implicitWidth: 40
         implicitHeight: 22
         radius: height / 2
-        opacity: sw.enabled ? 1 : 0.4
+        opacity: sw.enabled ? 1 : 0.5
         color: sw.checked ? Theme.accent : Theme.hlMed
-        border.color: Theme.border
+        // Off, the fill barely clears the surface; the outline carries it.
+        border.color: Theme.borderStrong
         border.width: sw.checked ? 0 : 1
 
         HoverHandler { enabled: sw.enabled }
@@ -43,7 +44,9 @@ RowLayout {
             radius: width / 2
             y: 3
             x: sw.checked ? parent.width - width - 3 : 3
-            color: Theme.onAccent
+            // Off there is no accent under it, so the accent's foreground
+            // (black on dark themes) would vanish into the track.
+            color: sw.checked ? Theme.onAccent : Theme.textMuted
 
             Behavior on x { NumberAnimation { duration: Theme.durationFast } }
         }

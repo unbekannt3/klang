@@ -143,6 +143,8 @@ Item {
         property bool removable: false
         signal activated()
         signal removeRequested()
+        /// Right-click, in this row's coordinates.
+        signal contextRequested(real x, real y)
 
         implicitHeight: Theme.rowHeight
         radius: Theme.radiusXs
@@ -150,6 +152,13 @@ Item {
 
         HoverHandler { id: hover }
         TapHandler { enabled: row.interactive; onSingleTapped: row.activated() }
+
+        // The playing row gets one too; `interactive` only governs jumping.
+        TapHandler {
+            acceptedButtons: Qt.RightButton
+            onSingleTapped: (event) =>
+                row.contextRequested(event.position.x, event.position.y)
+        }
 
         RowLayout {
             anchors.fill: parent
@@ -316,15 +325,14 @@ Item {
             NumberAnimation { duration: Theme.duration; easing.type: Easing.OutCubic }
         }
 
-        // The panel covers the titlebar. Without something to absorb them,
-        // taps land on the window buttons behind it — the close glyph sits
-        // right over the one that quits the app.
-        MouseArea {
+        CoverWash {
             anchors.fill: parent
-            acceptedButtons: Qt.AllButtons
-            hoverEnabled: true
-            onWheel: (wheel) => wheel.accepted = true
+            uuid: root.player.cover
         }
+
+        // Taps would otherwise land on the window buttons behind the sheet —
+        // the close glyph sits right over the one that quits the app.
+        ModalShield { blocksPage: true }
 
         RowLayout {
             anchors.fill: parent
@@ -341,12 +349,13 @@ Item {
 
                 ColumnLayout {
                     anchors.centerIn: parent
-                    width: Math.min(parent.width - Theme.spaceXl * 2, 420)
+                    width: Math.min(parent.width - Theme.spaceXl * 2, 560)
                     spacing: Theme.space
 
                     CoverArt {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: Math.min(parent.width, sheet.height - Theme.spaceXl * 4)
+                        Layout.preferredWidth: Math.min(parent.width,
+                                                        sheet.height - Theme.spaceXl * 2)
                         Layout.preferredHeight: Layout.preferredWidth
                         uuid: root.player.cover
                     }
@@ -369,7 +378,8 @@ Item {
                         text: root.player.artist
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeLg
-                        color: Theme.textMuted
+                        // Over the strongest part of the wash, so a tier up.
+                        color: Theme.textSecondary
                     }
                 }
             }
@@ -483,6 +493,11 @@ Item {
                                         onActivated: root.player.jump_to(entry.modelData.index,
                                                                         mode === "manual")
                                         onRemoveRequested: root.player.remove_queued(entry.modelData.index)
+                                        onContextRequested: (x, y) => {
+                                            const p = mapToItem(root, x, y)
+                                            root.trackContextRequested(entry.modelData.track,
+                                                                       p.x, p.y)
+                                        }
                                     }
                                 }
 

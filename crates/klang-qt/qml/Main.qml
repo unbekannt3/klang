@@ -41,16 +41,25 @@ QQC2.ApplicationWindow {
     /// Trails `nowPlayingOpen` so the panel can finish sliding out.
     property bool nowPlayingLive: false
 
+    /// Takes focus off the search field. Pages are not focus scopes, so
+    /// without this a click anywhere else leaves the field looking active.
+    function dropFocus() {
+        root.contentItem.forceActiveFocus()
+    }
+
     function go(route, params) {
         history.push(page)
         historyChanged()
         page = { route: route, params: params || {} }
+        root.nowPlayingOpen = false
+        root.dropFocus()
     }
 
     /// Sidebar destinations are roots, not steps — they clear the stack.
     function goRoot(route) {
         history = []
         page = { route: route, params: {} }
+        root.nowPlayingOpen = false
     }
 
     readonly property var profile: JSON.parse(profileCtl.profile_json || "{}")
@@ -61,8 +70,7 @@ QQC2.ApplicationWindow {
         root.go("view-all", { apiPath: section.apiPath || "", title: section.title || "" })
     }
 
-    /// Hand a video to the takeover player. Videos are not tracks and never
-    /// enter the audio queue; VideoController pauses the audio itself.
+    /// Videos never enter the audio queue; VideoController pauses it.
     function playVideo(videoId) {
         videoCtl.load_video(videoId, "HIGH", authCtl.user_id)
     }
@@ -100,6 +108,18 @@ QQC2.ApplicationWindow {
     SettingsController { id: settingsCtl }
     ProfileController { id: profileCtl }
     SignalPathController { id: signalPathCtl }
+
+    // Tray "Show" and "Quit", and MPRIS Raise/Quit, reach the window here.
+    WindowController {
+        onRaise_requested: {
+            root.show()
+            root.raise()
+            root.requestActivate()
+        }
+        onHide_requested: root.hide()
+        onQuit_requested: Qt.quit()
+        Component.onCompleted: attach()
+    }
 
     VideoController {
         id: videoCtl
@@ -165,6 +185,9 @@ QQC2.ApplicationWindow {
             onSearchSubmitted: (q) => {
                 if (q.length === 0)
                     return
+                // The now-playing panel covers everything below the
+                // titlebar, so a search run from there would land behind it.
+                root.nowPlayingOpen = false
                 if (root.route === "search")
                     root.page = { route: "search", params: { query: q } }
                 else
@@ -176,6 +199,9 @@ QQC2.ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
+            // An overlay drawn on top does not stop this from seeing the same
+            // press — see OverlayStack.
+            enabled: !OverlayStack.covered
 
             Sidebar {
                 Layout.fillHeight: true
@@ -190,6 +216,14 @@ QQC2.ApplicationWindow {
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+
+                // A handler on the parent sees the tap without taking it, so
+                // rows still activate — this only moves focus off the search
+                // field, which nothing else in the window would do.
+                TapHandler {
+                    grabPermissions: PointerHandler.TakeOverForbidden
+                    onSingleTapped: root.dropFocus()
+                }
 
                 LoginPage {
                     anchors.fill: parent
@@ -272,6 +306,7 @@ QQC2.ApplicationWindow {
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
             onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
+            onOpenVideo: (id) => root.playVideo(id)
             onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
             onOpenSection: (section) => root.openSection(section)
         }
@@ -294,6 +329,7 @@ QQC2.ApplicationWindow {
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
             onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
+            onOpenVideo: (id) => root.playVideo(id)
             onOpenExplorePage: (path, title) =>
                     root.go("view-all", { apiPath: path, title: title, sectioned: true })
             onOpenSection: (section) => root.openSection(section)
@@ -390,6 +426,7 @@ QQC2.ApplicationWindow {
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
             onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
+            onOpenVideo: (id) => root.playVideo(id)
             onOpenExplorePage: (path, title) =>
                     root.go("view-all", { apiPath: path, title: title, sectioned: true })
             onOpenSection: (section) => root.openSection(section)
@@ -437,6 +474,7 @@ QQC2.ApplicationWindow {
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
             onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
+            onOpenVideo: (id) => root.playVideo(id)
             onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
         }
     }
@@ -450,6 +488,7 @@ QQC2.ApplicationWindow {
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
             onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
+            onOpenVideo: (id) => root.playVideo(id)
         }
     }
 
@@ -464,17 +503,15 @@ QQC2.ApplicationWindow {
             }
             mixId: root.page.params.mixId || ""
             mixTitle: root.page.params.title || ""
-            // The mix's own cover once it has loaded, the cover the caller
-            // seeded before that.
+            // The mix's own cover once loaded, the seeded one until then.
             mixImage: mixCtl.image || root.page.params.image || ""
             mixItems: mixCtl.tracks_json
             loading: mixCtl.loading
             error: mixCtl.error
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
-            // Track radio arrives with only the track: rows outside a track
-            // detail response carry no mix id, so the page opens first and
-            // the controller looks the mix up.
+            // Track radio arrives with only a track id; the controller
+            // resolves the mix.
             Component.onCompleted: {
                 if (mixId)
                     mixCtl.load(mixId)
@@ -495,6 +532,7 @@ QQC2.ApplicationWindow {
         onOpenArtist: (id) => root.go("artist", { artistId: id })
         onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
         onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
+        onOpenVideo: (id) => root.playVideo(id)
         onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
     }
 
@@ -527,9 +565,8 @@ QQC2.ApplicationWindow {
 
     MixController { id: mixCtl }
 
-    // Videos are the one collection ViewAllPage cannot serve: TIDAL's
-    // favourite-videos endpoint reports no total, so there is nothing to
-    // paginate against — LibraryController reads the whole list instead.
+    // Not a ViewAllPage: the favourite-videos endpoint reports no total,
+    // so there is nothing to paginate against.
     Component {
         id: favVideosPage
 
@@ -694,18 +731,39 @@ QQC2.ApplicationWindow {
         window: root
     }
 
-    // Playback errors are shown in place rather than stealing focus mid-track.
+    // Errors with nowhere else to go: playback, and rolled-back library
+    // writes. Both sources are cleared when the notice retires, so the same
+    // message arriving twice still registers as a change.
+    property string notice: ""
+
+    function showNotice(text) {
+        if (text.length === 0)
+            return
+        root.notice = text
+        noticeTimer.restart()
+    }
+
+    Connections {
+        target: playerCtl
+        function onErrorChanged() { root.showNotice(playerCtl.error) }
+    }
+
+    Connections {
+        target: favoritesCtl
+        function onErrorChanged() { root.showNotice(favoritesCtl.error) }
+    }
+
     Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Theme.playerBarHeight + Theme.space
-        width: Math.min(errorText.implicitWidth + Theme.spaceXl, root.width - Theme.spaceXl)
-        height: errorText.implicitHeight + Theme.space
+        width: Math.min(noticeText.implicitWidth + Theme.spaceXl, root.width - Theme.spaceXl)
+        height: noticeText.implicitHeight + Theme.space
         radius: Theme.radius
         color: Theme.elevated
         border.color: Theme.error
         border.width: 1
-        opacity: playerCtl.error.length > 0 ? 1 : 0
+        opacity: root.notice.length > 0 ? 1 : 0
         visible: opacity > 0
 
         Behavior on opacity {
@@ -713,28 +771,24 @@ QQC2.ApplicationWindow {
         }
 
         Text {
-            id: errorText
+            id: noticeText
             anchors.centerIn: parent
             width: parent.width - Theme.space
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
-            text: playerCtl.error
+            text: root.notice
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
             color: Theme.textPrimary
         }
 
         Timer {
-            id: errorTimer
+            id: noticeTimer
             interval: 6000
-            onTriggered: playerCtl.error = ""
-        }
-
-        Connections {
-            target: playerCtl
-            function onErrorChanged() {
-                if (playerCtl.error.length > 0)
-                    errorTimer.restart()
+            onTriggered: {
+                root.notice = ""
+                playerCtl.error = ""
+                favoritesCtl.error = ""
             }
         }
     }

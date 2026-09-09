@@ -123,6 +123,9 @@ Rectangle {
                     debounce.stop()
                     root.searchSubmitted(text)
                 }
+                // Nothing else in the window takes focus on a click, so the
+                // field would keep its focus ring for the rest of the session.
+                Keys.onEscapePressed: search.focus = false
                 // Search as you type, but only once typing pauses.
                 onTextEdited: debounce.restart()
 

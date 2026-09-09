@@ -50,6 +50,7 @@ fn item_kind(item: &Value, section_type: &str) -> &'static str {
         "PLAYLIST" => return "playlist",
         "ARTIST" => return "artist",
         "TRACK" => return "track",
+        "VIDEO" => return "video",
         _ => {}
     }
 
@@ -59,6 +60,10 @@ fn item_kind(item: &Value, section_type: &str) -> &'static str {
         "PLAYLIST_LIST" => return "playlist",
         "ARTIST_LIST" => return "artist",
         "TRACK_LIST" => return "track",
+        // A video's own `type` is its genre ("Music Video", "Live"), so the
+        // section is the only thing that says these are videos and not
+        // tracks — which is what the shape sniffing below would call them.
+        "VIDEO_LIST" => return "video",
         _ => {}
     }
 
@@ -142,7 +147,7 @@ pub fn item_row(item: &Value, section_type: &str) -> Value {
             .and_then(text_info)
             .or_else(|| item.get("shortSubtitleTextInfo").and_then(text_info))
             .or_else(|| item.get("subTitle").and_then(|v| v.as_str()).map(String::from)),
-        "album" | "track" => artist_name(item),
+        "album" | "track" | "video" => artist_name(item),
         "playlist" => item
             .get("creator")
             .and_then(|c| c.get("name"))
@@ -169,6 +174,9 @@ pub fn item_row(item: &Value, section_type: &str) -> Value {
             .and_then(|a| a.get("cover"))
             .and_then(|v| v.as_str())
             .or_else(|| item.get("imageId").and_then(|v| v.as_str())),
+        // A video has no album to borrow a cover from; its own still is
+        // `imageId`, and it is 16:9 rather than square.
+        "video" => item.get("imageId").and_then(|v| v.as_str()),
         "mix" => item
             .get("mixImages")
             .and_then(|v| v.as_array())

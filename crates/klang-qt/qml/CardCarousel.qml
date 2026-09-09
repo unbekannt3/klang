@@ -25,6 +25,14 @@ ColumnLayout {
     /// FavoritesController; without one the cards' hearts stay hidden.
     property var favorites: null
 
+    /// A carousel holds one kind, so the card geometry follows the first
+    /// item: video artwork is 16:9 and its card wider than the rest.
+    readonly property bool wideCards: root.items.length > 0
+                                      && root.items[0].kind === "video"
+    readonly property int cardWidth: root.wideCards ? Theme.videoCardSize : Theme.cardSize
+    readonly property int coverHeight: root.wideCards
+        ? Math.round(root.cardWidth * 9 / 16) : root.cardWidth
+
     spacing: Theme.spaceSm
 
     component Arrow: Rectangle {
@@ -99,14 +107,14 @@ ColumnLayout {
 
         /// Move by a whole screenful of cards.
         function page(direction) {
-            const step = Math.max(1, Math.floor(width / (Theme.cardSize + Theme.spaceLg)))
-                       * (Theme.cardSize + Theme.spaceLg)
+            const stride = root.cardWidth + Theme.spaceLg
+            const step = Math.max(1, Math.floor(width / stride)) * stride
             const max = Math.max(0, contentWidth - width)
             contentX = Math.max(0, Math.min(max, contentX + direction * step))
         }
 
         Layout.fillWidth: true
-        Layout.preferredHeight: Theme.cardSize + 76
+        Layout.preferredHeight: root.coverHeight + 76
         Layout.leftMargin: Theme.spaceLg
         Layout.rightMargin: Theme.spaceLg
         orientation: ListView.Horizontal

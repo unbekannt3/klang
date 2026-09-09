@@ -18,6 +18,7 @@ pub mod signalpath;
 pub mod theme;
 pub mod video;
 pub mod viewall;
+pub mod window;
 
 /// Guards a loader against a response that arrives after a newer request.
 ///

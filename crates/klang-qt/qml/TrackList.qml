@@ -567,7 +567,7 @@ Item {
 
     Text {
         anchors.centerIn: parent
-        visible: view.count === 0 && !root.loading
+        visible: view.count === 0 && !root.loading && root.emptyText.length > 0
         text: root.emptyText
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSizeLg

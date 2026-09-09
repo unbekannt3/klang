@@ -13,6 +13,7 @@ Item {
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
     signal openMix(string mixId, string title)
+    signal openVideo(int videoId)
     signal itemContextRequested(var item, real x, real y)
     signal openSection(var section)
 
@@ -37,5 +38,6 @@ Item {
         onOpenArtist: (id) => root.openArtist(id)
         onOpenPlaylist: (uuid, title) => root.openPlaylist(uuid, title)
         onOpenMix: (mixId, title) => root.openMix(mixId, title)
+        onOpenVideo: (id) => root.openVideo(id)
     }
 }

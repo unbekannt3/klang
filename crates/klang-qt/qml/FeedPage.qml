@@ -16,6 +16,7 @@ Item {
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
     signal openMix(string mixId, string title)
+    signal openVideo(int videoId)
 
     FeedController { id: feed }
 
@@ -29,6 +30,7 @@ Item {
             artist: root.openArtist,
             playlist: root.openPlaylist,
             mix: root.openMix,
+            video: root.openVideo,
         })
     }
 

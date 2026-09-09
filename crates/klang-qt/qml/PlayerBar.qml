@@ -183,7 +183,8 @@ Rectangle {
                 ProgressSlider {
                     id: progress
                     Layout.fillWidth: true
-                    to: Math.max(root.player.duration_secs, 1)
+                    // Unclamped: the slider draws an unknown length empty.
+                    to: root.player.duration_secs
                     value: root.player.position_secs
                     onSeeked: (v) => root.player.seek(v)
                 }

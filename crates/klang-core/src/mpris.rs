@@ -45,6 +45,29 @@ pub struct MprisHandle {
     tx: mpsc::UnboundedSender<MprisCommand>,
 }
 
+/// The bus name to claim, given one may already be taken.
+///
+/// zbus requests names with no flags, which puts a second instance in the
+/// bus's queue: it gets no MPRIS at all until the first one exits, and then
+/// takes over the applet without warning. The spec's answer is a per-instance
+/// suffix, so each process is addressable on its own.
+async fn free_bus_name(base: &str) -> String {
+    let instance = || format!("{base}.instance{}", std::process::id());
+    let Ok(connection) = zbus::Connection::session().await else {
+        return base.to_string();
+    };
+    let Ok(dbus) = zbus::fdo::DBusProxy::new(&connection).await else {
+        return base.to_string();
+    };
+    let Ok(name) = zbus::names::BusName::try_from(format!("org.mpris.MediaPlayer2.{base}")) else {
+        return instance();
+    };
+    match dbus.name_has_owner(name).await {
+        Ok(true) => instance(),
+        _ => base.to_string(),
+    }
+}
+
 impl MprisHandle {
     pub fn new(app_handle: crate::app::AppHandle) -> Self {
         let (tx, mut rx) = mpsc::unbounded_channel::<MprisCommand>();
@@ -67,7 +90,8 @@ impl MprisHandle {
                 } else {
                     ("me.unbk.klang", "klang")
                 };
-                let player = match Player::builder(bus_name)
+                let bus_name = free_bus_name(bus_name).await;
+                let player = match Player::builder(&bus_name)
                     .can_play(true)
                     .can_pause(true)
                     .can_go_next(true)
@@ -221,7 +245,7 @@ impl MprisHandle {
                     }
                 });
 
-                log::info!("MPRIS D-Bus server started");
+                log::info!("MPRIS D-Bus server started on org.mpris.MediaPlayer2.{bus_name}");
 
                 // Process commands from the main app
                 while let Some(cmd) = rx.recv().await {

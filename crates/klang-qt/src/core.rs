@@ -39,8 +39,8 @@ impl EventSink for BroadcastSink {
 }
 
 /// Window control. Raising and hiding need the QML window, which does not exist
-/// when the core starts, so both are routed through [`WINDOW_REQUESTS`] and
-/// picked up by `Main.qml`.
+/// when the core starts, so all three are routed through [`WINDOW_REQUESTS`]
+/// and turned into signals by `bridge::window`.
 struct QtShell;
 
 /// Requests from the core to the window: `"raise"`, `"hide"` or `"quit"`.

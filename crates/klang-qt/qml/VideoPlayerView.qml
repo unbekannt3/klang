@@ -63,6 +63,8 @@ Item {
         color: "black"
     }
 
+    ModalShield { blocksPage: true }
+
     MediaPlayer {
         id: mediaPlayer
         source: root.controller.stream_url
@@ -293,7 +295,7 @@ Item {
                     id: scrubber
                     Layout.fillWidth: true
                     from: 0
-                    to: Math.max(mediaPlayer.duration / 1000, 1)
+                    to: mediaPlayer.duration / 1000
                     value: mediaPlayer.position / 1000
                     onSeeked: (v) => mediaPlayer.setPosition(v * 1000)
                 }
