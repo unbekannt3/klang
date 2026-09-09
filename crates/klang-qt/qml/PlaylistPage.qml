@@ -29,7 +29,7 @@ Item {
 
     function openEditDialog() {
         editDialog.load(root.playlistUuid, root.meta.title || root.playlistTitle,
-                         root.meta.description || "", !!root.meta.public)
+                         root.meta.description || "", !!root.meta["public"])
         editDialog.open = true
     }
 

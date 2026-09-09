@@ -115,7 +115,7 @@ Rectangle {
         // the window's overlay to centre over the whole app — same trick
         // ContextMenu's openAt() uses.
         editDialog.parent = QQC2.Overlay.overlay
-        editDialog.load(playlist.id, playlist.title, playlist.description || "", !!playlist.public)
+        editDialog.load(playlist.id, playlist.title, playlist.description || "", !!playlist["public"])
         editDialog.open = true
     }
 

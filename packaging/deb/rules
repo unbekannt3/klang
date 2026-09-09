@@ -7,10 +7,6 @@ APPID := me.unbk.klang
 export PATH := /usr/lib/qt6/bin:$(PATH)
 # Keep the crates cargo downloads inside the build tree.
 export CARGO_HOME := $(CURDIR)/debian/cargo
-# qmlcachegen reads the .qml files through the process locale. Debian's build
-# environment leaves LANG unset, and under plain C it mangles the em dashes in
-# the QML comments into a parse error.
-export LC_ALL := C.UTF-8
 
 %:
 	dh $@

@@ -10,4 +10,3 @@ Categories=AudioVideo;Audio;Player;
 Keywords=music;tidal;flac;lossless;player;
 StartupNotify=true
 StartupWMClass=klang
-MimeType=x-scheme-handler/tidal;
