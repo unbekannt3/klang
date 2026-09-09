@@ -45,6 +45,9 @@ Item {
     /// A genre/mood/decade link was activated (Explore link-grid mode).
     signal openExplorePage(string apiPath, string title)
     signal itemContextRequested(var item, real x, real y)
+    /// A carousel inside a category, opened in full. Unlike a category, the
+    /// result is one flat grid rather than more carousels.
+    signal openSection(var section)
 
     readonly property bool libraryMode: root.libraryKind.length > 0
     readonly property bool artistViewAllMode: root.artistId > 0 && root.viewAllPath.length > 0
@@ -234,7 +237,8 @@ Item {
                 loading: viewAll.loading
                 error: viewAll.error
                 scrollKey: root.scrollKey
-                emptyText: "Nothing to show yet"
+                emptyText: Tr.t("Nothing to show yet")
+                onOpenSection: (section) => root.openSection(section)
                 onOpenAlbum: (id) => root.openAlbum(id)
                 onOpenArtist: (id) => root.openArtist(id)
                 onOpenPlaylist: (uuid, t) => root.openPlaylist(uuid, t)

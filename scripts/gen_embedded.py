@@ -11,7 +11,7 @@ Usage:
 
 Outputs a complete embedded_<provider>.rs file to stdout.
 Redirect to overwrite the module:
-    python3 scripts/gen_embedded.py --provider lastfm K S > src-tauri/src/embedded_lastfm.rs
+    python3 scripts/gen_embedded.py --provider lastfm K S > crates/klang-core/src/embedded_lastfm.rs
 """
 
 import os
