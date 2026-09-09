@@ -88,6 +88,57 @@ Item {
 
     property string filterText: ""
 
+    // One column table drives both the header and the rows. A RowLayout was
+    // not enough: it splits surplus space evenly between fillWidth items
+    // regardless of their preferred sizes, and the two ended up disagreeing.
+    readonly property int rowInset: Theme.spaceLg + Theme.spaceSm
+    readonly property int columnGap: Theme.space
+
+    readonly property var columnSpec: [
+        { name: "number",  width: 28, shown: root.numbered },
+        { name: "cover",   width: Theme.coverThumb, shown: root.showCovers },
+        { name: "title",   width: 0,  shown: true },
+        { name: "artist",  width: 0,  shown: root.showArtist },
+        { name: "album",   width: 0,  shown: root.showAlbum },
+        { name: "quality", width: 56, shown: true },
+        { name: "bpm",     width: 52, shown: root.showBpm },
+        { name: "key",     width: 48, shown: root.showKey },
+        { name: "heart",   width: 24, shown: root.favorites !== null },
+        { name: "length",  width: 64, shown: true },
+    ]
+
+    /// Left edge and width of every shown column, in row-local coordinates.
+    readonly property var columns: {
+        const shown = root.columnSpec.filter((c) => c.shown)
+        const flexible = shown.filter((c) => c.width === 0)
+        const fixed = shown.reduce((sum, c) => sum + c.width, 0)
+        const available = root.width - root.rowInset * 2 - Theme.spaceSm
+                        - fixed - root.columnGap * (shown.length - 1)
+        // Roughly tidal.com's proportions between title, artist and album.
+        const share = { title: 0.44, artist: 0.28, album: 0.28 }
+        const total = flexible.reduce((sum, c) => sum + share[c.name], 0) || 1
+        const free = Math.max(120, available)
+
+        const out = {}
+        let x = root.rowInset
+        for (const column of shown) {
+            const width = column.width > 0
+                ? column.width
+                : Math.round(free * share[column.name] / total)
+            out[column.name] = { x: x, width: width }
+            x += width + root.columnGap
+        }
+        return out
+    }
+
+    function columnX(name) {
+        return root.columns[name] ? root.columns[name].x : 0
+    }
+
+    function columnWidth(name) {
+        return root.columns[name] ? root.columns[name].width : 0
+    }
+
     function rows() {
         if (typeof tracks === "string")
             return JSON.parse(tracks || "[]")
@@ -124,10 +175,112 @@ Item {
         onTextChanged: root.filterText = text
     }
 
-    ListView {
-        id: view
+    // Column header, TIDAL-style: thin uppercase labels over a hairline. It
+    // sits outside the ListView so it keeps a row's exact geometry — and so
+    // it stays put while the list scrolls.
+    Item {
+        id: columnHeader
         anchors.top: root.filterable ? filterField.bottom : parent.top
         anchors.topMargin: root.filterable ? Theme.space : 0
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 34
+
+        Text {
+            visible: root.numbered
+            x: root.columnX("number")
+            width: root.columnWidth("number")
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Theme.spaceSm
+            horizontalAlignment: Text.AlignRight
+            text: "#"
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeSm - 1
+            font.letterSpacing: 1
+            color: Theme.textFaint
+        }
+
+        SortableHeading {
+            x: root.columnX("title")
+            width: root.columnWidth("title")
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Theme.spaceSm
+            label: "TITLE"
+            column: "NAME"
+        }
+
+        SortableHeading {
+            visible: root.showArtist
+            x: root.columnX("artist")
+            width: root.columnWidth("artist")
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Theme.spaceSm
+            label: "ARTIST"
+            column: "ARTIST"
+        }
+
+        SortableHeading {
+            visible: root.showAlbum
+            x: root.columnX("album")
+            width: root.columnWidth("album")
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Theme.spaceSm
+            label: "ALBUM"
+            column: "ALBUM"
+        }
+
+        Text {
+            visible: root.showBpm
+            x: root.columnX("bpm")
+            width: root.columnWidth("bpm")
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Theme.spaceSm
+            horizontalAlignment: Text.AlignRight
+            text: "BPM"
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeSm - 1
+            font.letterSpacing: 1
+            color: Theme.textFaint
+        }
+
+        Text {
+            visible: root.showKey
+            x: root.columnX("key")
+            width: root.columnWidth("key")
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Theme.spaceSm
+            horizontalAlignment: Text.AlignRight
+            text: "KEY"
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeSm - 1
+            font.letterSpacing: 1
+            color: Theme.textFaint
+        }
+
+        SortableHeading {
+            x: root.columnX("length")
+            width: root.columnWidth("length")
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Theme.spaceSm
+            label: "LENGTH"
+            column: "DURATION"
+            alignment: Text.AlignRight
+        }
+
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Theme.spaceLg
+            anchors.rightMargin: Theme.spaceLg
+            height: 1
+            color: Theme.border
+        }
+    }
+
+    ListView {
+        id: view
+        anchors.top: columnHeader.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -147,97 +300,6 @@ Item {
             listHovered: listHover.hovered
         }
 
-        // Column header, TIDAL-style: thin uppercase labels over a hairline.
-        header: Item {
-            width: view.width
-            height: 34
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.spaceLg
-                // Extra on the right so the overlay scrollbar never sits on the
-                // LENGTH column.
-                anchors.rightMargin: Theme.spaceLg + Theme.spaceSm
-                anchors.bottomMargin: Theme.spaceXs
-                spacing: Theme.space
-
-                Text {
-                    visible: root.numbered
-                    Layout.preferredWidth: 28
-                    horizontalAlignment: Text.AlignRight
-                    text: "#"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSm - 1
-                    font.letterSpacing: 1
-                    color: Theme.textFaint
-                }
-
-                SortableHeading {
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 3
-                    label: "TITLE"
-                    column: "NAME"
-                }
-
-                SortableHeading {
-                    visible: root.showArtist
-                    Layout.fillWidth: root.showArtist
-                    Layout.preferredWidth: root.showArtist ? 2 : 0
-                    label: "ARTIST"
-                    column: "ARTIST"
-                }
-
-                SortableHeading {
-                    visible: root.showAlbum
-                    Layout.fillWidth: root.showAlbum
-                    Layout.preferredWidth: root.showAlbum ? 2 : 0
-                    label: "ALBUM"
-                    column: "ALBUM"
-                }
-
-                Text {
-                    visible: root.showBpm
-                    Layout.preferredWidth: 52
-                    horizontalAlignment: Text.AlignRight
-                    text: "BPM"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSm - 1
-                    font.letterSpacing: 1
-                    color: Theme.textFaint
-                }
-
-                Item { Layout.preferredWidth: root.favorites !== null ? 24 : 0 }
-
-                Text {
-                    visible: root.showKey
-                    Layout.preferredWidth: 48
-                    horizontalAlignment: Text.AlignRight
-                    text: "KEY"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSm - 1
-                    font.letterSpacing: 1
-                    color: Theme.textFaint
-                }
-
-                SortableHeading {
-                    Layout.preferredWidth: 64
-                    label: "LENGTH"
-                    column: "DURATION"
-                    alignment: Text.AlignRight
-                }
-            }
-
-            Rectangle {
-                anchors.bottom: parent.bottom
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.leftMargin: Theme.spaceLg
-                anchors.rightMargin: Theme.spaceLg
-                height: 1
-                color: Theme.border
-            }
-        }
-
         delegate: Rectangle {
             id: row
             required property var modelData
@@ -247,11 +309,17 @@ Item {
 
             readonly property bool active: track.id === root.activeId
 
-            width: view.width - Theme.spaceLg * 2
-            x: Theme.spaceLg
+            width: view.width
             height: Theme.rowHeight
-            radius: Theme.radiusXs
-            color: hover.hovered ? Theme.hlFaint : "transparent"
+            color: "transparent"
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.leftMargin: Theme.spaceLg
+                anchors.rightMargin: Theme.spaceLg
+                radius: Theme.radiusXs
+                color: hover.hovered ? Theme.hlFaint : "transparent"
+            }
 
             HoverHandler { id: hover }
             TapHandler {
@@ -265,170 +333,182 @@ Item {
                 }
             }
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.spaceSm
-                anchors.rightMargin: Theme.spaceSm + Theme.spaceSm
-                spacing: Theme.space
+            Text {
+                visible: root.numbered
+                x: root.columnX("number")
+                width: root.columnWidth("number")
+                anchors.verticalCenter: parent.verticalCenter
+                horizontalAlignment: Text.AlignRight
+                text: row.active ? "▶" : (row.position + 1)
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeSm
+                color: row.active ? Theme.accent : Theme.textFaint
+            }
+
+            CoverArt {
+                visible: root.showCovers
+                x: root.columnX("cover")
+                width: root.columnWidth("cover")
+                height: width
+                anchors.verticalCenter: parent.verticalCenter
+                uuid: row.track.cover || ""
+            }
+
+            Text {
+                x: root.columnX("title")
+                width: root.columnWidth("title")
+                anchors.verticalCenter: parent.verticalCenter
+                text: row.track.title
+                elide: Text.ElideRight
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                color: row.active ? Theme.accent : Theme.textPrimary
+            }
+
+            // Artist and album are their own columns, as on tidal.com,
+            // rather than one subtitle line under the title.
+            Text {
+                visible: root.showArtist
+                x: root.columnX("artist")
+                width: root.columnWidth("artist")
+                anchors.verticalCenter: parent.verticalCenter
+                text: row.track.artist
+                elide: Text.ElideRight
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                color: Theme.textMuted
+            }
+
+            Text {
+                visible: root.showAlbum
+                x: root.columnX("album")
+                width: root.columnWidth("album")
+                anchors.verticalCenter: parent.verticalCenter
+                text: row.track.album || ""
+                elide: Text.ElideRight
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                color: Theme.textMuted
+            }
+
+            // Quality badge, only when the API told us something.
+            Rectangle {
+                readonly property bool hiRes: row.track.quality === "HI_RES_LOSSLESS"
+                                           || row.track.quality === "HI_RES"
+
+                visible: !!row.track.quality
+                x: root.columnX("quality")
+                     + (root.columnWidth("quality") - width) / 2
+                anchors.verticalCenter: parent.verticalCenter
+                width: qualityText.implicitWidth + Theme.spaceSm
+                height: 18
+                radius: Theme.radiusXs
+                color: hiRes ? "transparent" : Theme.hlMed
+                border.color: Theme.hiRes
+                border.width: hiRes ? 1 : 0
 
                 Text {
-                    visible: root.numbered
-                    Layout.preferredWidth: 28
-                    horizontalAlignment: Text.AlignRight
-                    text: row.active ? "▶" : (row.position + 1)
+                    id: qualityText
+                    anchors.centerIn: parent
+                    text: Format.qualityLabel(row.track.quality)
                     font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSm
-                    color: row.active ? Theme.accent : Theme.textFaint
+                    font.pixelSize: Theme.fontSizeSm - 2
+                    font.letterSpacing: 0.5
+                    color: Format.qualityColor(row.track.quality)
                 }
+            }
 
-                CoverArt {
-                    visible: root.showCovers
-                    Layout.preferredWidth: Theme.coverThumb
-                    Layout.preferredHeight: Theme.coverThumb
-                    uuid: row.track.cover || ""
-                }
+            // TIDAL exposes bpm and key on the track payload; it prints a
+            // dash where the catalogue has no analysis for a track.
+            Text {
+                visible: root.showBpm
+                x: root.columnX("bpm")
+                width: root.columnWidth("bpm")
+                anchors.verticalCenter: parent.verticalCenter
+                horizontalAlignment: Text.AlignRight
+                text: row.track.bpm ? row.track.bpm : "–"
+                font.family: Theme.monoFamily
+                font.pixelSize: Theme.fontSizeSm
+                color: row.track.bpm ? Theme.textSecondary : Theme.textDisabled
+            }
 
-                Text {
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 3
-                    text: row.track.title
-                    elide: Text.ElideRight
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    color: row.active ? Theme.accent : Theme.textPrimary
-                }
+            Item {
+                visible: root.showKey
+                x: root.columnX("key")
+                width: root.columnWidth("key")
+                height: 20
+                anchors.verticalCenter: parent.verticalCenter
 
-                // Artist and album are their own columns, as on tidal.com,
-                // rather than one subtitle line under the title.
-                Text {
-                    visible: root.showArtist
-                    Layout.fillWidth: root.showArtist
-                    Layout.preferredWidth: root.showArtist ? 2 : 0
-                    text: row.track.artist
-                    elide: Text.ElideRight
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    color: Theme.textMuted
-                }
-
-                Text {
-                    visible: root.showAlbum
-                    Layout.fillWidth: root.showAlbum
-                    Layout.preferredWidth: root.showAlbum ? 2 : 0
-                    text: row.track.album || ""
-                    elide: Text.ElideRight
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSize
-                    color: Theme.textMuted
-                }
-
-                // Quality badge, only when the API told us something.
                 Rectangle {
-                    readonly property bool hiRes: row.track.quality === "HI_RES_LOSSLESS"
-                                               || row.track.quality === "HI_RES"
-
-                    visible: !!row.track.quality
-                    implicitWidth: qualityText.implicitWidth + Theme.spaceSm
-                    implicitHeight: 18
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: !!row.track.key
+                    width: keyText.implicitWidth + Theme.spaceSm
+                    height: 20
                     radius: Theme.radiusXs
-                    color: hiRes ? "transparent" : Theme.hlMed
-                    border.color: Theme.hiRes
-                    border.width: hiRes ? 1 : 0
+                    color: Theme.hlMed
 
                     Text {
-                        id: qualityText
+                        id: keyText
                         anchors.centerIn: parent
-                        text: Format.qualityLabel(row.track.quality)
+                        text: row.track.key || ""
                         font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSm - 2
-                        font.letterSpacing: 0.5
-                        color: Format.qualityColor(row.track.quality)
-                    }
-                }
-
-                // TIDAL exposes bpm and key on the track payload; it prints a
-                // dash where the catalogue has no analysis for a track.
-                Text {
-                    visible: root.showBpm
-                    Layout.preferredWidth: 52
-                    horizontalAlignment: Text.AlignRight
-                    text: row.track.bpm ? row.track.bpm : "–"
-                    font.family: Theme.monoFamily
-                    font.pixelSize: Theme.fontSizeSm
-                    color: row.track.bpm ? Theme.textSecondary : Theme.textDisabled
-                }
-
-                Item {
-                    visible: root.showKey
-                    Layout.preferredWidth: 48
-                    Layout.preferredHeight: 20
-
-                    Rectangle {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: !!row.track.key
-                        width: keyText.implicitWidth + Theme.spaceSm
-                        height: 20
-                        radius: Theme.radiusXs
-                        color: Theme.hlMed
-
-                        Text {
-                            id: keyText
-                            anchors.centerIn: parent
-                            text: row.track.key || ""
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeSm - 1
-                            font.weight: Font.DemiBold
-                            color: Theme.accent
-                        }
-                    }
-
-                    Text {
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: !row.track.key
-                        text: "–"
-                        font.family: Theme.monoFamily
-                        font.pixelSize: Theme.fontSizeSm
-                        color: Theme.textDisabled
-                    }
-                }
-
-                // The heart shows on hover, or always once favourited.
-                Item {
-                    visible: root.favorites !== null
-                    Layout.preferredWidth: 24
-                    Layout.preferredHeight: 24
-
-                    property bool loved: root.favorites
-                        && root.favorites.revision >= 0
-                        && root.favorites.is_track(row.track.id)
-
-                    Icon {
-                        anchors.centerIn: parent
-                        width: 17
-                        height: 17
-                        visible: parent.loved || hover.hovered
-                        name: parent.loved ? "heart-filled" : "heart"
-                        color: parent.loved ? Theme.accent
-                             : heartHover.hovered ? Theme.textPrimary
-                             : Theme.textFaint
-                    }
-
-                    HoverHandler { id: heartHover }
-                    TapHandler {
-                        onSingleTapped: root.favorites.toggle_track(row.track.id)
+                        font.pixelSize: Theme.fontSizeSm - 1
+                        font.weight: Font.DemiBold
+                        color: Theme.accent
                     }
                 }
 
                 Text {
-                    Layout.preferredWidth: 64
-                    horizontalAlignment: Text.AlignRight
-                    text: Format.duration(row.track.duration)
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: !row.track.key
+                    text: "–"
                     font.family: Theme.monoFamily
                     font.pixelSize: Theme.fontSizeSm
-                    color: Theme.textFaint
+                    color: Theme.textDisabled
                 }
+            }
+
+            // The heart shows on hover, or always once favourited.
+            Item {
+                id: heartCell
+                visible: root.favorites !== null
+                x: root.columnX("heart")
+                width: root.columnWidth("heart")
+                height: 24
+                anchors.verticalCenter: parent.verticalCenter
+
+                readonly property bool loved: root.favorites
+                    && root.favorites.revision >= 0
+                    && root.favorites.is_track(row.track.id)
+
+                Icon {
+                    anchors.centerIn: parent
+                    width: 17
+                    height: 17
+                    visible: heartCell.loved || hover.hovered
+                    name: heartCell.loved ? "heart-filled" : "heart"
+                    color: heartCell.loved ? Theme.accent
+                         : heartHover.hovered ? Theme.textPrimary
+                         : Theme.textFaint
+                }
+
+                HoverHandler { id: heartHover }
+                TapHandler {
+                    onSingleTapped: root.favorites.toggle_track(row.track.id)
+                }
+            }
+
+            Text {
+                x: root.columnX("length")
+                width: root.columnWidth("length")
+                anchors.verticalCenter: parent.verticalCenter
+                horizontalAlignment: Text.AlignRight
+                text: Format.duration(row.track.duration)
+                font.family: Theme.monoFamily
+                font.pixelSize: Theme.fontSizeSm
+                color: Theme.textFaint
             }
         }
     }
