@@ -1,0 +1,105 @@
+# Builds every package. Called by CI on each push, and by the release workflow
+# on a tag; the artifacts are the same either way, so a build can be picked up
+# without cutting a release.
+name: Packages
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rpm:
+    runs-on: ubuntu-latest
+    container: fedora:44
+    steps:
+      - name: Install build dependencies
+        run: |
+          dnf install -y --setopt=install_weak_deps=False \
+            git rpm-build rpmdevtools 'dnf-command(builddep)'
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # build-rpm.sh archives HEAD, so git has to trust the checkout.
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # The spec's own BuildRequires is the list, so it cannot drift from what
+      # a local rpmbuild needs.
+      - name: Install the spec's build dependencies
+        run: dnf builddep -y --setopt=install_weak_deps=False packaging/rpm/klang.spec
+
+      - run: scripts/build-rpm.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klang-rpm
+          path: dist/*.rpm
+
+  # The deb and Arch builds run in their own distro containers, which the
+  # scripts start themselves — hence a plain runner and docker rather than a
+  # `container:` job.
+  deb:
+    runs-on: ubuntu-latest
+    env:
+      KLANG_CONTAINER_ENGINE: docker
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - run: scripts/build-deb.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klang-deb
+          path: dist/*.deb
+
+  arch:
+    runs-on: ubuntu-latest
+    env:
+      KLANG_CONTAINER_ENGINE: docker
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - run: scripts/build-arch.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klang-arch
+          path: dist/*.pkg.tar.*
+
+  flatpak:
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:kde-6.11
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          flatpak install --user -y flathub \
+            org.freedesktop.Sdk.Extension.rust-stable//25.08
+          flatpak-builder --user --force-clean --repo=repo build \
+            packaging/flatpak/me.unbk.klang.yml
+          flatpak build-bundle repo klang.flatpak me.unbk.klang stable
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klang-flatpak
+          path: |
+            klang.flatpak
+            packaging/flatpak/me.unbk.klang.flatpakref
+
+      # The repo is what a .flatpakref installs from; the release workflow
+      # publishes it to Pages.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klang-flatpak-repo
+          path: repo

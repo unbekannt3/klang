@@ -11,8 +11,8 @@ permissions:
 
 jobs:
   build:
-    # Fedora because that is what klang targets; the container also has the
-    # Qt 6.11 that cxx-qt's private-API linkage expects.
+    # Fedora because that is what klang targets, and because its Qt 6.11 is
+    # what cxx-qt's private-API linkage expects.
     runs-on: ubuntu-latest
     container: fedora:44
 
@@ -32,3 +32,7 @@ jobs:
 
       - name: Test
         run: cargo test --locked --workspace
+
+  packages:
+    needs: build
+    uses: ./.github/workflows/packages.yml
