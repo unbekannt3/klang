@@ -5,14 +5,18 @@ Maintainer: klang contributors <klang@unbk.me>
 # Debian 13 (trixie) is the floor: the QML uses PathRectangle (Qt 6.8) and
 # Shape.CurveRenderer (6.6). Ubuntu 24.04 ships Qt 6.4 and cannot work — do not
 # retarget this at noble, the build succeeds and the window comes up empty.
+# rustc/cargo come from trixie-backports: cxx 1.0 needs 1.88 and trixie ships
+# 1.85. scripts/build-deb.sh enables the suite and installs just those two, so
+# nothing else drifts off the release.
 Build-Depends: debhelper-compat (= 13),
-               cargo,
-               rustc,
+               cargo (>= 1.88),
+               rustc (>= 1.88),
                g++,
                pkgconf,
                qt6-base-dev (>= 6.8),
                qt6-declarative-dev (>= 6.8),
                libasound2-dev,
+               libdbus-1-dev,
                libgstreamer1.0-dev,
                libgstreamer-plugins-base1.0-dev,
                libglib2.0-dev,
@@ -32,7 +36,8 @@ Architecture: amd64 arm64
 #  - GStreamer decoders for what TIDAL serves — FLAC and ALAC live in
 #    plugins-good, AAC in libav;
 #  - the Secret Service implementation behind libsecret, which holds the
-#    TIDAL tokens.
+#    TIDAL tokens;
+#  - the QPA platform plugins, which libqt6gui6 only recommends.
 # cxx-qt links Qt private API, so the versioned Qt deps shlibdeps generates are
 # not paranoia: this binary is tied to the Qt 6 minor version it was built
 # against and must be rebuilt when Debian moves Qt.

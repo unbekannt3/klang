@@ -15,7 +15,8 @@ license=('GPL-3.0-only')
 # ELF: the QML imports QtQuick, QtQuick.Controls, QtQuick.Dialogs,
 # QtQuick.Layouts, QtQuick.Shapes, QtQuick.Window (qt6-declarative) and
 # QtMultimedia; TIDAL's streams need FLAC and ALAC from gst-plugins-good and
-# AAC from gst-libav; libsecret holds the TIDAL tokens in the session keyring.
+# AAC from gst-libav; libsecret holds the TIDAL tokens in the session keyring,
+# reached over dbus.
 #
 # qt6-declarative>=6.8 is a hard floor — the QML uses PathRectangle (6.8) and
 # Shape.CurveRenderer (6.6). cxx-qt links Qt private API on top of that, so the
@@ -23,6 +24,7 @@ license=('GPL-3.0-only')
 # rebuild it whenever Arch moves Qt 6.
 depends=(
   'alsa-lib'
+  'dbus'
   'gcc-libs'
   'glib2'
   'glibc'
