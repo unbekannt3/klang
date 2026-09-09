@@ -119,10 +119,20 @@ impl Queue {
     }
 
     /// Upcoming context entries in playback order, manual ones excluded.
+    ///
+    /// `position` indexes the context, not the playback order, so under
+    /// shuffle it has to be resolved to its slot first — the same way `jump`
+    /// and `gapless_next` do. Skipping by the raw index cut entries off the
+    /// front of the list and left every row pointing at the wrong track.
     pub fn upcoming(&self) -> Vec<&Entry> {
-        self.order()
+        let order = self.order();
+        let next = match order.iter().position(|&i| i == self.position) {
+            Some(slot) => slot + 1,
+            None => 0,
+        };
+        order
             .into_iter()
-            .skip(self.position + 1)
+            .skip(next)
             .filter_map(|i| self.context.get(i))
             .collect()
     }
@@ -227,11 +237,14 @@ impl Queue {
     /// order, so this is shuffle-correct. To start at a known position in the
     /// context, use [`Queue::set_context`] instead.
     pub fn jump(&mut self, index: usize, manual: bool) -> Option<Entry> {
-        self.push_history();
         if manual {
+            // History is only recorded once the jump is going to happen —
+            // otherwise a rejected index leaves the playing track in it, and
+            // "previous" then goes back to the song already playing.
             if index >= self.manual.len() {
                 return None;
             }
+            self.push_history();
             // Everything skipped over is dropped, as TIDAL does.
             self.manual.drain(..index);
             self.current = Some(self.manual.remove(0));
@@ -242,6 +255,7 @@ impl Queue {
         let order = self.order();
         let slot = order.iter().position(|&i| i == self.position)?;
         let target = *order.get(slot + 1 + index)?;
+        self.push_history();
         self.position = target;
         self.current = self.entry_at_position();
         self.current.clone()
@@ -434,6 +448,29 @@ mod tests {
         q.set_shuffle(true);
         let expected = q.upcoming()[3].id;
         assert_eq!(q.jump(3, false).unwrap().id, expected);
+    }
+
+    /// The regression the old `upcoming()` had: it skipped by the context
+    /// index, which only equals the playback slot when the queue starts at
+    /// zero or is unshuffled.
+    #[test]
+    fn upcoming_is_complete_when_shuffled_from_a_later_track() {
+        let mut q = Queue::default();
+        q.set_context(entries(20), 7, "album:1".into());
+        q.set_shuffle(true);
+
+        assert_eq!(q.upcoming().len(), 19);
+        let expected = q.upcoming()[0].id;
+        assert_eq!(q.jump(0, false).unwrap().id, expected);
+    }
+
+    #[test]
+    fn a_rejected_jump_leaves_history_alone() {
+        let mut q = queue_of(3);
+        q.advance(true);
+        let before = q.history().len();
+        assert!(q.jump(99, false).is_none());
+        assert_eq!(q.history().len(), before);
     }
 
     #[test]
