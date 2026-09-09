@@ -37,8 +37,8 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "Browser source overlay"
-        description: "Serves a now-playing page for OBS and Streamlabs to capture."
+        label: Tr.t("Browser source overlay")
+        description: Tr.t("Serves a now-playing page for OBS and Streamlabs to capture.")
         toggleMode: true
         checked: !!root.info.enabled
         onToggled: (value) => root.settings.apply_overlay_enabled(value)
@@ -51,8 +51,8 @@ ColumnLayout {
 
         SettingRow {
             Layout.fillWidth: true
-            label: "Host"
-            description: "An IP address to bind to. Use 0.0.0.0 to let another machine on the network capture it."
+            label: Tr.t("Host")
+            description: Tr.t("An IP address to bind to. Use 0.0.0.0 to let another machine on the network capture it.")
 
             SettingsField {
                 implicitWidth: 180
@@ -64,7 +64,7 @@ ColumnLayout {
 
         SettingRow {
             Layout.fillWidth: true
-            label: "Port"
+            label: Tr.t("Port")
 
             SettingsField {
                 implicitWidth: 100
@@ -76,7 +76,7 @@ ColumnLayout {
 
         SettingRow {
             Layout.fillWidth: true
-            label: "Browser source URL"
+            label: Tr.t("Browser source URL")
             visible: !!root.info.enabled
 
             Text {

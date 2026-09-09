@@ -1,0 +1,213 @@
+// German strings, keyed by their English original.
+//
+// Adding another language: copy this file, translate the values, then add the
+// singleton to `Tr.catalogues` and `Tr.languages` and register it in build.rs.
+pragma Singleton
+
+import QtQuick
+
+QtObject {
+    readonly property var strings: ({
+        // Navigation
+        "Removes silence between consecutive tracks.":
+            "Entfernt Stille zwischen aufeinanderfolgenden Titeln.",
+        "Not supported by this build's audio pipeline.":
+            "Von der Audio-Pipeline dieses Builds nicht unterstützt.",
+        "Only takes effect once exclusive device mode is on.":
+            "Wirkt erst, wenn der exklusive Gerätemodus aktiv ist.",
+        "When the queue runs out, keep going with a radio built from the last track.":
+            "Wenn die Warteschlange leer ist, mit einem Radio aus dem letzten Titel weiterspielen.",
+        "Home": "Startseite",
+        "Explore": "Entdecken",
+        "Feed": "Feed",
+        "Settings": "Einstellungen",
+        "My collection": "Meine Musik",
+        "Tracks": "Titel",
+        "Albums": "Alben",
+        "Artists": "Künstler",
+        "Playlists": "Playlists",
+        "Search": "Suchen",
+        "Profile": "Profil",
+        "Log out": "Abmelden",
+
+        // Pages
+        "Loved Tracks": "Lieblingstitel",
+        "Popular tracks": "Beliebte Titel",
+        "Public playlists": "Öffentliche Playlists",
+        "View all": "Alle anzeigen",
+        "About this album": "Über dieses Album",
+        "Credits": "Mitwirkende",
+        "Lyrics": "Songtext",
+        "Play queue": "Warteschlange",
+        "Suggested tracks": "Vorgeschlagene Titel",
+        "Now playing": "Wird gespielt",
+        "Next up": "Als Nächstes",
+        "History": "Verlauf",
+
+        // Table columns
+        "TITLE": "TITEL",
+        "ARTIST": "KÜNSTLER",
+        "ALBUM": "ALBUM",
+        "BPM": "BPM",
+        "KEY": "TONART",
+        "LENGTH": "LÄNGE",
+        "Filter by title, artist or album": "Nach Titel, Künstler oder Album filtern",
+
+        // Transport and actions
+        "Play": "Abspielen",
+        "Pause": "Pause",
+        "Shuffle": "Zufall",
+        "Edit": "Bearbeiten",
+        "Save": "Speichern",
+        "Cancel": "Abbrechen",
+        "Close": "Schließen",
+        "Delete": "Löschen",
+        "Rename": "Umbenennen",
+        "Show": "Anzeigen",
+        "Hide": "Verbergen",
+        "Regenerate": "Neu erzeugen",
+
+        // Context menus
+        "Play now": "Jetzt abspielen",
+        "Play next": "Als Nächstes",
+        "Add to queue": "Zur Warteschlange",
+        "Add to playlist": "Zu Playlist hinzufügen",
+        "Add to Loved Tracks": "Zu Lieblingstiteln",
+        "Remove from Loved Tracks": "Aus Lieblingstiteln entfernen",
+        "Add to library": "Zur Sammlung",
+        "Remove from library": "Aus Sammlung entfernen",
+        "Follow artist": "Künstler folgen",
+        "Unfollow artist": "Künstler nicht mehr folgen",
+        "Go to album": "Zum Album",
+        "Go to artist": "Zum Künstler",
+        "Track radio": "Titel-Radio",
+        "Block track": "Titel blockieren",
+        "Unblock track": "Titel entsperren",
+        "Block artist": "Künstler blockieren",
+        "Unblock artist": "Künstler entsperren",
+        "Edit playlist": "Playlist bearbeiten",
+        "Delete playlist": "Playlist löschen",
+        "Move to folder": "In Ordner verschieben",
+        "New folder": "Neuer Ordner",
+
+        // Empty and error states
+        "Nothing here": "Nichts vorhanden",
+        "Nothing here yet": "Noch nichts vorhanden",
+        "Nothing to explore yet": "Noch nichts zu entdecken",
+        "No tracks": "Keine Titel",
+        "No credits for this track": "Keine Mitwirkenden für diesen Titel",
+        "No lyrics for this track": "Kein Songtext für diesen Titel",
+        "No suggestions for this track": "Keine Vorschläge für diesen Titel",
+        "This playlist has no tracks": "Diese Playlist enthält keine Titel",
+        "This mix has no tracks": "Dieser Mix enthält keine Titel",
+
+        // Settings
+        "Themes": "Design",
+        "General": "Allgemein",
+        "Playback": "Wiedergabe",
+        "Scrobbling": "Scrobbeln",
+        "Discord": "Discord",
+        "MCP": "MCP",
+        "Overlay": "Overlay",
+        "Network": "Netzwerk",
+        "Utilities": "Werkzeuge",
+        "Language": "Sprache",
+        "Automatic": "Automatisch",
+        "English": "Englisch",
+        "German": "Deutsch",
+        "Maximum streaming quality": "Maximale Streaming-Qualität",
+        "Output device": "Ausgabegerät",
+        "Volume normalization": "Lautstärke-Normalisierung",
+        "Autoplay": "Automatisch weiterspielen",
+        "Explicit content": "Anstößige Inhalte",
+        "Gapless playback": "Lückenlose Wiedergabe",
+        "Exclusive device mode": "Exklusiver Gerätemodus",
+        "Bit-perfect output": "Bit-perfekte Ausgabe",
+        "Keyboard shortcuts": "Tastaturkürzel",
+        "ALSA DEVICE": "ALSA-GERÄT",
+        "Accent": "Akzent",
+        "Allow explicit tracks in radio and autoplay. Tracks you pick yourself are never filtered.":
+            "Anstößige Titel in Radio und Autoplay zulassen. Selbst gewählte Titel werden nie gefiltert.",
+        "An IP address to bind to. Use 0.0.0.0 to let another machine on the network capture it.":
+            "IP-Adresse zum Binden. 0.0.0.0 erlaubt anderen Rechnern im Netz den Zugriff.",
+        "BIT-PERFECT": "BIT-PERFEKT",
+        "Background": "Hintergrund",
+        "Browser source URL": "Browser-Source-URL",
+        "Browser source overlay": "Browser-Source-Overlay",
+        "Caps what klang asks TIDAL for; a track still falls back to a lower tier if it isn't available at this one.":
+            "Begrenzt, was klang bei TIDAL anfragt; ein Titel fällt weiterhin auf eine niedrigere Stufe zurück, wenn er in dieser nicht verfügbar ist.",
+        "Clear cache": "Cache leeren",
+        "Clients authenticate with this. Regenerating it disconnects anything already connected.":
+            "Clients authentifizieren sich damit. Neu erzeugen trennt alle bestehenden Verbindungen.",
+        "Connect": "Verbinden",
+        "Connection test": "Verbindungstest",
+        "Credentials": "Zugangsdaten",
+        "DECODER": "DECODER",
+        "Disables resampling. Requires — and turns on — exclusive device mode.":
+            "Deaktiviert Resampling. Setzt den exklusiven Gerätemodus voraus und schaltet ihn ein.",
+        "Disconnect": "Trennen",
+        "Discord Rich Presence": "Discord Rich Presence",
+        "Disk cache": "Festplatten-Cache",
+        "Dismiss overlay": "Overlay schließen",
+        "EXCLUSIVE": "EXKLUSIV",
+        "Endpoint": "Endpunkt",
+        "Exposes playback, the queue and your library to MCP clients on this machine.":
+            "Gibt Wiedergabe, Warteschlange und Sammlung für MCP-Clients auf diesem Rechner frei.",
+        "Focus search bar": "Suchfeld fokussieren",
+        "Helps when reporting bugs. Capped at roughly 12 MB.":
+            "Hilft beim Melden von Fehlern. Auf etwa 12 MB begrenzt.",
+        "High": "Hoch",
+        "Host": "Host",
+        "Host and port": "Host und Port",
+        "I've authorized": "Ich habe autorisiert",
+        "Levels tracks to a consistent loudness using TIDAL's replay-gain data.":
+            "Gleicht die Lautstärke über TIDALs Replay-Gain-Daten an.",
+        "Like / Unlike current track": "Aktuellen Titel liken / entliken",
+        "Locks the output device for klang alone instead of sharing it through the system mixer.":
+            "Reserviert das Ausgabegerät allein für klang statt es über den System-Mixer zu teilen.",
+        "Log folder": "Log-Ordner",
+        "MCP server": "MCP-Server",
+        "Make public": "Öffentlich machen",
+        "Max": "Max",
+        "Mute / Unmute": "Stumm / Ton an",
+        "Next track": "Nächster Titel",
+        "Normal": "Normal",
+        "Open browser": "Browser öffnen",
+        "Open folder": "Ordner öffnen",
+        "Optional — leave blank if the proxy needs none.":
+            "Optional — leer lassen, wenn der Proxy keine braucht.",
+        "Password": "Passwort",
+        "Play / Pause": "Abspielen / Pause",
+        "Port": "Port",
+        "Previous track": "Vorheriger Titel",
+        "Proxy type": "Proxy-Typ",
+        "RESAMPLER": "RESAMPLER",
+        "Repeat off / all / one": "Wiederholen aus / alle / eins",
+        "Routes TIDAL API and scrobble traffic through the proxy below.":
+            "Leitet TIDAL-API- und Scrobble-Verkehr über den Proxy unten.",
+        "SOURCE": "QUELLE",
+        "Serves a now-playing page for OBS and Streamlabs to capture.":
+            "Stellt eine Now-Playing-Seite für OBS und Streamlabs bereit.",
+        "Show this help": "Diese Hilfe anzeigen",
+        "Shows what you're listening to on Discord.": "Zeigt auf Discord, was du hörst.",
+        "Shuffle on / off": "Zufall an / aus",
+        "Status text": "Statustext",
+        "Tags are replaced with the currently playing track.":
+            "Platzhalter werden durch den laufenden Titel ersetzt.",
+        "Toggle bit-perfect mode": "Bit-perfekten Modus umschalten",
+        "Toggle exclusive output": "Exklusive Ausgabe umschalten",
+        "Token": "Token",
+        "Use a proxy": "Proxy verwenden",
+        "Username": "Benutzername",
+        "VOLUME": "LAUTSTÄRKE",
+        "Visible on your profile and open to anyone.":
+            "Auf deinem Profil sichtbar und für alle offen.",
+        "Volume down": "Leiser",
+        "Volume up": "Lauter",
+        "Write logs to disk": "Logs auf die Festplatte schreiben",
+        "Automatic follows the system locale.": "Automatisch folgt der Systemsprache.",
+        "Close to tray": "In Systemleiste minimieren",
+        "Minimize to the system tray instead of quitting when the window is closed.":
+            "Beim Schließen in die Systemleiste minimieren statt zu beenden.",
+    })
+}

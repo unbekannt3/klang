@@ -278,8 +278,8 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.spaceSm
 
-                Badge { label: "EXCLUSIVE"; visible: !!root.sp.exclusiveMode }
-                Badge { label: "BIT-PERFECT"; visible: !!root.sp.bitPerfect }
+                Badge { label: Tr.t("EXCLUSIVE"); visible: !!root.sp.exclusiveMode }
+                Badge { label: Tr.t("BIT-PERFECT"); visible: !!root.sp.bitPerfect }
                 Badge { label: (root.sp.backend || "").toUpperCase(); visible: !!root.sp.backend }
             }
 
@@ -289,13 +289,13 @@ Item {
                 spacing: Theme.spaceSm
 
                 FlowNode {
-                    title: "SOURCE"
+                    title: Tr.t("SOURCE")
                     primary: root.player.quality.length > 0 ? root.player.quality : "idle"
                     secondary: root.player.track_id !== 0 ? root.player.title : "no track"
                 }
                 FlowArrow { lineColor: Theme.hlStrong }
                 FlowNode {
-                    title: "DECODER"
+                    title: Tr.t("DECODER")
                     primary: root.formatLabel(root.sp.decodedFormat)
                     secondary: root.rateLabel(root.sp.decodedRate) + " · " + root.bitDepthLabel(root.sp.decodedFormat)
                     tertiary: root.sp.decodedChannels ? root.sp.decodedChannels + "ch" : ""
@@ -306,20 +306,20 @@ Item {
                 }
                 FlowNode {
                     visible: root.hasResample
-                    title: "RESAMPLER"
+                    title: Tr.t("RESAMPLER")
                     primary: root.rateLabel(root.sp.resampledFrom) + " → " + root.rateLabel(root.sp.resampledTo)
                     altered: true
                 }
                 FlowArrow { lineColor: (root.hasResample || root.volAltered) ? Theme.warning : Theme.hlStrong }
                 FlowNode {
-                    title: "VOLUME"
+                    title: Tr.t("VOLUME")
                     primary: root.volAltered ? root.volumeLabel() : "unity"
                     secondary: root.sp.volumeNormalization ? "ReplayGain on" : "ReplayGain off"
                     altered: root.volAltered
                 }
                 FlowArrow { lineColor: root.volAltered ? Theme.warning : Theme.hlStrong }
                 FlowNode {
-                    title: "ALSA DEVICE"
+                    title: Tr.t("ALSA DEVICE")
                     primary: root.formatLabel(root.sp.outputFormat)
                     secondary: root.rateLabel(root.sp.outputRate) + " · " + root.bitDepthLabel(root.sp.outputFormat)
                     tertiary: root.sp.dac ? root.sp.dac.cardName : (root.sp.outputDevice || "")

@@ -179,8 +179,8 @@ Item {
 
             SettingRow {
                 Layout.fillWidth: true
-                label: "Make public"
-                description: "Visible on your profile and open to anyone."
+                label: Tr.t("Make public")
+                description: Tr.t("Visible on your profile and open to anyone.")
                 toggleMode: true
                 checked: root.isPublic
                 onToggled: (value) => root.isPublic = value

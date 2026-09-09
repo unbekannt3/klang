@@ -9,15 +9,15 @@ Item {
     property string section: "themes"
 
     readonly property var sections: [
-        { key: "themes", label: "Themes" },
-        { key: "general", label: "General" },
-        { key: "playback", label: "Playback" },
-        { key: "scrobbling", label: "Scrobbling" },
+        { key: "themes", label: Tr.t("Themes") },
+        { key: "general", label: Tr.t("General") },
+        { key: "playback", label: Tr.t("Playback") },
+        { key: "scrobbling", label: Tr.t("Scrobbling") },
         { key: "discord", label: "Discord" },
         { key: "mcp", label: "MCP" },
-        { key: "overlay", label: "Overlay" },
-        { key: "network", label: "Network" },
-        { key: "utilities", label: "Utilities" },
+        { key: "overlay", label: Tr.t("Overlay") },
+        { key: "network", label: Tr.t("Network") },
+        { key: "utilities", label: Tr.t("Utilities") },
     ]
 
     Rectangle { anchors.fill: parent; color: Theme.base }
@@ -43,7 +43,7 @@ Item {
             anchors.left: parent.left
             anchors.leftMargin: Theme.spaceSm
             anchors.verticalCenter: parent.verticalCenter
-            text: entry.sectionLabel
+            text: Tr.t(entry.sectionLabel)
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
             font.weight: entry.active ? Font.DemiBold : Font.Normal
@@ -67,7 +67,7 @@ Item {
 
             Text {
                 Layout.bottomMargin: Theme.space
-                text: "Settings"
+                text: Tr.t("Settings")
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeHeading
                 font.weight: Font.Bold

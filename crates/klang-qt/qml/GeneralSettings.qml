@@ -21,11 +21,9 @@ ColumnLayout {
             spacing: Theme.spaceSm
 
             Repeater {
-                model: [
-                    { code: "auto", label: Tr.t("Automatic") },
-                    { code: "en",   label: Tr.t("English") },
-                    { code: "de",   label: Tr.t("German") },
-                ]
+                // Driven by Tr's own list, so a new language shows up here
+                // as soon as its catalogue is registered.
+                model: Tr.languages
 
                 Rectangle {
                     required property var modelData
@@ -44,7 +42,7 @@ ColumnLayout {
                     Text {
                         id: languageLabel
                         anchors.centerIn: parent
-                        text: modelData.label
+                        text: Tr.t(modelData.label)
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeSm
                         color: parent.active ? Theme.textPrimary : Theme.textSecondary

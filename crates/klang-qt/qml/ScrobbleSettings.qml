@@ -103,12 +103,12 @@ ColumnLayout {
 
             ActionButton {
                 visible: row.status.connected
-                label: "Disconnect"
+                label: Tr.t("Disconnect")
                 onClicked: root.settings.disconnect_scrobbler(row.provider)
             }
             ActionButton {
                 visible: !row.status.connected && !row.pending
-                label: "Connect"
+                label: Tr.t("Connect")
                 primary: true
                 onClicked: row.provider === "lastfm"
                            ? root.settings.connect_lastfm()
@@ -116,12 +116,12 @@ ColumnLayout {
             }
             ActionButton {
                 visible: row.pending
-                label: "Open browser"
+                label: Tr.t("Open browser")
                 onClicked: Qt.openUrlExternally(root.settings.scrobble_auth_url)
             }
             ActionButton {
                 visible: row.pending
-                label: "I've authorized"
+                label: Tr.t("I've authorized")
                 primary: true
                 onClicked: root.settings.confirm_scrobble_auth()
             }
@@ -150,14 +150,14 @@ ColumnLayout {
             }
             ActionButton {
                 visible: !root.statusFor("listenbrainz").connected
-                label: "Connect"
+                label: Tr.t("Connect")
                 primary: true
                 enabled: lbToken.text.length > 0
                 onClicked: root.settings.connect_listenbrainz(lbToken.text)
             }
             ActionButton {
                 visible: root.statusFor("listenbrainz").connected
-                label: "Disconnect"
+                label: Tr.t("Disconnect")
                 onClicked: root.settings.disconnect_scrobbler("listenbrainz")
             }
         }

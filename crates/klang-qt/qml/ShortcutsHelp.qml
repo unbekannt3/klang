@@ -18,20 +18,20 @@ Item {
     // Kept in the same order as Shortcuts.qml. Zoom and app-data refresh are
     // not implemented (see the task report), so they are not listed here.
     readonly property var rows: [
-        { key: "Space", label: "Play / Pause" },
-        { key: "Ctrl+→", label: "Next track" },
-        { key: "Ctrl+←", label: "Previous track" },
-        { key: "Ctrl+↑", label: "Volume up" },
-        { key: "Ctrl+↓", label: "Volume down" },
-        { key: "M", label: "Mute / Unmute" },
-        { key: "L", label: "Like / Unlike current track" },
-        { key: "Alt+S", label: "Shuffle on / off" },
-        { key: "Alt+R", label: "Repeat off / all / one" },
-        { key: "Ctrl+K", label: "Focus search bar" },
-        { key: "Esc", label: "Dismiss overlay" },
-        { key: "Ctrl+E", label: "Toggle exclusive output" },
-        { key: "Ctrl+B", label: "Toggle bit-perfect mode" },
-        { key: "Shift+?", label: "Show this help" },
+        { key: "Space", label: Tr.t("Play / Pause") },
+        { key: "Ctrl+→", label: Tr.t("Next track") },
+        { key: "Ctrl+←", label: Tr.t("Previous track") },
+        { key: "Ctrl+↑", label: Tr.t("Volume up") },
+        { key: "Ctrl+↓", label: Tr.t("Volume down") },
+        { key: "M", label: Tr.t("Mute / Unmute") },
+        { key: "L", label: Tr.t("Like / Unlike current track") },
+        { key: "Alt+S", label: Tr.t("Shuffle on / off") },
+        { key: "Alt+R", label: Tr.t("Repeat off / all / one") },
+        { key: "Ctrl+K", label: Tr.t("Focus search bar") },
+        { key: "Esc", label: Tr.t("Dismiss overlay") },
+        { key: "Ctrl+E", label: Tr.t("Toggle exclusive output") },
+        { key: "Ctrl+B", label: Tr.t("Toggle bit-perfect mode") },
+        { key: "Shift+?", label: Tr.t("Show this help") },
     ]
     readonly property int splitAt: Math.ceil(rows.length / 2)
 

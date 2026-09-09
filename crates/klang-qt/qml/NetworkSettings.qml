@@ -79,8 +79,8 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "Use a proxy"
-        description: "Routes TIDAL API and scrobble traffic through the proxy below."
+        label: Tr.t("Use a proxy")
+        description: Tr.t("Routes TIDAL API and scrobble traffic through the proxy below.")
         toggleMode: true
         checked: root.draftEnabled
         onToggled: (value) => { root.draftEnabled = value; root.commit() }
@@ -95,7 +95,7 @@ ColumnLayout {
 
         SettingRow {
             Layout.fillWidth: true
-            label: "Proxy type"
+            label: Tr.t("Proxy type")
 
             Row {
                 spacing: Theme.spaceSm
@@ -114,7 +114,7 @@ ColumnLayout {
 
         SettingRow {
             Layout.fillWidth: true
-            label: "Host and port"
+            label: Tr.t("Host and port")
 
             RowLayout {
                 spacing: Theme.spaceSm
@@ -137,14 +137,14 @@ ColumnLayout {
 
         SettingRow {
             Layout.fillWidth: true
-            label: "Credentials"
-            description: "Optional — leave blank if the proxy needs none."
+            label: Tr.t("Credentials")
+            description: Tr.t("Optional — leave blank if the proxy needs none.")
 
             RowLayout {
                 spacing: Theme.spaceSm
                 SettingsField {
                     implicitWidth: 140
-                    placeholder: "Username"
+                    placeholder: Tr.t("Username")
                     text: root.draftUsername
                     onTextChanged: root.draftUsername = text
                     onCommitted: root.commit()
@@ -152,7 +152,7 @@ ColumnLayout {
                 SettingsField {
                     implicitWidth: 140
                     isPassword: true
-                    placeholder: "Password"
+                    placeholder: Tr.t("Password")
                     text: root.draftPassword
                     onTextChanged: root.draftPassword = text
                     onCommitted: root.commit()
@@ -162,7 +162,7 @@ ColumnLayout {
 
         SettingRow {
             Layout.fillWidth: true
-            label: "Connection test"
+            label: Tr.t("Connection test")
             description: root.settings.proxy_testing ? "Testing…" : root.settings.proxy_test_result
 
             Rectangle {

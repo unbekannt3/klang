@@ -28,8 +28,8 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "MCP server"
-        description: "Exposes playback, the queue and your library to MCP clients on this machine."
+        label: Tr.t("MCP server")
+        description: Tr.t("Exposes playback, the queue and your library to MCP clients on this machine.")
         toggleMode: true
         checked: !!root.info.enabled
         onToggled: (value) => root.settings.apply_mcp_enabled(value)
@@ -43,7 +43,7 @@ ColumnLayout {
 
         SettingRow {
             Layout.fillWidth: true
-            label: "Endpoint"
+            label: Tr.t("Endpoint")
 
             Text {
                 text: root.info.url || ""
@@ -55,8 +55,8 @@ ColumnLayout {
 
         SettingRow {
             Layout.fillWidth: true
-            label: "Token"
-            description: "Clients authenticate with this. Regenerating it disconnects anything already connected."
+            label: Tr.t("Token")
+            description: Tr.t("Clients authenticate with this. Regenerating it disconnects anything already connected.")
 
             RowLayout {
                 spacing: Theme.spaceSm
@@ -75,7 +75,7 @@ ColumnLayout {
                 }
 
                 SettingsButton {
-                    label: "Regenerate"
+                    label: Tr.t("Regenerate")
                     onClicked: root.settings.regenerate_mcp_token()
                 }
             }

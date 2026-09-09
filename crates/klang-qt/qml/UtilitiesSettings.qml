@@ -59,11 +59,11 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "Disk cache"
+        label: Tr.t("Disk cache")
         description: root.cacheSummary
 
         ActionButton {
-            label: "Clear cache"
+            label: Tr.t("Clear cache")
             onClicked: {
                 root.settings.clear_cache()
                 root.refreshCacheStats()
@@ -73,8 +73,8 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "Write logs to disk"
-        description: "Helps when reporting bugs. Capped at roughly 12 MB."
+        label: Tr.t("Write logs to disk")
+        description: Tr.t("Helps when reporting bugs. Capped at roughly 12 MB.")
         toggleMode: true
         checked: root.settings.enable_logging
         onToggled: (value) => root.settings.apply_enable_logging(value)
@@ -87,11 +87,11 @@ ColumnLayout {
 
         SettingRow {
             Layout.fillWidth: true
-            label: "Log folder"
-            description: "~/.config/sone/logs"
+            label: Tr.t("Log folder")
+            description: "~/.config/klang/logs"
 
             ActionButton {
-                label: "Open folder"
+                label: Tr.t("Open folder")
                 onClicked: root.settings.open_log_folder()
             }
         }

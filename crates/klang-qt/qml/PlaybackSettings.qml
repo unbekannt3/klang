@@ -12,9 +12,9 @@ ColumnLayout {
     spacing: Theme.space
 
     readonly property var qualities: [
-        { value: "HI_RES_LOSSLESS", label: "Max" },
-        { value: "LOSSLESS", label: "High" },
-        { value: "HIGH", label: "Normal" },
+        { value: "HI_RES_LOSSLESS", label: Tr.t("Max") },
+        { value: "LOSSLESS", label: Tr.t("High") },
+        { value: "HIGH", label: Tr.t("Normal") },
     ]
     readonly property var devices: JSON.parse(root.settings.audio_devices_json || "[]")
 
@@ -49,8 +49,8 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "Maximum streaming quality"
-        description: "Caps what klang asks TIDAL for; a track still falls back to a lower tier if it isn't available at this one."
+        label: Tr.t("Maximum streaming quality")
+        description: Tr.t("Caps what klang asks TIDAL for; a track still falls back to a lower tier if it isn't available at this one.")
 
         Row {
             spacing: Theme.spaceSm
@@ -68,10 +68,10 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "Output device"
+        label: Tr.t("Output device")
         description: root.settings.exclusive_mode
                     ? "Used while exclusive device mode is on."
-                    : "Only takes effect once exclusive device mode is on."
+                    : Tr.t("Only takes effect once exclusive device mode is on.")
         enabled: root.settings.exclusive_mode && root.devices.length > 0
 
         Row {
@@ -90,8 +90,8 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "Volume normalization"
-        description: "Levels tracks to a consistent loudness using TIDAL's replay-gain data."
+        label: Tr.t("Volume normalization")
+        description: Tr.t("Levels tracks to a consistent loudness using TIDAL's replay-gain data.")
         toggleMode: true
         checked: root.settings.volume_normalization
         onToggled: (value) => root.settings.apply_volume_normalization(value)
@@ -99,8 +99,8 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "Autoplay"
-        description: "When the queue runs out, keep going with a radio built from the last track."
+        label: Tr.t("Autoplay")
+        description: Tr.t("When the queue runs out, keep going with a radio built from the last track.")
         toggleMode: true
         checked: root.settings.autoplay
         onToggled: (value) => root.settings.apply_autoplay(value)
@@ -108,8 +108,8 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "Explicit content"
-        description: "Allow explicit tracks in radio and autoplay. Tracks you pick yourself are never filtered."
+        label: Tr.t("Explicit content")
+        description: Tr.t("Allow explicit tracks in radio and autoplay. Tracks you pick yourself are never filtered.")
         toggleMode: true
         checked: root.settings.allow_explicit
         onToggled: (value) => root.settings.apply_allow_explicit(value)
@@ -117,10 +117,10 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "Gapless playback"
+        label: Tr.t("Gapless playback")
         description: root.settings.gapless_supported
-                    ? "Removes silence between consecutive tracks."
-                    : "Not supported by this build's audio pipeline."
+                    ? Tr.t("Removes silence between consecutive tracks.")
+                    : Tr.t("Not supported by this build's audio pipeline.")
         toggleMode: true
         enabled: root.settings.gapless_supported
         checked: root.settings.gapless
@@ -129,8 +129,8 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "Exclusive device mode"
-        description: "Locks the output device for klang alone instead of sharing it through the system mixer."
+        label: Tr.t("Exclusive device mode")
+        description: Tr.t("Locks the output device for klang alone instead of sharing it through the system mixer.")
         toggleMode: true
         checked: root.settings.exclusive_mode
         onToggled: (value) => root.settings.apply_exclusive_mode(value)
@@ -138,8 +138,8 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "Bit-perfect output"
-        description: "Disables resampling. Requires — and turns on — exclusive device mode."
+        label: Tr.t("Bit-perfect output")
+        description: Tr.t("Disables resampling. Requires — and turns on — exclusive device mode.")
         toggleMode: true
         checked: root.settings.bit_perfect
         onToggled: (value) => root.settings.apply_bit_perfect(value)

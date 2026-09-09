@@ -143,13 +143,13 @@ ColumnLayout {
     }
 
     HexField {
-        label: "Accent"
+        label: Tr.t("Accent")
         value: Theme.controller.custom_accent
         onCommitted: (hex) => Theme.controller.apply_custom(hex, Theme.controller.custom_background)
     }
 
     HexField {
-        label: "Background"
+        label: Tr.t("Background")
         value: Theme.controller.custom_background
         onCommitted: (hex) => Theme.controller.apply_custom(Theme.controller.custom_accent, hex)
     }

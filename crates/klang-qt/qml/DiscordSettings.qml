@@ -69,8 +69,8 @@ ColumnLayout {
 
     SettingRow {
         Layout.fillWidth: true
-        label: "Discord Rich Presence"
-        description: "Shows what you're listening to on Discord."
+        label: Tr.t("Discord Rich Presence")
+        description: Tr.t("Shows what you're listening to on Discord.")
         toggleMode: true
         checked: root.settings.discord_rpc
         onToggled: (value) => root.settings.apply_discord_rpc(value)
@@ -84,8 +84,8 @@ ColumnLayout {
 
         SettingRow {
             Layout.fillWidth: true
-            label: "Status text"
-            description: "Tags are replaced with the currently playing track."
+            label: Tr.t("Status text")
+            description: Tr.t("Tags are replaced with the currently playing track.")
 
             StatusField {
                 implicitWidth: 260
