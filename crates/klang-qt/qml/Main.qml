@@ -276,7 +276,7 @@ QQC2.ApplicationWindow {
         id: exploreRootPage
         ViewAllPage {
             player: playerCtl
-            title: "Explore"
+            title: Tr.t("Explore")
             apiPath: "pages/explore"
             sectioned: true
             userId: authCtl.user_id
@@ -287,6 +287,7 @@ QQC2.ApplicationWindow {
             onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
             onOpenExplorePage: (path, title) =>
                     root.go("view-all", { apiPath: path, title: title, sectioned: true })
+            onOpenSection: (section) => root.openSection(section)
             onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
         }
     }
@@ -380,6 +381,7 @@ QQC2.ApplicationWindow {
             onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
             onOpenExplorePage: (path, title) =>
                     root.go("view-all", { apiPath: path, title: title, sectioned: true })
+            onOpenSection: (section) => root.openSection(section)
             onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
         }
     }

@@ -314,6 +314,16 @@ Item {
             NumberAnimation { duration: Theme.duration; easing.type: Easing.OutCubic }
         }
 
+        // The panel covers the titlebar. Without something to absorb them,
+        // taps land on the window buttons behind it — the close glyph sits
+        // right over the one that quits the app.
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            hoverEnabled: true
+            onWheel: (wheel) => wheel.accepted = true
+        }
+
         RowLayout {
             anchors.fill: parent
             spacing: 0

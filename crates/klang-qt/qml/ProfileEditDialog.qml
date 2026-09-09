@@ -67,8 +67,8 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "black"
-        opacity: 0.6
+        color: Theme.overlay
+        opacity: 0.55
 
         TapHandler { onSingleTapped: root.closeRequested() }
     }
