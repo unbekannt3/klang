@@ -22,12 +22,14 @@ Item {
     /// "Popular tracks" opened in full.
     signal openArtistTracks(string artistName)
     signal openMix(string mixId, string title)
+
+    /// The full bio, in a dialog rather than expanded in place.
+    property bool bioOpen: false
     /// A carousel opened as a grid of the cards it already holds.
     signal openItemGrid(string title, var items)
     signal itemContextRequested(var item, real x, real y)
 
     readonly property int avatarSize: 200
-    property bool bioExpanded: false
 
     CatalogController { id: catalog }
 
@@ -66,6 +68,16 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: Theme.base
+    }
+
+    ArtistBioDialog {
+        z: 300
+        open: root.bioOpen
+        artistName: root.artist().name || ""
+        bio: root.artist().bio || ""
+        onCloseRequested: root.bioOpen = false
+        onOpenArtist: (id) => root.openArtist(id)
+        onOpenAlbum: (id) => root.openAlbum(id)
     }
 
     /// One of the header's secondary actions: icon over a pill.
@@ -171,22 +183,22 @@ Item {
                     text: root.artist().bio || ""
                     wrapMode: Text.WordWrap
                     elide: Text.ElideRight
-                    maximumLineCount: root.bioExpanded ? 1000 : 4
+                    maximumLineCount: 4
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeSm
                     color: Theme.textSecondary
                 }
 
                 Text {
-                    visible: bioText.truncated || root.bioExpanded
-                    text: Tr.t(root.bioExpanded ? "Show less" : "Show more")
+                    visible: bioText.truncated
+                    text: Tr.t("Show more")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeSm
                     font.weight: Font.DemiBold
                     color: toggleHover.hovered ? Theme.textPrimary : Theme.accent
 
                     HoverHandler { id: toggleHover }
-                    TapHandler { onSingleTapped: root.bioExpanded = !root.bioExpanded }
+                    TapHandler { onSingleTapped: root.bioOpen = true }
                 }
             }
 

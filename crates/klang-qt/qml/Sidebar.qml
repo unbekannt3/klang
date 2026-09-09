@@ -30,8 +30,16 @@ Rectangle {
     signal navigate(string route)
     signal openPlaylist(string uuid, string title)
 
-    implicitWidth: Theme.sidebarWidth
+    /// Collapsed to an icon rail, as tidal.com's toggle does.
+    property bool collapsedRail: false
+    readonly property int railWidth: 68
+
+    implicitWidth: root.collapsedRail ? root.railWidth : Theme.sidebarWidth
     color: Theme.sidebar
+
+    Behavior on implicitWidth {
+        NumberAnimation { duration: Theme.duration; easing.type: Easing.OutCubic }
+    }
 
     function allRows() {
         const source = root.displaySource
@@ -162,11 +170,18 @@ Rectangle {
                  : "transparent"
         }
 
+        QQC2.ToolTip {
+            visible: root.collapsedRail && item.hovered
+            delay: 400
+            text: item.label
+        }
+
         contentItem: RowLayout {
             spacing: Theme.spaceSm
 
             Icon {
-                Layout.leftMargin: Theme.spaceSm
+                Layout.leftMargin: root.collapsedRail ? 0 : Theme.spaceSm
+                Layout.alignment: root.collapsedRail ? Qt.AlignHCenter : Qt.AlignLeft
                 Layout.preferredWidth: 20
                 Layout.preferredHeight: 20
                 name: item.iconName
@@ -175,6 +190,7 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
+                visible: !root.collapsedRail
                 text: item.label
                 elide: Text.ElideRight
                 font.family: Theme.fontFamily
@@ -215,12 +231,36 @@ Rectangle {
             }
 
             Text {
+                Layout.fillWidth: true
+                visible: !root.collapsedRail
                 text: "klang"
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeLg
                 font.weight: Font.Bold
                 font.letterSpacing: 1
                 color: Theme.textPrimary
+            }
+
+            Item {
+                implicitWidth: 24
+                implicitHeight: 24
+
+                Icon {
+                    anchors.centerIn: parent
+                    width: 16
+                    height: 16
+                    name: root.collapsedRail ? "forward" : "back"
+                    color: railHover.hovered ? Theme.textPrimary : Theme.textFaint
+                }
+
+                HoverHandler { id: railHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler { onSingleTapped: root.collapsedRail = !root.collapsedRail }
+
+                QQC2.ToolTip {
+                    visible: railHover.hovered
+                    delay: 500
+                    text: root.collapsedRail ? Tr.t("Expand sidebar") : Tr.t("Collapse sidebar")
+                }
             }
         }
 
@@ -237,6 +277,7 @@ Rectangle {
 
         Text {
             Layout.leftMargin: Theme.spaceSm
+            visible: !root.collapsedRail
             text: Tr.t("MY COLLECTION")
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeSm - 1
@@ -269,6 +310,7 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
+                visible: !root.collapsedRail
                 text: Tr.t("PLAYLISTS")
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeSm - 1

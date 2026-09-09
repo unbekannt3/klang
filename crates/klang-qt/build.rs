@@ -38,6 +38,7 @@ fn main() {
             QmlFile::from("qml/CoverWash.qml"),
             QmlFile::from("qml/Glass.qml"),
             QmlFile::from("qml/ArtistHoverCard.qml"),
+            QmlFile::from("qml/ArtistBioDialog.qml"),
             QmlFile::from("qml/ArtistPeek.qml").singleton(true),
             QmlFile::from("qml/OverlayStack.qml").singleton(true),
             QmlFile::from("qml/CardCarousel.qml"),

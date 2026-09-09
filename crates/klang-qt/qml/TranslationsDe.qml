@@ -178,6 +178,8 @@ QtObject {
         "Delete playlist": "Playlist löschen",
         "Move to folder": "In Ordner verschieben",
         "New folder": "Neuer Ordner",
+        "Collapse sidebar": "Seitenleiste einklappen",
+        "Expand sidebar": "Seitenleiste ausklappen",
         "Save queue as playlist": "Warteschlange als Playlist speichern",
         "Queue": "Warteschlange",
 
