@@ -70,7 +70,7 @@ ColumnLayout {
                 }
 
                 SettingsButton {
-                    label: root.tokenVisible ? "Hide" : "Show"
+                    label: Tr.t(root.tokenVisible ? "Hide" : "Show")
                     onClicked: root.tokenVisible = !root.tokenVisible
                 }
 

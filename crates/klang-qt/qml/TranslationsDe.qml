@@ -116,6 +116,8 @@ QtObject {
         "TITLE": "TITEL",
         "ARTIST": "KÜNSTLER",
         "ALBUM": "ALBUM",
+        "MIX": "MIX",
+        "PLAYLIST": "PLAYLIST",
         "BPM": "BPM",
         "KEY": "TONART",
         "LENGTH": "LÄNGE",
@@ -127,6 +129,7 @@ QtObject {
         "Shuffle": "Zufall",
         "Edit": "Bearbeiten",
         "Save": "Speichern",
+        "Saving…": "Wird gespeichert…",
         "Cancel": "Abbrechen",
         "Close": "Schließen",
         "Delete": "Löschen",
@@ -149,6 +152,7 @@ QtObject {
         "Go to album": "Zum Album",
         "Go to artist": "Zum Künstler",
         "Track radio": "Titel-Radio",
+        "%1 Radio": "%1 Radio",
         "Block track": "Titel blockieren",
         "Unblock track": "Titel entsperren",
         "Block artist": "Künstler blockieren",
@@ -160,6 +164,8 @@ QtObject {
 
         // Empty and error states
         "Nothing here": "Nichts vorhanden",
+        "No playlists found": "Keine Playlists gefunden",
+        "No playlists yet": "Noch keine Playlists",
         "Nothing here yet": "Noch nichts vorhanden",
         "Nothing to explore yet": "Noch nichts zu entdecken",
         "No tracks": "Keine Titel",
@@ -168,6 +174,7 @@ QtObject {
         "No suggestions for this track": "Keine Vorschläge für diesen Titel",
         "This playlist has no tracks": "Diese Playlist enthält keine Titel",
         "This mix has no tracks": "Dieser Mix enthält keine Titel",
+        "Track radio unavailable": "Kein Titel-Radio verfügbar",
 
         // Settings
         "Themes": "Design",
@@ -277,5 +284,16 @@ QtObject {
         "Close to tray": "In Systemleiste minimieren",
         "Minimize to the system tray instead of quitting when the window is closed.":
             "Beim Schließen in die Systemleiste minimieren statt zu beenden.",
+
+        // Login
+        "Sign in to TIDAL": "Bei TIDAL anmelden",
+        "Working…": "Einen Moment…",
+
+        // Settings controls
+        "Test connection": "Verbindung testen",
+        "User token": "Benutzer-Token",
+        "Preview": "Vorschau",
+        "PRESETS": "VORLAGEN",
+        "CUSTOM": "EIGENES",
     })
 }

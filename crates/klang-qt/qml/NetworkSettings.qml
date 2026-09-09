@@ -191,7 +191,7 @@ ColumnLayout {
                 Text {
                     id: testText
                     anchors.centerIn: parent
-                    text: "Test connection"
+                    text: Tr.t("Test connection")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeSm
                     color: Theme.textSecondary

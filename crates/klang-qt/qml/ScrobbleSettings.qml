@@ -146,7 +146,7 @@ ColumnLayout {
                 id: lbToken
                 visible: !root.statusFor("listenbrainz").connected
                 implicitWidth: 180
-                placeholder: "User token"
+                placeholder: Tr.t("User token")
             }
             ActionButton {
                 visible: !root.statusFor("listenbrainz").connected

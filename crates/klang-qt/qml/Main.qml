@@ -456,12 +456,23 @@ QQC2.ApplicationWindow {
             }
             mixId: root.page.params.mixId || ""
             mixTitle: root.page.params.title || ""
+            // The mix's own cover once it has loaded, the cover the caller
+            // seeded before that.
+            mixImage: mixCtl.image || root.page.params.image || ""
             mixItems: mixCtl.tracks_json
             loading: mixCtl.loading
             error: mixCtl.error
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
-            Component.onCompleted: mixCtl.load(mixId)
+            // Track radio arrives with only the track: rows outside a track
+            // detail response carry no mix id, so the page opens first and
+            // the controller looks the mix up.
+            Component.onCompleted: {
+                if (mixId)
+                    mixCtl.load(mixId)
+                else
+                    mixCtl.load_track_radio(root.page.params.trackId || 0)
+            }
         }
     }
 
@@ -520,7 +531,12 @@ QQC2.ApplicationWindow {
         }
         onGoToAlbumRequested: (albumId) => root.go("album", { albumId: albumId })
         onGoToArtistRequested: (artistId) => root.go("artist", { artistId: artistId })
-        onRadioRequested: (trackId) => console.log("track radio not wired yet", trackId)
+        onRadioRequested: (trackId) => root.go("mix", {
+            mixId: trackMenu.track.trackMix || "",
+            trackId: trackId,
+            title: Tr.t("%1 Radio").arg(trackMenu.track.title || ""),
+            image: trackMenu.track.cover || "",
+        })
     }
 
     MediaContextMenu {

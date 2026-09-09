@@ -151,7 +151,7 @@ Item {
     Text {
         anchors.centerIn: parent
         visible: view.count === 0 && !feed.loading
-        text: feed.error.length > 0 ? feed.error : "Nothing here yet"
+        text: feed.error.length > 0 ? feed.error : Tr.t("Nothing here yet")
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSizeLg
         color: Theme.textFaint

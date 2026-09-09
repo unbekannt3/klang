@@ -91,7 +91,7 @@ Item {
                         spacing: Theme.spaceXs
 
                         Text {
-                            text: "PLAYLIST"
+                            text: Tr.t("PLAYLIST")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSm - 1
                             font.weight: Font.DemiBold

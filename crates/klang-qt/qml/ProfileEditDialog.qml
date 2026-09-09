@@ -446,7 +446,8 @@ Item {
                             Text {
                                 id: saveText
                                 anchors.centerIn: parent
-                                text: panelRoot.busy && panelRoot.pendingAction === "profile" ? "Saving…" : "Save"
+                                text: Tr.t(panelRoot.busy && panelRoot.pendingAction === "profile"
+                                            ? "Saving…" : "Save")
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontSizeSm
                                 font.weight: Font.Bold

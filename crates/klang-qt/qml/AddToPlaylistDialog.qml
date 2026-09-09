@@ -350,7 +350,8 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     visible: list.count === 0
-                    text: filterField.text.length > 0 ? "No playlists found" : "No playlists yet"
+                    text: Tr.t(filterField.text.length > 0 ? "No playlists found"
+                                                          : "No playlists yet")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
                     color: Theme.textFaint

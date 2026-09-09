@@ -305,7 +305,7 @@ Item {
 
                         Text {
                             visible: bioText.truncated || root.bioExpanded
-                            text: root.bioExpanded ? "Show less" : "Show more"
+                            text: Tr.t(root.bioExpanded ? "Show less" : "Show more")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSm
                             font.weight: Font.DemiBold

@@ -114,7 +114,7 @@ ColumnLayout {
     }
 
     Text {
-        text: "PRESETS"
+        text: Tr.t("PRESETS")
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSizeSm - 1
         font.weight: Font.DemiBold
@@ -134,7 +134,7 @@ ColumnLayout {
 
     Text {
         Layout.topMargin: Theme.spaceSm
-        text: "CUSTOM"
+        text: Tr.t("CUSTOM")
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSizeSm - 1
         font.weight: Font.DemiBold

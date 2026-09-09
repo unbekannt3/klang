@@ -116,7 +116,7 @@ Item {
                         spacing: Theme.spaceXs
 
                         Text {
-                            text: "ALBUM"
+                            text: Tr.t("ALBUM")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSm - 1
                             font.weight: Font.DemiBold

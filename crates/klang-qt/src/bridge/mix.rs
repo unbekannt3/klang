@@ -1,10 +1,11 @@
 //! A mix: TIDAL's generated playlists, reached from the home carousels.
 
 use crate::bridge::RequestSeq;
+use crate::bridge::nowplaying::track_mix_id;
 use crate::core as app;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
-use klang_core::api::pages;
+use klang_core::api::{metadata, pages};
 use std::pin::Pin;
 
 #[cxx_qt::bridge]
@@ -28,6 +29,9 @@ pub mod qobject {
 
         #[qinvokable]
         fn load(self: Pin<&mut MixController>, mix_id: &QString);
+
+        #[qinvokable]
+        fn load_track_radio(self: Pin<&mut MixController>, track_id: i64);
     }
 
     impl cxx_qt::Threading for MixController {}
@@ -107,6 +111,45 @@ impl qobject::MixController {
                         obj.as_mut().set_total(0);
                         obj.as_mut().set_tracks_json(QString::from("[]"));
                         obj.as_mut().set_error(QString::from(&e.to_string()));
+                    }
+                }
+            });
+        });
+    }
+
+    /// A track's radio, for rows that do not carry the mix id themselves.
+    ///
+    /// Only track detail responses carry `mixes`, so a row that reached the
+    /// context menu from a playlist or the queue has nothing to navigate to
+    /// until it is looked up. The mix page opens first and this fills it,
+    /// which is why the lookup lives here rather than in the menu.
+    pub fn load_track_radio(mut self: Pin<&mut Self>, track_id: i64) {
+        if track_id <= 0 {
+            return;
+        }
+        let token = self.as_mut().rust_mut().requests.start();
+        self.as_mut().set_loading(true);
+        self.as_mut().set_error(QString::default());
+        let qt = self.qt_thread();
+
+        klang_core::runtime::spawn(async move {
+            let track = metadata::get_track(app::state(), track_id as u64).await;
+            let _ = qt.queue(move |mut obj| {
+                if !obj.rust().requests.is_current(token) {
+                    return;
+                }
+                let mix_id = track.as_ref().ok().and_then(track_mix_id);
+                match mix_id {
+                    // `load` starts a request of its own, which supersedes
+                    // this one — hence no `set_loading(false)` on this path.
+                    Some(mix_id) => obj.as_mut().load(&QString::from(&mix_id)),
+                    None => {
+                        if let Err(e) = &track {
+                            log::warn!("[mix] track lookup for {track_id}: {e}");
+                        }
+                        obj.as_mut().set_loading(false);
+                        obj.as_mut()
+                            .set_error(QString::from("Track radio unavailable"));
                     }
                 }
             });

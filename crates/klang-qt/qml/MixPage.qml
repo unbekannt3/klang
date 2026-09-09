@@ -1,8 +1,8 @@
 // One mix: header (cover, title, track count) then its tracks.
 //
-// No bridge exposes `get_mix_items` (klang-core/api/pages.rs) yet, so this
-// page takes its data as plain properties instead of owning a controller —
-// see the caller contract on `mixItems` below.
+// The page takes its data as plain properties rather than owning a
+// MixController, so the caller decides which mix is loaded and how — track
+// radio, for one, has only a track id until the controller resolves it.
 
 import QtQuick
 import QtQuick.Layouts
@@ -14,8 +14,11 @@ Item {
     required property var player
     property string mixId: ""
     property string mixTitle: ""
-    /// JSON string or array of track rows (see klang-qt's rows.rs), supplied
-    /// by the caller until a MixController with get_mix_items exists.
+    /// Album cover uuid for the header. TIDAL sends one for its own mixes;
+    /// track radio has none until the mix loads, so the caller seeds it with
+    /// the track's cover.
+    property string mixImage: ""
+    /// JSON string or array of track rows (see klang-qt's rows.rs).
     property var mixItems: []
     property bool loading: false
     property string error: ""
@@ -61,12 +64,11 @@ Item {
                 anchors.margins: Theme.spaceLg
                 spacing: Theme.space
 
-                // No bridge yet carries the mix's own header image (TIDAL's
-                // MixPageResult.image), so this shows the placeholder glyph.
                 CoverArt {
                     Layout.preferredWidth: root.coverSize
                     Layout.preferredHeight: root.coverSize
                     Layout.alignment: Qt.AlignBottom
+                    uuid: root.mixImage
                     placeholderGlyph: "♪"
                 }
 
@@ -76,7 +78,7 @@ Item {
                     spacing: Theme.spaceXs
 
                     Text {
-                        text: "MIX"
+                        text: Tr.t("MIX")
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeSm - 1
                         font.weight: Font.DemiBold
@@ -126,7 +128,8 @@ Item {
                 if (root.trackRows[index])
                     root.trackContextRequested(root.trackRows[index], x, y)
             }
-            emptyText: root.error.length > 0 ? root.error : "This mix has no tracks"
+            emptyText: root.error.length > 0 ? Tr.t(root.error)
+                                             : Tr.t("This mix has no tracks")
             onTrackActivated: (index) =>
                 root.player.play_context(root.mixItems, index, "mix:" + root.mixId)
         }

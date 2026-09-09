@@ -18,7 +18,8 @@ ContextMenu {
     /// Opens the shared playlist picker; klang has no per-track playlist
     /// submenu data source, so this is a signal rather than a real submenu.
     signal addToPlaylistRequested(int trackId)
-    /// No `TRACK_MIX` lookup exists in the bridge yet — signal only.
+    /// The mix id is on the row only when it came from a track detail
+    /// response, so the handler navigates and lets MixController look it up.
     signal radioRequested(int trackId)
     signal goToAlbumRequested(int albumId)
     signal goToArtistRequested(int artistId)
@@ -55,7 +56,8 @@ ContextMenu {
             { separator: true },
             { label: Tr.t("Add to playlist"), icon: "playlist",
               onTriggered: () => root.addToPlaylistRequested(track.id) },
-            { label: root.loved ? "Remove from Loved Tracks" : "Add to Loved Tracks",
+            { label: Tr.t(root.loved ? "Remove from Loved Tracks"
+                                     : "Add to Loved Tracks"),
               icon: root.loved ? "heart-filled" : "heart",
               onTriggered: () => favorites.toggle_track(track.id) },
         ]
@@ -71,10 +73,11 @@ ContextMenu {
                      onTriggered: () => root.radioRequested(track.id) })
 
         items.push({ separator: true })
-        items.push({ label: root.blocked ? "Unblock track" : "Block track", icon: "block",
+        items.push({ label: Tr.t(root.blocked ? "Unblock track" : "Block track"), icon: "block",
                      onTriggered: () => favorites.toggle_block("track", track.id) })
         if (track.artistId)
-            items.push({ label: root.artistBlocked ? "Unblock artist" : "Block artist", icon: "block",
+            items.push({ label: Tr.t(root.artistBlocked ? "Unblock artist" : "Block artist"),
+                         icon: "block",
                          onTriggered: () => favorites.toggle_block("artist", track.artistId) })
         return items
     }

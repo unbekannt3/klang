@@ -151,7 +151,7 @@ ColumnLayout {
                 spacing: 2
 
                 Text {
-                    text: "Preview"
+                    text: Tr.t("Preview")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeSm
                     font.weight: Font.DemiBold

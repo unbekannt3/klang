@@ -150,7 +150,7 @@ Item {
             Text {
                 anchors.centerIn: parent
                 visible: grid.count === 0 && !root.loading
-                text: root.error.length > 0 ? root.error : "Nothing here"
+                text: root.error.length > 0 ? root.error : Tr.t("Nothing here")
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeLg
                 color: Theme.textFaint

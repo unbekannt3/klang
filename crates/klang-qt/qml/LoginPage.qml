@@ -166,7 +166,7 @@ Item {
 
             Text {
                 anchors.centerIn: parent
-                text: root.auth.busy ? "Working…" : "Sign in to TIDAL"
+                text: Tr.t(root.auth.busy ? "Working…" : "Sign in to TIDAL")
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize
                 font.weight: Font.DemiBold

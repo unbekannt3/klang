@@ -58,7 +58,7 @@ pub struct NowPlayingControllerRust {
 /// hands back the raw payload rather than a typed track, so this reads it
 /// off the JSON — `rows.rs` has the same lookup for a typed `TidalTrack`,
 /// which is a different enough input not to share one function.
-fn track_mix_id(track: &serde_json::Value) -> Option<String> {
+pub(crate) fn track_mix_id(track: &serde_json::Value) -> Option<String> {
     track.get("mixes")?.get("TRACK_MIX")?.as_str().map(str::to_string)
 }
 

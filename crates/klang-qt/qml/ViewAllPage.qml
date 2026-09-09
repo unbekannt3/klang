@@ -301,7 +301,7 @@ Item {
             Text {
                 anchors.centerIn: parent
                 visible: viewAll.is_nav_section && navGrid.count === 0 && !viewAll.loading
-                text: viewAll.error.length > 0 ? viewAll.error : "Nothing here"
+                text: viewAll.error.length > 0 ? viewAll.error : Tr.t("Nothing here")
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeLg
                 color: Theme.textFaint
