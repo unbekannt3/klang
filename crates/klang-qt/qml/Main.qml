@@ -50,16 +50,22 @@ QQC2.ApplicationWindow {
     function go(route, params) {
         history.push(page)
         historyChanged()
+        forward = []
         page = { route: route, params: params || {} }
         root.nowPlayingOpen = false
         root.dropFocus()
+        // The cell that opened a card is gone with the page, so its
+        // hover never ends and the card would hang there.
+        ArtistPeek.close()
     }
 
     /// Sidebar destinations are roots, not steps — they clear the stack.
     function goRoot(route) {
         history = []
+        forward = []
         page = { route: route, params: {} }
         root.nowPlayingOpen = false
+        ArtistPeek.close()
     }
 
     readonly property var profile: JSON.parse(profileCtl.profile_json || "{}")
@@ -81,11 +87,25 @@ QQC2.ApplicationWindow {
         mediaMenu.openAt(Qt.point(x, y), content)
     }
 
+    /// Pages stepped back from, newest last, so Ctrl+] can return.
+    property var forward: []
+
     function back() {
         if (history.length === 0)
             return
+        forward.push(page)
+        forwardChanged()
         page = history.pop()
         historyChanged()
+    }
+
+    function goForward() {
+        if (forward.length === 0)
+            return
+        history.push(page)
+        historyChanged()
+        page = forward.pop()
+        forwardChanged()
     }
 
     AuthController {
@@ -158,6 +178,9 @@ QQC2.ApplicationWindow {
         settings: settingsCtl
         onSearchRequested: titleBar.focusSearch()
         onHelpRequested: root.shortcutsOpen = !root.shortcutsOpen
+        onSettingsRequested: root.goRoot("settings")
+        onBackRequested: root.back()
+        onForwardRequested: root.goForward()
         // Escape closes whatever is topmost, innermost first.
         onDismissRequested: {
             if (root.shortcutsOpen)
@@ -398,6 +421,7 @@ QQC2.ApplicationWindow {
             }
             artistId: root.page.params.artistId || 0
             onOpenAlbum: (id) => root.go("album", { albumId: id })
+            onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
             onOpenArtistTracks: (artistName) => root.go("artist-tracks", {
                 artistId: root.page.params.artistId || 0,
                 artistName: artistName

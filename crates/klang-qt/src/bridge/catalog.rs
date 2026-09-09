@@ -137,6 +137,12 @@ fn artist_row(artist: &TidalArtistDetail, bio: &str) -> serde_json::Value {
         "picture": artist.picture.clone().unwrap_or_default(),
         "bio": bio,
         "popularity": artist.popularity.unwrap_or(0),
+        // The artist's own radio, for the button beside Play.
+        "artistMix": artist
+            .mixes
+            .as_ref()
+            .and_then(|m| m.get("ARTIST_MIX"))
+            .and_then(|v| v.as_str()),
     })
 }
 

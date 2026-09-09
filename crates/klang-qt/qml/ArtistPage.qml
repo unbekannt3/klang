@@ -21,6 +21,7 @@ Item {
     signal openPlaylist(string uuid, string title)
     /// "Popular tracks" opened in full.
     signal openArtistTracks(string artistName)
+    signal openMix(string mixId, string title)
     /// A carousel opened as a grid of the cards it already holds.
     signal openItemGrid(string title, var items)
     signal itemContextRequested(var item, real x, real y)
@@ -65,6 +66,46 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: Theme.base
+    }
+
+    /// One of the header's secondary actions: icon over a pill.
+    component HeaderAction: Rectangle {
+        id: action
+        required property string label
+        property string iconName: ""
+        property bool highlighted: false
+        signal activated()
+
+        implicitWidth: actionRow.implicitWidth + Theme.spaceLg
+        implicitHeight: 40
+        radius: Theme.radiusFull
+        color: actionHover.hovered ? Theme.buttonHover : Theme.button
+
+        Row {
+            id: actionRow
+            anchors.centerIn: parent
+            spacing: Theme.spaceXs
+
+            Icon {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 16
+                height: 16
+                name: action.iconName
+                color: action.highlighted ? Theme.accent : Theme.textPrimary
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: action.label
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSize
+                font.weight: Font.DemiBold
+                color: action.highlighted ? Theme.accent : Theme.textPrimary
+            }
+        }
+
+        HoverHandler { id: actionHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onSingleTapped: action.activated() }
     }
 
     Component {
@@ -146,6 +187,40 @@ Item {
 
                     HoverHandler { id: toggleHover }
                     TapHandler { onSingleTapped: root.bioExpanded = !root.bioExpanded }
+                }
+            }
+
+            // Play, Shuffle, Follow and the artist's own radio — the row
+            // tidal.com puts under the bio.
+            RowLayout {
+                Layout.leftMargin: Theme.spaceLg
+                Layout.topMargin: Theme.spaceSm
+                Layout.bottomMargin: Theme.spaceSm
+                spacing: Theme.space
+
+                PlayActions {
+                    player: root.player
+                    tracks: catalog.artist_top_tracks_json
+                    source: "artist:" + root.artistId
+                }
+
+                HeaderAction {
+                    readonly property bool following: !!root.favorites
+                        && root.favorites.revision >= 0
+                        && root.favorites.is_artist(root.artistId)
+                    label: following ? Tr.t("Following") : Tr.t("Follow")
+                    iconName: following ? "heart-filled" : "heart"
+                    highlighted: following
+                    onActivated: if (root.favorites)
+                        root.favorites.toggle_artist(root.artistId)
+                }
+
+                HeaderAction {
+                    visible: (root.artist().artistMix || "").length > 0
+                    label: Tr.t("Artist radio")
+                    iconName: "radio"
+                    onActivated: root.openMix(root.artist().artistMix,
+                                              Tr.t("%1 Radio").arg(root.artist().name || ""))
                 }
             }
 

@@ -13,6 +13,12 @@ Item {
     signal searchRequested()
     signal helpRequested()
     signal dismissRequested()
+    signal settingsRequested()
+    signal backRequested()
+    signal forwardRequested()
+
+    /// tidal.com's step for the seek shortcuts.
+    readonly property real seekStep: 10
 
     // Matches the step AppInitializer.tsx used for volumeUp/volumeDown.
     readonly property real volumeStep: 0.1
@@ -72,6 +78,51 @@ Item {
         sequence: "Alt+R"
         autoRepeat: false
         onActivated: root.player.toggle_repeat()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Shift+Right"
+        context: Qt.ApplicationShortcut
+        onActivated: root.player.seek(
+            Math.min(root.player.duration_secs,
+                     root.player.position_secs + root.seekStep))
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Shift+Left"
+        context: Qt.ApplicationShortcut
+        onActivated: root.player.seek(
+            Math.max(0, root.player.position_secs - root.seekStep))
+    }
+
+    Shortcut {
+        sequence: "Ctrl+S"
+        context: Qt.ApplicationShortcut
+        onActivated: root.player.toggle_shuffle()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+,"
+        context: Qt.ApplicationShortcut
+        onActivated: root.settingsRequested()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+["
+        context: Qt.ApplicationShortcut
+        onActivated: root.backRequested()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+]"
+        context: Qt.ApplicationShortcut
+        onActivated: root.forwardRequested()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+F"
+        context: Qt.ApplicationShortcut
+        onActivated: root.searchRequested()
     }
 
     Shortcut {

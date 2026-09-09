@@ -155,6 +155,7 @@ QtObject {
         "Remove from library": "Aus Sammlung entfernen",
         "Follow artist": "Künstler folgen",
         "Follow": "Folgen",
+        "Artist radio": "Künstler-Radio",
         "Following": "Gefolgt",
         "Unfollow artist": "Künstler nicht mehr folgen",
         "Go to album": "Zum Album",
@@ -291,6 +292,10 @@ QtObject {
         "Visible on your profile and open to anyone.":
             "Auf deinem Profil sichtbar und für alle offen.",
         "Volume down": "Leiser",
+        "Forward 10 seconds": "10 Sekunden vor",
+        "Back 10 seconds": "10 Sekunden zurück",
+        "Forward": "Vorwärts",
+        "Back": "Zurück",
         "Volume up": "Lauter",
         "Write logs to disk": "Logs auf die Festplatte schreiben",
         "Automatic follows the system locale.": "Automatisch folgt der Systemsprache.",
