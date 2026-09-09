@@ -3865,7 +3865,7 @@ impl TidalClient {
 
         let mut url = format!(
             "{}/playlists/{}/relationships/items",
-            TIDAL_API_V2_URL, playlist_id
+            TIDAL_OPENAPI_URL, playlist_id
         );
         let mut out = Vec::new();
         // Relationship identifiers are tiny, so a real playlist fits in one
@@ -3932,7 +3932,7 @@ impl TidalClient {
             .client
             .patch(format!(
                 "{}/playlists/{}/relationships/items",
-                TIDAL_API_V2_URL, playlist_id
+                TIDAL_OPENAPI_URL, playlist_id
             ))
             .header("Authorization", format!("Bearer {}", tokens.access_token))
             .header("Content-Type", "application/vnd.api+json")
