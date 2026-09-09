@@ -19,10 +19,14 @@ BUNDLE="$DIST/klang.flatpak"
 install_after=false
 [[ "${1:-}" == "--install" ]] && install_after=true
 
-if ! command -v flatpak-builder >/dev/null; then
-  echo "flatpak-builder is missing: sudo dnf install flatpak-builder" >&2
+for tool in flatpak-builder eu-strip; do
+  command -v "$tool" >/dev/null && continue
+  # eu-strip runs on the host when the debug info is split out, and Debian's
+  # flatpak-builder does not depend on it — the build otherwise gets all the
+  # way through the Rust compile before failing.
+  echo "$tool is missing: sudo dnf install flatpak-builder elfutils" >&2
   exit 1
-fi
+done
 
 # The KDE runtime and the Rust extension come from Flathub even though the app
 # never goes there.

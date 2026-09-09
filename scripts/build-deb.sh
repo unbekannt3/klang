@@ -14,8 +14,6 @@ set -euo pipefail
 
 REPO_ROOT="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
 IMAGE="debian:trixie"
-# Rootless podman maps container root onto the invoking user, so the .deb lands
-# owned by us. Under docker it would be root-owned.
 ENGINE="${KLANG_CONTAINER_ENGINE:-podman}"
 VERSION="$(sed -n '1s/.*(\(.*\)).*/\1/p' "$REPO_ROOT/packaging/deb/changelog")"
 WORK="$REPO_ROOT/dist/deb-build"
@@ -34,6 +32,11 @@ chmod +x "$SRC/debian/rules"
 # cargo needs the network for crates.io.
 "$ENGINE" run --rm -v "$WORK:/work:z" -w "/work/$(basename "$SRC")" "$IMAGE" \
   bash -euo pipefail -c '
+    # Whatever the mount maps the calling user to, everything the build writes
+    # has to end up owned by it again, or the host cannot clean up: rootless
+    # podman sees us as root here, docker as real root the runner cannot touch.
+    trap "chown -R $(stat -c %u:%g /work) /work" EXIT
+
     export DEBIAN_FRONTEND=noninteractive
     echo "deb http://deb.debian.org/debian trixie-backports main" \
       >/etc/apt/sources.list.d/backports.list

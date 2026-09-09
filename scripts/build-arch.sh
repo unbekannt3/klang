@@ -14,8 +14,6 @@ set -euo pipefail
 REPO_ROOT="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
 PKGBUILD="$REPO_ROOT/packaging/arch/PKGBUILD"
 IMAGE="archlinux:latest"
-# Rootless podman maps container root onto the invoking user, so the package
-# lands owned by us. Under docker it would be root-owned.
 ENGINE="${KLANG_CONTAINER_ENGINE:-podman}"
 VERSION="$(sed -n 's/^pkgver=//p' "$PKGBUILD")"
 WORK="$REPO_ROOT/dist/arch-build"
@@ -33,15 +31,18 @@ cp "$PKGBUILD" "$WORK/"
 # cargo needs the network for crates.io.
 "$ENGINE" run --rm -v "$WORK:/work:z" "$IMAGE" \
   bash -euo pipefail -c '
+    # makepkg builds as its own user, so the tree has to be handed back to
+    # whatever the mount maps the caller to — rootless podman sees us as root
+    # here, docker as real root the runner cannot touch. Either way, without
+    # this the host is left with a build tree it cannot delete.
+    trap "chown -R $(stat -c %u:%g /work) /work" EXIT
+
     pacman -Syu --noconfirm --needed base-devel
     # makepkg refuses to run as root, and its --syncdeps calls pacman via sudo.
     useradd -m builder
     echo "builder ALL=(ALL) NOPASSWD: ALL" >/etc/sudoers.d/builder
     chown -R builder /work
     su builder -c "cd /work && makepkg --syncdeps --noconfirm"
-    # Rootless podman maps builder onto a subuid the host cannot touch, which
-    # leaves a build tree nothing outside the container can delete.
-    chown -R 0:0 /work
   '
 
 find "$WORK" -maxdepth 1 -name '*.pkg.tar.zst' -exec cp {} "$DIST/" \;
