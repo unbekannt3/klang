@@ -39,8 +39,11 @@ Item {
         return JSON.parse(catalog.album_credits_json || "[]")
     }
 
+    /// Always the full shape: the properties start empty and the bindings
+    /// below read `.text`/`.source` before the page endpoint answers.
     function review() {
-        return JSON.parse(catalog.album_review_json || "{}")
+        const parsed = JSON.parse(catalog.album_review_json || "{}")
+        return { text: parsed.text || "", source: parsed.source || "" }
     }
 
     onAlbumIdChanged: reload()
