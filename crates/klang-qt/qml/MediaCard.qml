@@ -21,6 +21,9 @@ Rectangle {
     property bool favorited: false
     /// Hides the hover overlay where an item cannot be played or saved.
     property bool showControls: true
+    /// FavoritesController has no endpoint for every kind — a video's heart
+    /// would be a control that does nothing.
+    property bool showFavorite: true
 
     signal activated()
     /// The hover play button, distinct from opening the item.
@@ -202,6 +205,7 @@ Rectangle {
                 }
 
                 OverlayButton {
+                    visible: root.showFavorite
                     iconName: root.favorited ? "heart-filled" : "heart"
                     iconColor: root.favorited ? Theme.accent : Theme.textOnImage
                     onActivated: root.favoriteToggled()

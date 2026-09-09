@@ -43,13 +43,16 @@ ContextMenu {
         }
     }
 
-    // Only artists (and videos, which klang does not surface as cards yet)
-    // can be blocked — albums and playlists have no blocks endpoint.
+    /// Only artists and videos can be blocked — albums and playlists have no
+    /// blocks endpoint.
+    readonly property bool blockable: !!item
+        && (item.kind === "artist" || item.kind === "video")
+
     readonly property bool blocked: {
-        if (!favorites || !item || item.kind !== "artist")
+        if (!favorites || !root.blockable)
             return false
         const _r = favorites.revision
-        return favorites.is_blocked("artist", numericId())
+        return favorites.is_blocked(item.kind, numericId())
     }
 
     function toggleFavorite() {
@@ -62,8 +65,8 @@ ContextMenu {
 
     function favoriteLabel() {
         if (item.kind === "artist")
-            return root.loved ? "Unfollow artist" : "Follow artist"
-        return root.loved ? "Remove from library" : "Add to library"
+            return Tr.t(root.loved ? "Unfollow artist" : "Follow artist")
+        return Tr.t(root.loved ? "Remove from library" : "Add to library")
     }
 
     function buildModel() {
@@ -90,10 +93,13 @@ ContextMenu {
         if (item.kind === "album" && item.artistId)
             items.push({ label: Tr.t("Go to artist"), onTriggered: () => root.goToArtistRequested(item.artistId) })
 
-        if (item.kind === "artist") {
+        if (root.blockable) {
+            const label = item.kind === "video"
+                ? (root.blocked ? "Unblock video" : "Block video")
+                : (root.blocked ? "Unblock artist" : "Block artist")
             items.push({ separator: true })
-            items.push({ label: root.blocked ? "Unblock artist" : "Block artist", icon: "block",
-                         onTriggered: () => favorites.toggle_block("artist", numericId()) })
+            items.push({ label: Tr.t(label), icon: "block",
+                         onTriggered: () => favorites.toggle_block(item.kind, numericId()) })
         }
 
         if (item.kind === "playlist") {

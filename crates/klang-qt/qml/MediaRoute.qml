@@ -12,7 +12,9 @@ QtObject {
     ///
     /// `on.play` is the fallback for kinds with no page of their own: TIDAL's
     /// own feeds label anything they do not recognise a track (see item_kind
-    /// in home.rs). Callers that only navigate leave it out.
+    /// in home.rs). Callers that only navigate leave it out, as do callers
+    /// that cannot show a video — a video is not a track and must never reach
+    /// `on.play`, which would hand its id to the audio player.
     function open(item, on) {
         switch (item.kind) {
         case "album":
@@ -23,6 +25,8 @@ QtObject {
             return on.playlist(item.id, item.title)
         case "mix":
             return on.mix(item.id, item.title)
+        case "video":
+            return on.video ? on.video(parseInt(item.id)) : undefined
         default:
             return on.play ? on.play(item) : undefined
         }

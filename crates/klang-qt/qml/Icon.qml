@@ -90,6 +90,8 @@ Item {
             return "M 4 6 L 14 6 M 4 11 L 14 11 M 4 16 L 10 16 M 17 8 L 17 19 M 17 8 L 21 7 L 21 18"
         case "block":
             return "M 12 3 A 9 9 0 1 0 12 21 A 9 9 0 1 0 12 3 M 5.6 5.6 L 18.4 18.4"
+        case "video":
+            return "M 3 6 L 15 6 L 15 18 L 3 18 Z M 15 10 L 21 7 L 21 17 L 15 14 Z"
         case "radio":
             return "M 12 12 m -1.8 0 a 1.8 1.8 0 1 0 3.6 0 a 1.8 1.8 0 1 0 -3.6 0 M 7 7.5 A 6.5 6.5 0 0 0 7 16.5 M 17 16.5 A 6.5 6.5 0 0 0 17 7.5"
         }

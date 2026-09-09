@@ -61,6 +61,12 @@ QQC2.ApplicationWindow {
         root.go("view-all", { apiPath: section.apiPath || "", title: section.title || "" })
     }
 
+    /// Hand a video to the takeover player. Videos are not tracks and never
+    /// enter the audio queue; VideoController pauses the audio itself.
+    function playVideo(videoId) {
+        videoCtl.load_video(videoId, "HIGH", authCtl.user_id)
+    }
+
     /// Open the shared card menu at a point in the content area.
     function openMediaMenu(item, x, y) {
         mediaMenu.item = item
@@ -214,6 +220,7 @@ QQC2.ApplicationWindow {
                         case "fav-albums":    return favAlbumsPage
                         case "fav-artists":   return favArtistsPage
                         case "fav-playlists": return favPlaylistsPage
+                        case "fav-videos":    return favVideosPage
                         default:          return favoritesPage
                     }
                 }
@@ -307,6 +314,7 @@ QQC2.ApplicationWindow {
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+            onOpenVideo: (id) => root.playVideo(id)
         }
     }
 
@@ -518,6 +526,30 @@ QQC2.ApplicationWindow {
     }
 
     MixController { id: mixCtl }
+
+    // Videos are the one collection ViewAllPage cannot serve: TIDAL's
+    // favourite-videos endpoint reports no total, so there is nothing to
+    // paginate against — LibraryController reads the whole list instead.
+    Component {
+        id: favVideosPage
+
+        MediaGridPage {
+            player: playerCtl
+            favorites: favoritesCtl
+            title: Tr.t("Videos")
+            scrollKey: "fav-videos"
+            items: videoLibrary.videos_json
+            loading: videoLibrary.loading
+            error: videoLibrary.error
+            onOpenVideo: (id) => root.playVideo(id)
+            onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
+
+            LibraryController { id: videoLibrary }
+
+            Component.onCompleted: if (authCtl.user_id !== 0)
+                videoLibrary.load_videos(authCtl.user_id)
+        }
+    }
 
     TrackContextMenu {
         id: trackMenu

@@ -350,6 +350,7 @@ Rectangle {
         NavItem { route: "fav-albums";    label: Tr.t("Albums");    iconName: "album" }
         NavItem { route: "fav-artists";   label: Tr.t("Artists");   iconName: "artist" }
         NavItem { route: "fav-playlists"; label: Tr.t("Playlists"); iconName: "playlist" }
+        NavItem { route: "fav-videos";    label: Tr.t("Videos");    iconName: "video" }
         NavItem { route: "settings";      label: Tr.t("Settings");  iconName: "settings" }
 
         // Divider

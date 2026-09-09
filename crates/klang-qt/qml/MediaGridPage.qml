@@ -24,6 +24,7 @@ Item {
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
     signal openMix(string mixId, string title)
+    signal openVideo(int videoId)
     /// Right-click on a card, in this page's coordinates.
     signal itemContextRequested(var item, real x, real y)
 
@@ -39,6 +40,7 @@ Item {
             artist: root.openArtist,
             playlist: root.openPlaylist,
             mix: root.openMix,
+            video: root.openVideo,
             play: (it) => root.player.play(parseInt(it.id), it.title, it.subtitle, 0, it.image),
         })
     }
@@ -106,8 +108,7 @@ Item {
                     MediaCard {
                         anchors.fill: parent
 
-                        // Mixes have no favourite endpoint; the heart is hidden for them
-                        // rather than shown inert.
+                        // Mixes have no favourite endpoint (see showFavorite below).
                         readonly property bool inLibrary: {
                             if (!root.favorites || !cell.modelData)
                                 return false
@@ -135,7 +136,10 @@ Item {
                         image: cell.modelData.image || ""
                         kind: cell.modelData.kind || "album"
                         favorited: inLibrary
-                        showControls: !!root.favorites || cell.modelData.kind !== "mix"
+                        // Mixes and videos have no favourite endpoint in
+                        // FavoritesController, so their hearts would do nothing.
+                        showFavorite: !!root.favorites
+                                      && ["album", "artist", "playlist"].indexOf(cell.modelData.kind) >= 0
                         onFavoriteToggled: toggleFavorite()
                         onActivated: root.activate(cell.modelData)
                         onPlayRequested: root.activate(cell.modelData)

@@ -64,7 +64,7 @@ pub mod qobject {
 
         /// Load favourite videos as card rows (`videos_json`).
         #[qinvokable]
-        fn load_videos(self: Pin<&mut LibraryController>, user_id: i64, limit: i32);
+        fn load_videos(self: Pin<&mut LibraryController>, user_id: i64);
 
         /// Load favourite mixes as card rows (`mixes_json`). Mixes are not
         /// keyed by user id — see `load_mixes`.
@@ -187,6 +187,11 @@ fn playlist_card_row(playlist: &TidalPlaylist) -> Value {
         "kind": "playlist",
     })
 }
+
+/// TIDAL's favourites endpoint pages like the rest; `VIDEO_LIMIT` only stops
+/// a library nobody could scroll through from paging forever.
+const VIDEO_PAGE: u32 = 50;
+const VIDEO_LIMIT: usize = 1000;
 
 fn video_card_row(video: &TidalVideo) -> Value {
     json!({
@@ -410,29 +415,44 @@ impl qobject::LibraryController {
 
     /// `get_favorite_videos` takes no `app_handle` and returns a plain
     /// `Vec` — unlike the others, it isn't disk-cached with a background
-    /// refresh.
-    pub fn load_videos(mut self: Pin<&mut Self>, user_id: i64, limit: i32) {
+    /// refresh, and it reports no total, so a short page is what ends this.
+    pub fn load_videos(mut self: Pin<&mut Self>, user_id: i64) {
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
         let qt = self.qt_thread();
 
         klang_core::runtime::spawn(async move {
-            let result =
-                library::get_favorite_videos(app::state(), user_id as u64, 0, limit.max(1) as u32)
-                    .await;
+            let mut videos = Vec::new();
+            let mut offset = 0u32;
+            let mut error = None;
+            loop {
+                match library::get_favorite_videos(app::state(), user_id as u64, offset, VIDEO_PAGE)
+                    .await
+                {
+                    Ok(page) => {
+                        let last = page.len() < VIDEO_PAGE as usize;
+                        videos.extend(page);
+                        if last || videos.len() >= VIDEO_LIMIT {
+                            break;
+                        }
+                        offset += VIDEO_PAGE;
+                    }
+                    // Pages already fetched are still worth showing, so this
+                    // reports the failure beside them rather than instead.
+                    Err(e) => {
+                        error = Some(e.to_string());
+                        break;
+                    }
+                }
+            }
 
             let _ = qt.queue(move |mut obj| {
                 obj.as_mut().set_loading(false);
-                match result {
-                    Ok(videos) => {
-                        let rows: Vec<_> = videos.iter().map(video_card_row).collect();
-                        let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
-                        obj.as_mut().set_videos_json(QString::from(&json));
-                    }
-                    Err(e) => {
-                        obj.as_mut().set_videos_json(QString::from("[]"));
-                        obj.as_mut().set_error(QString::from(&e.to_string()));
-                    }
+                let rows: Vec<_> = videos.iter().map(video_card_row).collect();
+                let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
+                obj.as_mut().set_videos_json(QString::from(&json));
+                if let Some(e) = error {
+                    obj.as_mut().set_error(QString::from(&e));
                 }
             });
         });

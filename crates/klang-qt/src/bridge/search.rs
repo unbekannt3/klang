@@ -30,6 +30,7 @@ pub mod qobject {
         #[qproperty(QString, albums_json)]
         #[qproperty(QString, artists_json)]
         #[qproperty(QString, playlists_json)]
+        #[qproperty(QString, videos_json)]
         type SearchController = super::SearchControllerRust;
 
         /// Search tracks, albums, artists and playlists for `query`.
@@ -53,6 +54,7 @@ pub struct SearchControllerRust {
     albums_json: QString,
     artists_json: QString,
     playlists_json: QString,
+    videos_json: QString,
     /// Typing is debounced, not cancelled, so several searches can be in
     /// flight at once; only the newest one may write its results.
     requests: RequestSeq,
@@ -110,6 +112,30 @@ fn playlist_row(playlist: &klang_core::tidal_api::TidalPlaylist) -> serde_json::
     })
 }
 
+/// Videos come back from the same search as everything else — TIDAL's own
+/// query asks for VIDEOS — and render as cards, so this is the card shape
+/// rather than a track row: a video is not playable through the audio queue.
+fn video_row(video: &klang_core::tidal_api::TidalVideo) -> serde_json::Value {
+    let artist = video
+        .artist
+        .as_ref()
+        .map(|a| a.name.clone())
+        .or_else(|| {
+            video
+                .artists
+                .as_ref()
+                .and_then(|list| list.first().map(|a| a.name.clone()))
+        })
+        .unwrap_or_default();
+    serde_json::json!({
+        "id": video.id,
+        "title": video.title,
+        "subtitle": artist,
+        "image": video.image_id.clone().unwrap_or_default(),
+        "kind": "video",
+    })
+}
+
 impl qobject::SearchController {
     pub fn search(mut self: Pin<&mut Self>, query: &QString, limit: i32) {
         let query_string = String::from(query);
@@ -135,6 +161,7 @@ impl qobject::SearchController {
                         let artists: Vec<_> = results.artists.iter().map(artist_row).collect();
                         let playlists: Vec<_> =
                             results.playlists.iter().map(playlist_row).collect();
+                        let videos: Vec<_> = results.videos.iter().map(video_row).collect();
 
                         let tracks_json =
                             serde_json::to_string(&tracks).unwrap_or_else(|_| "[]".into());
@@ -144,17 +171,21 @@ impl qobject::SearchController {
                             serde_json::to_string(&artists).unwrap_or_else(|_| "[]".into());
                         let playlists_json =
                             serde_json::to_string(&playlists).unwrap_or_else(|_| "[]".into());
+                        let videos_json =
+                            serde_json::to_string(&videos).unwrap_or_else(|_| "[]".into());
 
                         obj.as_mut().set_tracks_json(QString::from(&tracks_json));
                         obj.as_mut().set_albums_json(QString::from(&albums_json));
                         obj.as_mut().set_artists_json(QString::from(&artists_json));
                         obj.as_mut().set_playlists_json(QString::from(&playlists_json));
+                        obj.as_mut().set_videos_json(QString::from(&videos_json));
                     }
                     Err(e) => {
                         obj.as_mut().set_tracks_json(QString::from("[]"));
                         obj.as_mut().set_albums_json(QString::from("[]"));
                         obj.as_mut().set_artists_json(QString::from("[]"));
                         obj.as_mut().set_playlists_json(QString::from("[]"));
+                        obj.as_mut().set_videos_json(QString::from("[]"));
                         obj.as_mut().set_error(QString::from(&e.to_string()));
                     }
                 }
@@ -173,5 +204,6 @@ impl qobject::SearchController {
         self.as_mut().set_albums_json(QString::from("[]"));
         self.as_mut().set_artists_json(QString::from("[]"));
         self.as_mut().set_playlists_json(QString::from("[]"));
+        self.as_mut().set_videos_json(QString::from("[]"));
     }
 }

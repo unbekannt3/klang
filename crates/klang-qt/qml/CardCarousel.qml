@@ -127,8 +127,7 @@ ColumnLayout {
         delegate: MediaCard {
             required property var modelData
 
-            // Mixes have no favourite endpoint; the heart is hidden for them
-            // rather than shown inert.
+            // Mixes have no favourite endpoint (see showFavorite below).
             readonly property bool inLibrary: {
                 if (!root.favorites || !modelData)
                     return false
@@ -154,7 +153,10 @@ ColumnLayout {
             image: modelData.image || ""
             kind: modelData.kind || "album"
             favorited: inLibrary
-            showControls: !!root.favorites || modelData.kind !== "mix"
+            // Mixes and videos have no favourite endpoint in
+            // FavoritesController, so their hearts would do nothing.
+            showFavorite: !!root.favorites
+                          && ["album", "artist", "playlist"].indexOf(modelData.kind) >= 0
             onFavoriteToggled: toggleFavorite()
             onActivated: root.itemActivated(modelData)
             onPlayRequested: root.itemPlayRequested(modelData)

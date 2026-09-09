@@ -1,5 +1,5 @@
-// Catalogue search: tracks, albums, artists and playlists, grouped like
-// tidal.com's results page.
+// Catalogue search: tracks, albums, artists, playlists and videos, grouped
+// like tidal.com's results page.
 
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -19,6 +19,7 @@ Item {
     signal openAlbum(int albumId)
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
+    signal openVideo(int videoId)
 
     readonly property int searchLimit: 25
 
@@ -50,8 +51,13 @@ Item {
         kind: "playlist"
     }))
 
+    // Already card-shaped (see search.rs's video_row) — videos have no page of
+    // their own, they open the video player straight from here.
+    readonly property var videoCards: JSON.parse(search.videos_json || "[]")
+
     readonly property bool hasResults: trackRows.length > 0 || albumCards.length > 0
                                         || artistCards.length > 0 || playlistCards.length > 0
+                                        || videoCards.length > 0
 
     readonly property string emptyMessage: search.error.length > 0 ? search.error
         : (search.query.length > 0 && !hasResults ? "No results for “" + search.query + "”" : "")
@@ -120,6 +126,15 @@ Item {
                     title: Tr.t("Playlists")
                     items: root.playlistCards
                     onItemActivated: (item) => root.openPlaylist(item.id, item.title)
+                }
+
+                CardCarousel {
+                    Layout.fillWidth: true
+                    visible: root.videoCards.length > 0
+                    title: Tr.t("Videos")
+                    items: root.videoCards
+                    onItemActivated: (item) => root.openVideo(parseInt(item.id))
+                    onItemPlayRequested: (item) => root.openVideo(parseInt(item.id))
                 }
 
                 Item { Layout.preferredHeight: Theme.spaceLg }
