@@ -30,7 +30,7 @@ Item {
         sections: home.sections_json
         loading: home.loading
         error: home.error
-        emptyText: "Nothing to show yet"
+        emptyText: Tr.t("Nothing to show yet")
         onOpenAlbum: (id) => root.openAlbum(id)
         onOpenArtist: (id) => root.openArtist(id)
         onOpenPlaylist: (uuid, title) => root.openPlaylist(uuid, title)

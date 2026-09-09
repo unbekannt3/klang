@@ -81,37 +81,17 @@ Item {
         return text
     }
 
-    function trackListHeight(count) {
-        return 34 + Math.max(count, 1) * Theme.rowHeight
-    }
 
     Rectangle {
         anchors.fill: parent
         color: Theme.base
     }
 
-    Flickable {
-        id: flick
-        anchors.fill: parent
-        contentWidth: width
-        contentHeight: column.implicitHeight
-        boundsBehavior: Flickable.StopAtBounds
-        clip: true
-
-        HoverHandler { id: pageHover }
-
-        WheelScroller {
-            view: flick
-            rowHeight: Theme.rowHeight
-        }
-
-        QQC2.ScrollBar.vertical: ThemedScrollBar {
-            listHovered: pageHover.hovered
-        }
+    Component {
+        id: pageHeaderContent
 
         ColumnLayout {
-            id: column
-            width: flick.width
+            width: parent ? parent.width : 0
             spacing: Theme.spaceLg
 
             Item {
@@ -187,26 +167,16 @@ Item {
                 source: "album:" + root.albumId
             }
 
-            TrackList {
-                Layout.fillWidth: true
-                Layout.preferredHeight: root.trackListHeight(root.album().trackCount || 0)
-                tracks: catalog.album_tracks_json
-                loading: catalog.loading
-                activeId: root.player.track_id
-                favorites: root.favorites
-                onContextRequested: (index, x, y) => {
-                    const rows = JSON.parse(catalog.album_tracks_json || "[]")
-                    if (rows[index])
-                        root.trackContextRequested(rows[index], x, y)
-                }
-                numbered: true
-                showCovers: false
-                showBpm: false
-                showKey: false
-                emptyText: catalog.error.length > 0 ? catalog.error : "No tracks"
-                onTrackActivated: (index) =>
-                        root.player.play_context(catalog.album_tracks_json, index, "album:" + root.albumId)
-            }
+        }
+    }
+
+    Component {
+        id: pageFooterContent
+
+        ColumnLayout {
+            width: parent ? parent.width : 0
+            spacing: Theme.spaceLg
+
 
             Text {
                 Layout.fillWidth: true
@@ -230,7 +200,7 @@ Item {
                 visible: root.review().text.length > 0
 
                 Text {
-                    text: "About this album"
+                    text: Tr.t("About this album")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeHeading
                     font.weight: Font.Bold
@@ -268,7 +238,7 @@ Item {
                 visible: root.credits().length > 0
 
                 Text {
-                    text: "Credits"
+                    text: Tr.t("Credits")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeHeading
                     font.weight: Font.Bold
@@ -314,9 +284,29 @@ Item {
         }
     }
 
-    ScrollMemory {
-        flickable: flick
-        pageKey: "album:" + root.albumId
+    TrackList {
+        id: trackList
+        anchors.fill: parent
+        pageHeader: pageHeaderContent
+        pageFooter: pageFooterContent
+            Layout.fillWidth: true
+            tracks: catalog.album_tracks_json
+            loading: catalog.loading
+            activeId: root.player.track_id
+            favorites: root.favorites
+            onContextRequested: (index, x, y) => {
+                const rows = JSON.parse(catalog.album_tracks_json || "[]")
+                if (rows[index])
+                    root.trackContextRequested(rows[index], x, y)
+            }
+            numbered: true
+            showCovers: false
+            showBpm: false
+            showKey: false
+            emptyText: catalog.error.length > 0 ? catalog.error : "No tracks"
+            onTrackActivated: (index) =>
+                    root.player.play_context(catalog.album_tracks_json, index, "album:" + root.albumId)
+        scrollKey: "album:" + root.albumId
     }
 
 
@@ -324,7 +314,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        flickable: flick
+        flickable: trackList.scroller
         threshold: root.coverSize
         cover: root.album().cover || ""
         title: root.album().title || ""

@@ -44,9 +44,9 @@ Item {
         model: [
             { label: root.displayName, icon: "artist", onTriggered: () => root.profileRequested() },
             { separator: true },
-            { label: "Settings", icon: "settings", onTriggered: () => root.settingsRequested() },
+            { label: Tr.t("Settings"), icon: "settings", onTriggered: () => root.settingsRequested() },
             { separator: true },
-            { label: "Log out", danger: true, onTriggered: () => root.logoutRequested() },
+            { label: Tr.t("Log out"), danger: true, onTriggered: () => root.logoutRequested() },
         ]
     }
 }

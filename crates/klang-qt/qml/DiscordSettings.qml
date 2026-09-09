@@ -126,7 +126,7 @@ ColumnLayout {
                         id: tagText
                         anchors.centerIn: parent
                         text: tagPill.modelData
-                        font.family: Theme.monoFamily
+                        font.family: Theme.fontFamilyMono
                         font.pixelSize: Theme.fontSizeSm
                         color: Theme.accent
                     }

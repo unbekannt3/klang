@@ -1,7 +1,8 @@
 //! The activity feed: new releases from artists and playlists you follow.
 
+use crate::bridge::RequestSeq;
 use crate::core as app;
-use cxx_qt::Threading;
+use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use klang_core::api::feed;
 use klang_core::tidal_api::{FeedItem, FeedItemKind};
@@ -23,17 +24,16 @@ pub mod qobject {
         #[qproperty(bool, loading)]
         #[qproperty(QString, error)]
         #[qproperty(QString, items_json)]
-        #[qproperty(i32, unseen_count)]
         type FeedController = super::FeedControllerRust;
 
         /// A JSON array of `{date, label, items}` day groups, newest first.
         #[qinvokable]
         fn load(self: Pin<&mut FeedController>, user_id: i64);
 
-        /// Zero the unread badge and drop the server's cached count. Fired
-        /// once the page has been shown, independent of whether `load` (or
-        /// this) has finished — mirrors sone's separate effect for the same
-        /// reason: opening the page is what marks it seen.
+        /// Drop the server's cached unread count. Fired once the page has
+        /// been shown, independent of whether `load` (or this) has finished —
+        /// mirrors sone's separate effect for the same reason: opening the
+        /// page is what marks it seen.
         #[qinvokable]
         fn mark_seen(self: Pin<&mut FeedController>, user_id: i64);
     }
@@ -46,7 +46,7 @@ pub struct FeedControllerRust {
     loading: bool,
     error: QString,
     items_json: QString,
-    unseen_count: i32,
+    requests: RequestSeq,
 }
 
 const MONTH_NAMES: [&str; 12] = [
@@ -262,6 +262,7 @@ fn group_by_day(items: &[FeedItem]) -> Vec<Value> {
 
 impl qobject::FeedController {
     pub fn load(mut self: Pin<&mut Self>, user_id: i64) {
+        let token = self.as_mut().rust_mut().requests.start();
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
         let qt = self.qt_thread();
@@ -270,10 +271,12 @@ impl qobject::FeedController {
             let result = feed::get_feed(app::state(), user_id as u64).await;
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
                 match result {
                     Ok(response) => {
-                        obj.as_mut().set_unseen_count(response.unseen_count as i32);
                         let groups = group_by_day(&response.items);
                         let json = serde_json::to_string(&groups).unwrap_or_else(|_| "[]".into());
                         obj.as_mut().set_items_json(QString::from(&json));
@@ -287,9 +290,7 @@ impl qobject::FeedController {
         });
     }
 
-    pub fn mark_seen(mut self: Pin<&mut Self>, user_id: i64) {
-        self.as_mut().set_unseen_count(0);
-
+    pub fn mark_seen(self: Pin<&mut Self>, user_id: i64) {
         klang_core::runtime::spawn(async move {
             let result = feed::mark_feed_seen(app::state(), user_id as u64).await;
             if let Err(e) = result {

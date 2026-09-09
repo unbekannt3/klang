@@ -102,7 +102,7 @@ ColumnLayout {
                 verticalAlignment: TextInput.AlignVCenter
                 text: hexRow.value
                 maximumLength: 7
-                font.family: Theme.monoFamily
+                font.family: Theme.fontFamilyMono
                 font.pixelSize: Theme.fontSize
                 color: Theme.textPrimary
                 selectionColor: Theme.accent

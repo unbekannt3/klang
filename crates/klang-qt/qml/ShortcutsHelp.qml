@@ -53,7 +53,7 @@ Item {
                 id: keyText
                 anchors.centerIn: parent
                 text: row.keyLabel
-                font.family: Theme.monoFamily
+                font.family: Theme.fontFamilyMono
                 font.pixelSize: Theme.fontSizeSm
                 color: Theme.textSecondary
             }
@@ -71,7 +71,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "black"
+        color: Theme.overlay
         opacity: 0.55
 
         TapHandler { onSingleTapped: root.closeRequested() }

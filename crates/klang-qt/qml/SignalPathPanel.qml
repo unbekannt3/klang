@@ -20,12 +20,17 @@ Item {
 
     Keys.onEscapePressed: root.closeRequested()
 
-    onOpenChanged: {
+    // Also on completion: a caller that builds this on demand hands it `open`
+    // as an initial value, which is no property change to react to.
+    function probe() {
         if (!root.open)
             return
         root.path.attach()
         root.path.refresh()
     }
+
+    onOpenChanged: root.probe()
+    Component.onCompleted: root.probe()
 
     // Mirrors the 2 s heartbeat pipeline_probe.rs was designed for — cheap
     // enough to poll, and ALSA state can change under us (device unplugged,
@@ -99,7 +104,7 @@ Item {
             id: badgeText
             anchors.centerIn: parent
             text: parent.label
-            font.family: Theme.monoFamily
+            font.family: Theme.fontFamilyMono
             font.pixelSize: Theme.fontSizeSm - 1
             color: Theme.textSecondary
         }
@@ -128,7 +133,7 @@ Item {
             Text {
                 Layout.fillWidth: true
                 text: node.title
-                font.family: Theme.monoFamily
+                font.family: Theme.fontFamilyMono
                 font.pixelSize: Theme.fontSizeSm - 1
                 color: Theme.textFaint
             }
@@ -195,7 +200,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "black"
+        color: Theme.overlay
         opacity: 0.55
 
         TapHandler { onSingleTapped: root.closeRequested() }
@@ -241,7 +246,7 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         text: root.verdictWord
-                        font.family: Theme.monoFamily
+                        font.family: Theme.fontFamilyMono
                         font.pixelSize: Theme.fontSize
                         font.weight: Font.DemiBold
                         font.letterSpacing: 2

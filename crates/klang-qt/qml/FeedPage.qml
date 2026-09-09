@@ -15,19 +15,21 @@ Item {
     signal openAlbum(int albumId)
     signal openArtist(int artistId)
     signal openPlaylist(string uuid, string title)
+    signal openMix(string mixId, string title)
 
     FeedController { id: feed }
 
-    function groups() {
-        return JSON.parse(feed.items_json || "[]")
-    }
+    readonly property var groups: JSON.parse(feed.items_json || "[]")
 
-    // Unknown-kind rows (see feed.rs) render for visibility but don't navigate.
+    // Unknown-kind rows (see feed.rs) render for visibility but don't navigate,
+    // so no `play` fallback here.
     function activate(item) {
-        if (item.kind === "album")
-            root.openAlbum(parseInt(item.id))
-        else if (item.kind === "mix")
-            root.openPlaylist(item.id, item.title)
+        MediaRoute.open(item, {
+            album: root.openAlbum,
+            artist: root.openArtist,
+            playlist: root.openPlaylist,
+            mix: root.openMix,
+        })
     }
 
     function reload() {
@@ -85,7 +87,7 @@ Item {
         id: view
         anchors.fill: parent
         clip: true
-        model: root.groups()
+        model: root.groups
         spacing: Theme.spaceXl
         topMargin: Theme.spaceLg
         bottomMargin: Theme.spaceLg

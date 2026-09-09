@@ -73,7 +73,7 @@ Item {
                 anchors.rightMargin: Theme.space
                 verticalAlignment: TextInput.AlignVCenter
                 clip: true
-                font.family: Theme.monoFamily
+                font.family: Theme.fontFamilyMono
                 font.pixelSize: Theme.fontSizeSm
                 color: Theme.textPrimary
                 selectionColor: Theme.accent
@@ -105,7 +105,7 @@ Item {
 
             Text {
                 anchors.centerIn: parent
-                text: "Continue"
+                text: Tr.t("Continue")
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSize
                 font.weight: Font.DemiBold
@@ -128,7 +128,7 @@ Item {
                 id: codeText
                 anchors.centerIn: parent
                 text: root.auth.user_code
-                font.family: Theme.monoFamily
+                font.family: Theme.fontFamilyMono
                 font.pixelSize: 30
                 font.letterSpacing: 6
                 color: Theme.accent
@@ -178,7 +178,7 @@ Item {
         Text {
             Layout.alignment: Qt.AlignHCenter
             visible: !root.auth.awaiting_redirect && root.auth.user_code.length === 0
-            text: "Use a login code instead (no lossless)"
+            text: Tr.t("Use a login code instead (no lossless)")
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeSm
             color: codeHover.hovered ? Theme.textSecondary : Theme.textFaint
@@ -196,6 +196,7 @@ Item {
             Repeater {
                 model: 3
                 Rectangle {
+                    id: dot
                     required property int index
                     width: 8
                     height: 8
@@ -203,7 +204,12 @@ Item {
                     color: Theme.accent
 
                     SequentialAnimation on opacity {
-                        running: Theme.animated
+                        // Qt does not stop animations on hidden items, and the
+                        // page stays instantiated after sign-in — without the
+                        // visibility gate these three loop for the session and
+                        // hold the render loop open. `visible` is the resolved
+                        // value, so an invisible ancestor counts too.
+                        running: Theme.animated && dot.visible
                         loops: Animation.Infinite
                         PauseAnimation { duration: index * 160 }
                         NumberAnimation { to: 0.2; duration: 400 }

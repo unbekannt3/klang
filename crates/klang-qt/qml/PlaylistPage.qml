@@ -44,10 +44,6 @@ Item {
     }
 
     // Mirrors TrackList's own header height so it never carries a second
-    // scrollbar inside the page's Flickable. Reserve room while the first
-    // load is in flight so the spinner isn't squeezed into a sliver.
-    readonly property int trackListHeight: playlists.loading && trackRows.length === 0
-        ? 240 : 34 + trackRows.length * Theme.rowHeight
 
     function reload() {
         if (root.playlistUuid.length > 0)
@@ -62,27 +58,11 @@ Item {
         color: Theme.base
     }
 
-    Flickable {
-        id: flick
-        anchors.fill: parent
-        clip: true
-        contentWidth: width
-        contentHeight: content.implicitHeight
-
-        HoverHandler { id: flickHover }
-
-        WheelScroller {
-            view: flick
-            rowHeight: Theme.rowHeight
-        }
-
-        QQC2.ScrollBar.vertical: ThemedScrollBar {
-            listHovered: flickHover.hovered
-        }
+    Component {
+        id: header
 
         ColumnLayout {
-            id: content
-            width: flick.width
+            width: parent ? parent.width : 0
             spacing: 0
 
             Item {
@@ -176,7 +156,7 @@ Item {
                     Text {
                         id: editLabel
                         anchors.centerIn: parent
-                        text: "Edit"
+                        text: Tr.t("Edit")
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeSm
                         font.weight: Font.DemiBold
@@ -187,130 +167,123 @@ Item {
                 Item { Layout.fillWidth: true }
             }
 
-            Item {
-                id: trackListArea
-                Layout.fillWidth: true
-                Layout.preferredHeight: root.trackListHeight
+        }
+    }
 
-                TrackList {
-                    id: trackList
-                    filterable: true
-                    anchors.fill: parent
-                    tracks: playlists.tracks_json
-                    numbered: true
-                    loading: playlists.loading
-                    activeId: root.player.track_id
-                    favorites: root.favorites
-                    onContextRequested: (index, x, y) => {
-                        const rows = JSON.parse(playlists.tracks_json || "[]")
-                        if (rows[index])
-                            root.trackContextRequested(rows[index], x, y)
+    TrackList {
+        id: trackList
+        anchors.fill: parent
+        pageHeader: header
+        filterable: true
+        tracks: playlists.tracks_json
+        loading: playlists.loading
+        activeId: root.player.track_id
+        favorites: root.favorites
+        scrollKey: "playlist:" + root.playlistUuid
+        emptyText: playlists.error.length > 0 ? playlists.error
+                                              : Tr.t("This playlist has no tracks")
+        onContextRequested: (index, x, y) => {
+            const rows = JSON.parse(playlists.tracks_json || "[]")
+            if (rows[index])
+                root.trackContextRequested(rows[index], x, y)
+        }
+        onTrackActivated: (index) =>
+                root.player.play_context(playlists.tracks_json, index,
+                                         "playlist:" + root.playlistUuid)
+    }
+
+        // Drag-to-reorder overlay: the grips live in the left gutter
+        // the rows leave empty, and the drop index comes from the
+        // pointer position against the list's own row geometry rather
+        // than from reaching into its delegates.
+        Item {
+            id: reorderLayer
+            anchors.fill: parent
+            visible: root.trackRows.length > 1 && !playlists.loading
+
+            readonly property real headerHeight: trackList.rowsTop
+            property int dragFromIndex: -1
+
+            HoverHandler { id: layerHover }
+            property int dropIndex: -1
+
+            function commit() {
+                if (dragFromIndex >= 0 && dropIndex >= 0 && dropIndex !== dragFromIndex)
+                    playlists.move_track(root.playlistUuid, dragFromIndex, dropIndex)
+                dragFromIndex = -1
+                dropIndex = -1
+            }
+
+            Rectangle {
+                visible: reorderLayer.dragFromIndex >= 0
+                x: Theme.spaceLg
+                y: reorderLayer.headerHeight + reorderLayer.dragFromIndex * Theme.rowHeight
+                width: parent.width - Theme.spaceLg * 2
+                height: Theme.rowHeight
+                radius: Theme.radiusXs
+                color: Theme.hlFaint
+            }
+
+            Rectangle {
+                visible: reorderLayer.dragFromIndex >= 0 && reorderLayer.dropIndex >= 0
+                x: Theme.spaceLg
+                width: parent.width - Theme.spaceLg * 2
+                height: 2
+                radius: 1
+                color: Theme.accent
+                y: reorderLayer.headerHeight + reorderLayer.dropIndex * Theme.rowHeight
+                   + (reorderLayer.dropIndex > reorderLayer.dragFromIndex ? Theme.rowHeight : 0)
+
+                Behavior on y { NumberAnimation { duration: Theme.durationFast } }
+            }
+
+            Repeater {
+                model: root.trackRows.length
+
+                delegate: Item {
+                    id: handle
+                    required property int index
+
+                    x: 0
+                    y: reorderLayer.headerHeight + index * Theme.rowHeight
+                    width: Theme.spaceLg
+                    height: Theme.rowHeight
+
+                    HoverHandler { id: gripHover; cursorShape: Qt.SizeAllCursor }
+
+                    // Only while the pointer is over the list, so a
+                    // playlist at rest looks like every other page.
+                    Text {
+                        anchors.centerIn: parent
+                        visible: layerHover.hovered || dragHandler.active
+                        text: "⋮⋮"
+                        rotation: 90
+                        font.pixelSize: 10
+                        color: dragHandler.active ? Theme.accent
+                             : gripHover.hovered ? Theme.textSecondary : Theme.textFaint
                     }
-                    emptyText: playlists.error.length > 0 ? playlists.error : "This playlist has no tracks"
-                    onTrackActivated: (index) =>
-                            root.player.play_context(playlists.tracks_json, index, "playlist:" + root.playlistUuid)
-                }
 
-                // Drag-to-reorder overlay: the grips live in the left gutter
-                // the rows leave empty, and the drop index comes from the
-                // pointer position against the list's own row geometry rather
-                // than from reaching into its delegates.
-                Item {
-                    id: reorderLayer
-                    anchors.fill: parent
-                    visible: root.trackRows.length > 1 && !playlists.loading
-
-                    readonly property real headerHeight: trackList.rowsTop
-                    property int dragFromIndex: -1
-
-                    HoverHandler { id: layerHover }
-                    property int dropIndex: -1
-
-                    function commit() {
-                        if (dragFromIndex >= 0 && dropIndex >= 0 && dropIndex !== dragFromIndex)
-                            playlists.move_track(root.playlistUuid, dragFromIndex, dropIndex)
-                        dragFromIndex = -1
-                        dropIndex = -1
-                    }
-
-                    Rectangle {
-                        visible: reorderLayer.dragFromIndex >= 0
-                        x: Theme.spaceLg
-                        y: reorderLayer.headerHeight + reorderLayer.dragFromIndex * Theme.rowHeight
-                        width: parent.width - Theme.spaceLg * 2
-                        height: Theme.rowHeight
-                        radius: Theme.radiusXs
-                        color: Theme.hlFaint
-                    }
-
-                    Rectangle {
-                        visible: reorderLayer.dragFromIndex >= 0 && reorderLayer.dropIndex >= 0
-                        x: Theme.spaceLg
-                        width: parent.width - Theme.spaceLg * 2
-                        height: 2
-                        radius: 1
-                        color: Theme.accent
-                        y: reorderLayer.headerHeight + reorderLayer.dropIndex * Theme.rowHeight
-                           + (reorderLayer.dropIndex > reorderLayer.dragFromIndex ? Theme.rowHeight : 0)
-
-                        Behavior on y { NumberAnimation { duration: Theme.durationFast } }
-                    }
-
-                    Repeater {
-                        model: root.trackRows.length
-
-                        delegate: Item {
-                            id: handle
-                            required property int index
-
-                            x: 0
-                            y: reorderLayer.headerHeight + index * Theme.rowHeight
-                            width: Theme.spaceLg
-                            height: Theme.rowHeight
-
-                            HoverHandler { id: gripHover; cursorShape: Qt.SizeAllCursor }
-
-                            // Only while the pointer is over the list, so a
-                            // playlist at rest looks like every other page.
-                            Text {
-                                anchors.centerIn: parent
-                                visible: layerHover.hovered || dragHandler.active
-                                text: "⋮⋮"
-                                rotation: 90
-                                font.pixelSize: 10
-                                color: dragHandler.active ? Theme.accent
-                                     : gripHover.hovered ? Theme.textSecondary : Theme.textFaint
+                    DragHandler {
+                        id: dragHandler
+                        target: null
+                        onActiveChanged: {
+                            if (active) {
+                                reorderLayer.dragFromIndex = handle.index
+                                reorderLayer.dropIndex = handle.index
+                            } else {
+                                reorderLayer.commit()
                             }
-
-                            DragHandler {
-                                id: dragHandler
-                                target: null
-                                onActiveChanged: {
-                                    if (active) {
-                                        reorderLayer.dragFromIndex = handle.index
-                                        reorderLayer.dropIndex = handle.index
-                                    } else {
-                                        reorderLayer.commit()
-                                    }
-                                }
-                                onCentroidChanged: {
-                                    if (!active)
-                                        return
-                                    const p = handle.mapToItem(reorderLayer, centroid.position.x, centroid.position.y)
-                                    let idx = Math.floor((p.y - reorderLayer.headerHeight) / Theme.rowHeight)
-                                    reorderLayer.dropIndex = Math.max(0, Math.min(idx, root.trackRows.length - 1))
-                                }
-                            }
+                        }
+                        onCentroidChanged: {
+                            if (!active)
+                                return
+                            const p = handle.mapToItem(reorderLayer, centroid.position.x, centroid.position.y)
+                            let idx = Math.floor((p.y - reorderLayer.headerHeight) / Theme.rowHeight)
+                            reorderLayer.dropIndex = Math.max(0, Math.min(idx, root.trackRows.length - 1))
                         }
                     }
                 }
             }
-        }
-    }
-
-    ScrollMemory {
-        flickable: flick
-        pageKey: "playlist:" + root.playlistUuid
     }
 
     PlaylistEditDialog {
@@ -324,7 +297,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        flickable: flick
+        flickable: trackList.scroller
         threshold: 200
         cover: root.meta.image || ""
         title: root.meta.title || root.playlistTitle

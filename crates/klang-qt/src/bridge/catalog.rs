@@ -7,8 +7,10 @@
 //! albums), so those are joined concurrently with `tokio::join!` rather than
 //! awaited one after another.
 
+use crate::bridge::media_row::credit_row;
+use crate::bridge::RequestSeq;
 use crate::core as app;
-use cxx_qt::Threading;
+use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use klang_core::api::pages;
 use klang_core::tidal_api::{TidalAlbumDetail, TidalArtistDetail};
@@ -68,6 +70,12 @@ pub struct CatalogControllerRust {
     artist_json: QString,
     artist_top_tracks_json: QString,
     artist_albums_json: QString,
+
+    // One sequence per property group, so an album's slow credits response
+    // cannot land on the album the user navigated to next.
+    album_requests: RequestSeq,
+    credits_requests: RequestSeq,
+    artist_requests: RequestSeq,
 }
 
 /// An album's artist name and id. `TidalAlbumDetail.artist` is the singular
@@ -132,21 +140,9 @@ fn artist_row(artist: &TidalArtistDetail, bio: &str) -> serde_json::Value {
     })
 }
 
-/// Flatten one credit role: TIDAL groups contributors by role
-/// ("Producer", "Mixer", ...), which is how the album page lists them.
-fn credit_row(credit: &klang_core::tidal_api::TidalCredit) -> serde_json::Value {
-    serde_json::json!({
-        "role": credit.credit_type,
-        "contributors": credit
-            .contributors
-            .iter()
-            .map(|c| c.name.clone())
-            .collect::<Vec<_>>(),
-    })
-}
-
 impl qobject::CatalogController {
     pub fn load_album_credits(mut self: Pin<&mut Self>, album_id: i64) {
+        let token = self.as_mut().rust_mut().credits_requests.start();
         self.as_mut().set_album_credits_json(QString::from("[]"));
         self.as_mut().set_album_review_json(QString::from("{}"));
         let qt = self.qt_thread();
@@ -155,6 +151,9 @@ impl qobject::CatalogController {
         klang_core::runtime::spawn(async move {
             let result = pages::get_album_page(app::state(), &app::handle(), album_id).await;
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().credits_requests.is_current(token) {
+                    return;
+                }
                 let page = match result {
                     Ok(cached) => cached.page,
                     // The header and track list already rendered; a missing
@@ -180,6 +179,7 @@ impl qobject::CatalogController {
     }
 
     pub fn load_album(mut self: Pin<&mut Self>, album_id: i64) {
+        let token = self.as_mut().rust_mut().album_requests.start();
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
         let qt = self.qt_thread();
@@ -192,6 +192,9 @@ impl qobject::CatalogController {
             );
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().album_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
                 let mut errors = Vec::new();
 
@@ -227,6 +230,7 @@ impl qobject::CatalogController {
     }
 
     pub fn load_artist(mut self: Pin<&mut Self>, artist_id: i64) {
+        let token = self.as_mut().rust_mut().artist_requests.start();
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
         let qt = self.qt_thread();
@@ -245,6 +249,9 @@ impl qobject::CatalogController {
             let bio = bio_result.unwrap_or_default();
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().artist_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
                 let mut errors = Vec::new();
 

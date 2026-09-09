@@ -32,14 +32,19 @@ Item {
 
     property bool creating: false
 
-    onOpenChanged: {
-        if (!open)
+    // Also on completion: a caller that builds this on demand hands it `open`
+    // as an initial value, which is no property change to react to.
+    function reset() {
+        if (!root.open)
             return
         filterField.text = ""
-        creating = false
+        root.creating = false
         newTitleField.text = ""
         filterField.forceActiveFocus()
     }
+
+    onOpenChanged: root.reset()
+    Component.onCompleted: root.reset()
 
     function addTo(uuid) {
         root.playlists.add_track(uuid, root.trackId)
@@ -55,7 +60,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: "black"
+        color: Theme.overlay
         opacity: 0.55
 
         TapHandler {
@@ -87,7 +92,7 @@ Item {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "Add to playlist"
+                    text: Tr.t("Add to playlist")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeLg
                     font.weight: Font.DemiBold
@@ -146,7 +151,7 @@ Item {
                         anchors.fill: parent
                         verticalAlignment: Text.AlignVCenter
                         visible: !filterField.text
-                        text: "Find a playlist"
+                        text: Tr.t("Find a playlist")
                         font: filterField.font
                         color: Theme.textFaint
                     }
@@ -195,7 +200,7 @@ Item {
 
                         Text {
                             Layout.fillWidth: true
-                            text: "New playlist"
+                            text: Tr.t("New playlist")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSize
                             color: Theme.textPrimary
@@ -234,7 +239,7 @@ Item {
                                 anchors.fill: parent
                                 verticalAlignment: Text.AlignVCenter
                                 visible: !newTitleField.text
-                                text: "Playlist name"
+                                text: Tr.t("Playlist name")
                                 font: newTitleField.font
                                 color: Theme.textFaint
                             }
@@ -256,7 +261,7 @@ Item {
 
                         Text {
                             anchors.centerIn: parent
-                            text: "Create"
+                            text: Tr.t("Create")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSm
                             font.weight: Font.DemiBold

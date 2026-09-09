@@ -8,6 +8,42 @@ import QtQuick
 
 QtObject {
     readonly property var strings: ({
+        // Profile, dialogs and video
+        "Add bio": "Bio hinzufügen",
+        "Bio": "Bio",
+        "Choose picture": "Bild wählen",
+        "Choose profile picture": "Profilbild wählen",
+        "Continue": "Weiter",
+        "Couldn't load profile": "Profil konnte nicht geladen werden",
+        "Create": "Erstellen",
+        "Description": "Beschreibung",
+        "Edit profile": "Profil bearbeiten",
+        "Find a playlist": "Playlist suchen",
+        "Go back": "Zurück",
+        "Information you add to your profile will be visible to everyone on and off TIDAL.":
+            "Angaben in deinem Profil sind für alle sichtbar, auch außerhalb von TIDAL.",
+        "Link": "Link",
+        "Name": "Name",
+        "New playlist": "Neue Playlist",
+        "Not signed in": "Nicht angemeldet",
+        "Nothing to show yet": "Noch nichts zu zeigen",
+        "Playlist name": "Playlist-Name",
+        "Profile not found": "Profil nicht gefunden",
+        "Profile picture": "Profilbild",
+        "Show more": "Mehr anzeigen",
+        "Show less": "Weniger anzeigen",
+        "Sign in to view your profile.": "Melde dich an, um dein Profil zu sehen.",
+        "Social": "Soziale Netzwerke",
+        "Social media": "Soziale Netzwerke",
+        "Title": "Titel",
+        "Unable to play this video": "Dieses Video kann nicht abgespielt werden",
+        "Use a login code instead (no lossless)":
+            "Stattdessen Login-Code verwenden (kein Lossless)",
+        "Use only the letters a-z, numbers 0-9 and underscores.":
+            "Nur die Buchstaben a-z, Ziffern 0-9 und Unterstriche verwenden.",
+        "Your public profile will show links to social media accounts you add here.":
+            "Dein öffentliches Profil zeigt die hier hinterlegten Social-Media-Links.",
+
         // Navigation
         "Removes silence between consecutive tracks.":
             "Entfernt Stille zwischen aufeinanderfolgenden Titeln.",
@@ -17,6 +53,7 @@ QtObject {
             "Wirkt erst, wenn der exklusive Gerätemodus aktiv ist.",
         "When the queue runs out, keep going with a radio built from the last track.":
             "Wenn die Warteschlange leer ist, mit einem Radio aus dem letzten Titel weiterspielen.",
+        "tracks": "Titel",
         "Home": "Startseite",
         "Explore": "Entdecken",
         "Feed": "Feed",

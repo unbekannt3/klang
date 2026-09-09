@@ -6,6 +6,7 @@
 //! endpoint is the only source for the avatar shown in the header, so both
 //! consumers read the same `profile_json` instead of fetching it twice.
 
+use crate::bridge::RequestSeq;
 use crate::core as app;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QByteArray, QString};
@@ -74,6 +75,9 @@ pub struct ProfileControllerRust {
     /// The last profile loaded, kept to diff against on save (which fields
     /// actually changed) and to know which user id to reload afterwards.
     current: Option<Profile>,
+    /// The header avatar and the profile page share this controller, so a
+    /// profile the user has navigated away from must not win the race.
+    requests: RequestSeq,
 }
 
 /// Pick the hero photo href: the smallest rendition at least 640 wide, or
@@ -200,6 +204,7 @@ fn read_image_base64(path: &str) -> Result<String, SoneError> {
 
 impl qobject::ProfileController {
     pub fn load(mut self: Pin<&mut Self>, user_id: i64) {
+        let token = self.as_mut().rust_mut().requests.start();
         self.as_mut().set_loading(true);
         self.as_mut().set_not_found(false);
         self.as_mut().set_error(QString::from(""));
@@ -209,6 +214,9 @@ impl qobject::ProfileController {
         klang_core::runtime::spawn(async move {
             let result = profile::get_profile(app::state(), uid).await;
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().requests.is_current(token) {
+                    return;
+                }
                 match result {
                     Ok(p) => {
                         let json = serde_json::to_string(&profile_row(&p)).unwrap_or_else(|_| "{}".into());
@@ -243,6 +251,7 @@ impl qobject::ProfileController {
 
         self.as_mut().set_saving(true);
         self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().requests.start();
         let qt = self.qt_thread();
 
         klang_core::runtime::spawn(async move {
@@ -255,7 +264,9 @@ impl qobject::ProfileController {
             let _ = qt.queue(move |mut obj| {
                 match result {
                     Ok(()) => {
-                        if let Some(Ok(p)) = reloaded {
+                        if let (Some(Ok(p)), true) =
+                            (reloaded, obj.rust().requests.is_current(token))
+                        {
                             let json =
                                 serde_json::to_string(&profile_row(&p)).unwrap_or_else(|_| "{}".into());
                             obj.as_mut().set_profile_json(QString::from(&json));
@@ -278,6 +289,7 @@ impl qobject::ProfileController {
 
         self.as_mut().set_saving(true);
         self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().requests.start();
         let qt = self.qt_thread();
 
         klang_core::runtime::spawn(async move {
@@ -293,7 +305,9 @@ impl qobject::ProfileController {
             let _ = qt.queue(move |mut obj| {
                 match result {
                     Ok(()) => {
-                        if let Some(Ok(p)) = reloaded {
+                        if let (Some(Ok(p)), true) =
+                            (reloaded, obj.rust().requests.is_current(token))
+                        {
                             let json =
                                 serde_json::to_string(&profile_row(&p)).unwrap_or_else(|_| "{}".into());
                             obj.as_mut().set_profile_json(QString::from(&json));
@@ -313,6 +327,7 @@ impl qobject::ProfileController {
 
         self.as_mut().set_saving(true);
         self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().requests.start();
         let qt = self.qt_thread();
 
         klang_core::runtime::spawn(async move {
@@ -325,7 +340,9 @@ impl qobject::ProfileController {
             let _ = qt.queue(move |mut obj| {
                 match result {
                     Ok(()) => {
-                        if let Some(Ok(p)) = reloaded {
+                        if let (Some(Ok(p)), true) =
+                            (reloaded, obj.rust().requests.is_current(token))
+                        {
                             let json =
                                 serde_json::to_string(&profile_row(&p)).unwrap_or_else(|_| "{}".into());
                             obj.as_mut().set_profile_json(QString::from(&json));

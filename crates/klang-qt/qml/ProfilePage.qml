@@ -130,7 +130,7 @@ Item {
 
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: "Not signed in"
+            text: Tr.t("Not signed in")
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeLg
             font.weight: Font.Bold
@@ -139,7 +139,7 @@ Item {
 
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: "Sign in to view your profile."
+            text: Tr.t("Sign in to view your profile.")
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
             color: Theme.textMuted
@@ -160,7 +160,7 @@ Item {
 
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: "Profile not found"
+            text: Tr.t("Profile not found")
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeLg
             font.weight: Font.Bold
@@ -178,7 +178,7 @@ Item {
 
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: "Couldn't load profile"
+            text: Tr.t("Couldn't load profile")
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeLg
             font.weight: Font.Bold
@@ -205,7 +205,7 @@ Item {
             Text {
                 id: goBackText
                 anchors.centerIn: parent
-                text: "Go back"
+                text: Tr.t("Go back")
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeSm
                 font.weight: Font.Bold
@@ -330,7 +330,7 @@ Item {
                         Text {
                             id: addBioText
                             anchors.centerIn: parent
-                            text: "Add bio"
+                            text: Tr.t("Add bio")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSm
                             font.weight: Font.DemiBold
@@ -343,7 +343,7 @@ Item {
                         visible: !!root.profile().hasArtistId
 
                         Text {
-                            text: "Edit profile"
+                            text: Tr.t("Edit profile")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSm
                             font.weight: Font.Bold
@@ -370,7 +370,7 @@ Item {
             CardCarousel {
                 Layout.fillWidth: true
                 visible: root.playlistCards().length > 0
-                title: "Public playlists"
+                title: Tr.t("Public playlists")
                 items: root.playlistCards()
                 hasViewAll: true
                 onItemActivated: (item) => root.openPlaylist(item.id, item.title)
@@ -387,7 +387,7 @@ Item {
                 visible: root.socialLinks().length > 0
 
                 Text {
-                    text: "Social"
+                    text: Tr.t("Social")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeHeading
                     font.weight: Font.Bold

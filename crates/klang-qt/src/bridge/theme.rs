@@ -58,10 +58,7 @@ pub mod qobject {
         #[qproperty(QString, text_muted)]
         #[qproperty(QString, text_faint)]
         #[qproperty(QString, text_disabled)]
-        // Border / scrollbar
         #[qproperty(QString, border_subtle)]
-        #[qproperty(QString, scrollbar)]
-        #[qproperty(QString, scrollbar_hover)]
         // Highlights (adaptive overlays)
         #[qproperty(QString, hl_faint)]
         #[qproperty(QString, hl_med)]
@@ -123,8 +120,6 @@ pub struct ThemeControllerRust {
     text_faint: QString,
     text_disabled: QString,
     border_subtle: QString,
-    scrollbar: QString,
-    scrollbar_hover: QString,
     hl_faint: QString,
     hl_med: QString,
     hl_strong: QString,
@@ -202,8 +197,6 @@ fn fields_from_derived(preset_name: &str, dt: &DerivedTheme) -> ThemeControllerR
         text_faint: QString::from(&to_qml_color(&dt.text_faint)),
         text_disabled: QString::from(&to_qml_color(&dt.text_disabled)),
         border_subtle: QString::from(&to_qml_color(&dt.border_subtle)),
-        scrollbar: QString::from(&to_qml_color(&dt.scrollbar)),
-        scrollbar_hover: QString::from(&to_qml_color(&dt.scrollbar_hover)),
         hl_faint: QString::from(&to_qml_color(&dt.hl_faint)),
         hl_med: QString::from(&to_qml_color(&dt.hl_med)),
         hl_strong: QString::from(&to_qml_color(&dt.hl_strong)),
@@ -244,8 +237,6 @@ fn apply_derived(mut ctrl: Pin<&mut qobject::ThemeController>, preset_name: &str
     ctrl.as_mut().set_text_faint(f.text_faint);
     ctrl.as_mut().set_text_disabled(f.text_disabled);
     ctrl.as_mut().set_border_subtle(f.border_subtle);
-    ctrl.as_mut().set_scrollbar(f.scrollbar);
-    ctrl.as_mut().set_scrollbar_hover(f.scrollbar_hover);
     ctrl.as_mut().set_hl_faint(f.hl_faint);
     ctrl.as_mut().set_hl_med(f.hl_med);
     ctrl.as_mut().set_hl_strong(f.hl_strong);

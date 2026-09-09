@@ -6,8 +6,9 @@
 //! crosses into QML as its own JSON string that `JSON.parse` turns into a
 //! plain JS array — same walking-skeleton shortcut as the library list.
 
+use crate::bridge::RequestSeq;
 use crate::core as app;
-use cxx_qt::Threading;
+use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use klang_core::api::search;
 use std::pin::Pin;
@@ -52,6 +53,9 @@ pub struct SearchControllerRust {
     albums_json: QString,
     artists_json: QString,
     playlists_json: QString,
+    /// Typing is debounced, not cancelled, so several searches can be in
+    /// flight at once; only the newest one may write its results.
+    requests: RequestSeq,
 }
 
 /// Flatten a TIDAL track into what the list row needs. Artist comes from
@@ -109,6 +113,7 @@ fn playlist_row(playlist: &klang_core::tidal_api::TidalPlaylist) -> serde_json::
 impl qobject::SearchController {
     pub fn search(mut self: Pin<&mut Self>, query: &QString, limit: i32) {
         let query_string = String::from(query);
+        let token = self.as_mut().rust_mut().requests.start();
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
         self.as_mut().set_query(query.clone());
@@ -119,6 +124,9 @@ impl qobject::SearchController {
                 search::search_tidal(app::state(), query_string, limit.max(1) as u32).await;
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().requests.is_current(token) {
+                    return; // an answer for a query the user has since typed past
+                }
                 obj.as_mut().set_loading(false);
                 match result {
                     Ok(results) => {
@@ -155,6 +163,9 @@ impl qobject::SearchController {
     }
 
     pub fn clear(mut self: Pin<&mut Self>) {
+        // Whatever is still in flight was asked for a query that no longer
+        // exists; its answer must not repopulate the cleared lists.
+        self.as_mut().rust_mut().requests.cancel();
         self.as_mut().set_loading(false);
         self.as_mut().set_error(QString::from(""));
         self.as_mut().set_query(QString::from(""));

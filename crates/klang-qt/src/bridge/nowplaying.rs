@@ -4,6 +4,7 @@
 //! All three key off one track id and are refetched whenever it changes, so
 //! they share a controller rather than three near-identical ones.
 
+use crate::bridge::media_row::credit_row;
 use crate::core as app;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
@@ -21,12 +22,12 @@ pub mod qobject {
         #[qobject]
         #[qml_element]
         #[qproperty(bool, loading)]
+        /// Whatever of the three panels failed, joined. Empty when everything
+        /// that was asked for came back — a track with no lyrics is a success
+        /// with an empty `lyrics`, not an error.
+        #[qproperty(QString, error)]
         /// Plain text, empty when TIDAL has no lyrics for the track.
         #[qproperty(QString, lyrics)]
-        /// Timestamped lyrics, in the LRC form TIDAL returns. Empty when the
-        /// track only has the plain kind.
-        #[qproperty(QString, subtitles)]
-        #[qproperty(QString, lyrics_provider)]
         /// `[{ role, contributors: [name] }]`, same shape as the album page.
         #[qproperty(QString, credits_json)]
         /// Track rows from the track's radio mix.
@@ -44,9 +45,8 @@ pub mod qobject {
 #[derive(Default)]
 pub struct NowPlayingControllerRust {
     loading: bool,
+    error: QString,
     lyrics: QString,
-    subtitles: QString,
-    lyrics_provider: QString,
     credits_json: QString,
     suggested_json: QString,
     /// What the last `load` was for, so repeated property writes for the same
@@ -56,7 +56,8 @@ pub struct NowPlayingControllerRust {
 
 /// TIDAL nests a track's own radio under `mixes.TRACK_MIX`. `get_track`
 /// hands back the raw payload rather than a typed track, so this reads it
-/// off the JSON.
+/// off the JSON — `rows.rs` has the same lookup for a typed `TidalTrack`,
+/// which is a different enough input not to share one function.
 fn track_mix_id(track: &serde_json::Value) -> Option<String> {
     track.get("mixes")?.get("TRACK_MIX")?.as_str().map(str::to_string)
 }
@@ -85,12 +86,10 @@ impl qobject::NowPlayingController {
             // The radio id lives on the track payload rather than on
             // anything the player carries, so it takes its own lookup; a
             // track without one simply has no suggestions.
-            let mix_id = metadata::get_track(app::state(), id)
-                .await
-                .ok()
-                .and_then(|track| track_mix_id(&track));
+            let track = metadata::get_track(app::state(), id).await;
+            let mix_id = track.as_ref().ok().and_then(|t| track_mix_id(t));
             let suggested = match mix_id {
-                Some(mix_id) => pages::get_mix_items(app::state(), mix_id).await.ok(),
+                Some(mix_id) => Some(pages::get_mix_items(app::state(), mix_id).await),
                 None => None,
             };
 
@@ -100,55 +99,66 @@ impl qobject::NowPlayingController {
                     return;
                 }
                 obj.as_mut().set_loading(false);
+                let mut errors = Vec::new();
 
-                if let Ok(lyrics) = lyrics {
-                    obj.as_mut()
-                        .set_lyrics(QString::from(&lyrics.lyrics.unwrap_or_default()));
-                    obj.as_mut()
-                        .set_subtitles(QString::from(&lyrics.subtitles.unwrap_or_default()));
-                    obj.as_mut().set_lyrics_provider(QString::from(
-                        &lyrics.lyrics_provider.unwrap_or_default(),
-                    ));
+                match lyrics {
+                    Ok(lyrics) => obj
+                        .as_mut()
+                        .set_lyrics(QString::from(&lyrics.lyrics.unwrap_or_default())),
+                    Err(e) => {
+                        log::warn!("[nowplaying] lyrics for {track_id}: {e}");
+                        errors.push(e.to_string());
+                    }
                 }
 
-                if let Ok(credits) = credits {
-                    let rows: Vec<_> = credits
-                        .iter()
-                        .map(|credit| {
-                            serde_json::json!({
-                                "role": credit.credit_type,
-                                "contributors": credit
-                                    .contributors
-                                    .iter()
-                                    .map(|c| c.name.clone())
-                                    .collect::<Vec<_>>(),
-                            })
-                        })
-                        .collect();
-                    obj.as_mut().set_credits_json(QString::from(
-                        &serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into()),
-                    ));
+                match credits {
+                    Ok(credits) => {
+                        let rows: Vec<_> = credits.iter().map(credit_row).collect();
+                        obj.as_mut().set_credits_json(QString::from(
+                            &serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into()),
+                        ));
+                    }
+                    Err(e) => {
+                        log::warn!("[nowplaying] credits for {track_id}: {e}");
+                        errors.push(e.to_string());
+                    }
                 }
 
-                if let Some(mix) = suggested {
-                    let rows: Vec<_> = mix
-                        .tracks
-                        .iter()
-                        .enumerate()
-                        .map(|(i, t)| crate::rows::track(i, t))
-                        .collect();
-                    obj.as_mut().set_suggested_json(QString::from(
-                        &serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into()),
-                    ));
+                if let Err(e) = track {
+                    log::warn!("[nowplaying] track lookup for {track_id}: {e}");
+                    errors.push(e.to_string());
+                }
+
+                match suggested {
+                    Some(Ok(mix)) => {
+                        let rows: Vec<_> = mix
+                            .tracks
+                            .iter()
+                            .enumerate()
+                            .map(|(i, t)| crate::rows::track(i, t))
+                            .collect();
+                        obj.as_mut().set_suggested_json(QString::from(
+                            &serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into()),
+                        ));
+                    }
+                    Some(Err(e)) => {
+                        log::warn!("[nowplaying] radio mix for {track_id}: {e}");
+                        errors.push(e.to_string());
+                    }
+                    // No TRACK_MIX on the payload — nothing was asked for.
+                    None => {}
+                }
+
+                if !errors.is_empty() {
+                    obj.as_mut().set_error(QString::from(&errors.join("; ")));
                 }
             });
         });
     }
 
     fn clear(mut self: Pin<&mut Self>) {
+        self.as_mut().set_error(QString::default());
         self.as_mut().set_lyrics(QString::default());
-        self.as_mut().set_subtitles(QString::default());
-        self.as_mut().set_lyrics_provider(QString::default());
         self.as_mut().set_credits_json(QString::from("[]"));
         self.as_mut().set_suggested_json(QString::from("[]"));
     }

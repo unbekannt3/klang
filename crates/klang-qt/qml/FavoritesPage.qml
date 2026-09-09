@@ -21,30 +21,33 @@ Item {
             library.load_favorites(userId, 100)
     }
 
-    onUserIdChanged: reload()
-    Component.onCompleted: reload()
+    Timer {
+        id: reloadDebounce
+        interval: 0
+        onTriggered: root.reload()
+    }
+
+    onUserIdChanged: reloadDebounce.restart()
+    Component.onCompleted: reloadDebounce.restart()
 
     Rectangle {
         anchors.fill: parent
         color: Theme.base
     }
 
-    ColumnLayout {
-        anchors.fill: parent
-        spacing: 0
+    // tidal.com's own collection pages have no coloured banner: a plain
+    // title, then Play and Shuffle, then the list.
+    Component {
+        id: header
 
-        // tidal.com's own collection pages have no coloured banner: a plain
-        // title, then Play and Shuffle, then the list.
         ColumnLayout {
-            Layout.fillWidth: true
-            Layout.leftMargin: Theme.spaceLg
-            Layout.rightMargin: Theme.spaceLg
-            Layout.topMargin: Theme.spaceLg
-            Layout.bottomMargin: Theme.space
+            width: parent ? parent.width : 0
             spacing: Theme.spaceSm
 
             Text {
-                text: "Loved Tracks"
+                Layout.leftMargin: Theme.spaceLg
+                Layout.topMargin: Theme.spaceLg
+                text: Tr.t("Loved Tracks")
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeDisplay
                 font.weight: Font.Bold
@@ -52,38 +55,42 @@ Item {
             }
 
             Text {
+                Layout.leftMargin: Theme.spaceLg
                 visible: library.total > 0
-                text: library.total + " tracks"
+                text: library.total + " " + Tr.t("tracks")
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeSm
                 color: Theme.textMuted
             }
 
             PlayActions {
+                Layout.leftMargin: Theme.spaceLg
                 Layout.topMargin: Theme.spaceSm
+                Layout.bottomMargin: Theme.space
                 player: root.player
                 tracks: library.tracks_json
                 source: "favorites"
             }
         }
+    }
 
-        TrackList {
-            scrollKey: "favorites"
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            tracks: library.tracks_json
-            loading: library.loading
-            activeId: root.player.track_id
-            favorites: root.favorites
-            filterable: true
-            onContextRequested: (index, x, y) => {
-                const rows = JSON.parse(library.tracks_json || "[]")
-                if (rows[index])
-                    root.trackContextRequested(rows[index], x, y)
-            }
-            emptyText: library.error.length > 0 ? library.error : "No loved tracks yet"
-            onTrackActivated: (index) =>
-                root.player.play_context(library.tracks_json, index, "favorites")
+    TrackList {
+        anchors.fill: parent
+        scrollKey: "favorites"
+        pageHeader: header
+        tracks: library.tracks_json
+        loading: library.loading
+        activeId: root.player.track_id
+        favorites: root.favorites
+        filterable: true
+        emptyText: library.error.length > 0 ? library.error : Tr.t("Nothing here")
+        onEndReached: library.load_more_favorites()
+        onContextRequested: (index, x, y) => {
+            const rows = JSON.parse(library.tracks_json || "[]")
+            if (rows[index])
+                root.trackContextRequested(rows[index], x, y)
         }
+        onTrackActivated: (index) =>
+                root.player.play_context(library.tracks_json, index, "favorites")
     }
 }

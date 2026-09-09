@@ -69,7 +69,7 @@ ColumnLayout {
 
         Text {
             visible: root.hasViewAll
-            text: "View all"
+            text: Tr.t("View all")
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeSm
             font.weight: Font.DemiBold

@@ -38,11 +38,13 @@ Rectangle {
         anchors.fill: parent
         asynchronous: true
         cache: true
-        // Cap the texture at the drawn size, not the source resolution.
+        // Cap the texture at the drawn size, not the source resolution. The
+        // CDN bracket is picked from the same device-pixel figure, or a 2x
+        // display would fetch the bracket below what it draws and upscale.
         sourceSize.width: Math.round(root.width * Screen.devicePixelRatio)
         sourceSize.height: Math.round(root.height * Screen.devicePixelRatio)
         fillMode: Image.PreserveAspectCrop
-        source: root.url(root.uuid, root.width)
+        source: root.url(root.uuid, root.width * Screen.devicePixelRatio)
         opacity: status === Image.Ready ? 1 : 0
 
         Behavior on opacity {

@@ -29,8 +29,17 @@ QQC2.ApplicationWindow {
     // resets it, opening a detail pushes onto it.
     property var page: ({ route: "favorites", params: {} })
     property var history: []
-    property bool nowPlayingOpen: false
     readonly property string route: page.route
+
+    // Overlays are built on first open rather than at startup, so their open
+    // state has to outlive them — a Loader destroys its item.
+    property bool nowPlayingOpen: false
+    property bool shortcutsOpen: false
+    property bool signalPathOpen: false
+    property bool playlistPickerOpen: false
+    property int playlistPickerTrack: 0
+    /// Trails `nowPlayingOpen` so the panel can finish sliding out.
+    property bool nowPlayingLive: false
 
     function go(route, params) {
         history.push(page)
@@ -44,9 +53,7 @@ QQC2.ApplicationWindow {
         page = { route: route, params: {} }
     }
 
-    function profile() {
-        return JSON.parse(profileCtl.profile_json || "{}")
-    }
+    readonly property var profile: JSON.parse(profileCtl.profile_json || "{}")
 
     /// A carousel header opened in full. Sections TIDAL does not paginate
     /// carry no path, so the header is not clickable and this never fires.
@@ -118,15 +125,15 @@ QQC2.ApplicationWindow {
         favorites: favoritesCtl
         settings: settingsCtl
         onSearchRequested: titleBar.focusSearch()
-        onHelpRequested: shortcutsHelp.open = !shortcutsHelp.open
+        onHelpRequested: root.shortcutsOpen = !root.shortcutsOpen
         // Escape closes whatever is topmost, innermost first.
         onDismissRequested: {
-            if (shortcutsHelp.open)
-                shortcutsHelp.open = false
-            else if (signalPath.open)
-                signalPath.open = false
-            else if (playlistPicker.open)
-                playlistPicker.open = false
+            if (root.shortcutsOpen)
+                root.shortcutsOpen = false
+            else if (root.signalPathOpen)
+                root.signalPathOpen = false
+            else if (root.playlistPickerOpen)
+                root.playlistPickerOpen = false
             else if (root.nowPlayingOpen)
                 root.nowPlayingOpen = false
         }
@@ -143,8 +150,8 @@ QQC2.ApplicationWindow {
             window: root
             canGoBack: root.history.length > 0
             searchQuery: root.page.params.query || ""
-            avatarUrl: root.profile().avatarUrl || ""
-            displayName: root.profile().name || ""
+            avatarUrl: root.profile.avatarUrl || ""
+            displayName: root.profile.name || ""
             onProfileRequested: root.go("profile", {})
             onSettingsRequested: root.goRoot("settings")
             onLogoutRequested: authCtl.logout()
@@ -229,7 +236,7 @@ QQC2.ApplicationWindow {
             onMuteToggled: playerCtl.toggle_mute()
             onQueueRequested: root.nowPlayingOpen = !root.nowPlayingOpen
             onExpandRequested: root.nowPlayingOpen = true
-            onSignalPathRequested: signalPath.open = !signalPath.open
+            onSignalPathRequested: root.signalPathOpen = !root.signalPathOpen
             onMiniPlayerRequested: miniPlayer.visible = true
         }
     }
@@ -428,6 +435,7 @@ QQC2.ApplicationWindow {
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenArtist: (id) => root.go("artist", { artistId: id })
             onOpenPlaylist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title })
+            onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
         }
     }
 
@@ -500,8 +508,8 @@ QQC2.ApplicationWindow {
         player: playerCtl
         favorites: favoritesCtl
         onAddToPlaylistRequested: (trackId) => {
-            playlistPicker.trackId = trackId
-            playlistPicker.open = true
+            root.playlistPickerTrack = trackId
+            root.playlistPickerOpen = true
         }
         onGoToAlbumRequested: (albumId) => root.go("album", { albumId: albumId })
         onGoToArtistRequested: (artistId) => root.go("artist", { artistId: artistId })
@@ -512,47 +520,69 @@ QQC2.ApplicationWindow {
         id: mediaMenu
         item: ({})
         favorites: favoritesCtl
-        onPlayRequested: (item) => {
-            if (item.kind === "album")
-                root.go("album", { albumId: parseInt(item.id) })
-            else if (item.kind === "playlist")
-                root.go("playlist", { uuid: item.id, title: item.title })
-            else if (item.kind === "mix")
-                root.go("mix", { mixId: item.id, title: item.title })
-            else if (item.kind === "artist")
-                root.go("artist", { artistId: parseInt(item.id) })
-        }
+        onPlayRequested: (item) => MediaRoute.open(item, {
+            album: (id) => root.go("album", { albumId: id }),
+            artist: (id) => root.go("artist", { artistId: id }),
+            playlist: (uuid, title) => root.go("playlist", { uuid: uuid, title: title }),
+            mix: (mixId, title) => root.go("mix", { mixId: mixId, title: title }),
+        })
         onGoToArtistRequested: (artistId) => root.go("artist", { artistId: artistId })
         onEditRequested: (playlistId) => root.go("playlist", { uuid: playlistId, title: "" })
         onDeleteRequested: (playlistId) => playlistsCtl.remove(playlistId)
     }
 
-    AddToPlaylistDialog {
-        id: playlistPicker
+    // ---- overlays -------------------------------------------------------
+    //
+    // Each is built the first time it is opened. Built eagerly they cost real
+    // work for nothing: the picker pulls a cover per playlist, the video view
+    // allocates a QtMultimedia pipeline, and the now-playing panel holds a row
+    // and a cover fetch per queue entry.
+
+    Loader {
         anchors.fill: parent
-        playlists: playlistsCtl
-        onCloseRequested: open = false
+        active: root.playlistPickerOpen
+
+        sourceComponent: AddToPlaylistDialog {
+            playlists: playlistsCtl
+            trackId: root.playlistPickerTrack
+            open: true
+            onCloseRequested: root.playlistPickerOpen = false
+        }
     }
 
-    ShortcutsHelp {
-        id: shortcutsHelp
+    Loader {
         anchors.fill: parent
-        onCloseRequested: shortcutsHelp.open = false
+        active: root.shortcutsOpen
+
+        sourceComponent: ShortcutsHelp {
+            open: true
+            onCloseRequested: root.shortcutsOpen = false
+        }
     }
 
-    SignalPathPanel {
-        id: signalPath
+    Loader {
         anchors.fill: parent
-        player: playerCtl
-        path: signalPathCtl
-        onCloseRequested: signalPath.open = false
+        active: root.signalPathOpen
+
+        sourceComponent: SignalPathPanel {
+            player: playerCtl
+            path: signalPathCtl
+            open: true
+            onCloseRequested: root.signalPathOpen = false
+        }
     }
 
-    VideoPlayerView {
+    Loader {
         anchors.fill: parent
-        controller: videoCtl
-        userId: authCtl.user_id
-        onMinimizeRequested: videoCtl.close()
+        // Sit above everything else, including the player bar.
+        z: 1000
+        active: videoCtl.video_id !== 0
+
+        sourceComponent: VideoPlayerView {
+            controller: videoCtl
+            userId: authCtl.user_id
+            onMinimizeRequested: videoCtl.close()
+        }
     }
 
     MiniPlayerWindow {
@@ -562,19 +592,43 @@ QQC2.ApplicationWindow {
         favorites: favoritesCtl
     }
 
-    NowPlayingView {
+    // The panel slides out on close, so it has to outlive `nowPlayingOpen` by
+    // the length of that animation before the Loader takes it away.
+    onNowPlayingOpenChanged: {
+        if (root.nowPlayingOpen) {
+            nowPlayingRetire.stop()
+            root.nowPlayingLive = true
+        } else {
+            nowPlayingRetire.restart()
+        }
+    }
+
+    Timer {
+        id: nowPlayingRetire
+        interval: Theme.duration + 50
+        onTriggered: root.nowPlayingLive = false
+    }
+
+    Loader {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
         // The player bar lives in the layout, so it cannot be anchored to.
         height: parent.height - (bar.visible ? bar.height : 0)
-        player: playerCtl
-        favorites: favoritesCtl
-        open: root.nowPlayingOpen
-        onCloseRequested: root.nowPlayingOpen = false
-        onTrackContextRequested: (track, x, y) => {
-            trackMenu.track = track
-            trackMenu.openAt(Qt.point(x, y), content)
+        active: root.nowPlayingLive
+
+        // Bound after creation: as an initial value `open` would already be
+        // true on the first frame and the slide-in would never be seen.
+        onLoaded: item.open = Qt.binding(() => root.nowPlayingOpen)
+
+        sourceComponent: NowPlayingView {
+            player: playerCtl
+            favorites: favoritesCtl
+            onCloseRequested: root.nowPlayingOpen = false
+            onTrackContextRequested: (track, x, y) => {
+                trackMenu.track = track
+                trackMenu.openAt(Qt.point(x, y), content)
+            }
         }
     }
 

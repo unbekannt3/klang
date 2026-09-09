@@ -69,14 +69,14 @@ RowLayout {
     }
 
     ActionButton {
-        label: "Play"
+        label: Tr.t("Play")
         iconName: "play"
         primary: true
         onActivated: root.playAll()
     }
 
     ActionButton {
-        label: "Shuffle"
+        label: Tr.t("Shuffle")
         iconName: "shuffle"
         onActivated: root.shufflePlay()
     }

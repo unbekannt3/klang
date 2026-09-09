@@ -58,7 +58,6 @@ Item {
 
     // Mirrors TrackList's own header height so it never carries a second
     // scrollbar inside the page's Flickable.
-    readonly property int trackListHeight: 34 + trackRows.length * Theme.rowHeight
 
     function reload() {
         if (root.query.length > 0)
@@ -80,52 +79,29 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        Flickable {
-            id: flick
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            contentWidth: width
-            contentHeight: results.implicitHeight
+    Component {
+        id: pageHeaderContent
 
-            HoverHandler { id: flickHover }
+        ColumnLayout {
+            width: parent ? parent.width : 0
+            spacing: Theme.spaceLg
 
-            WheelScroller {
-                view: flick
-                rowHeight: Theme.rowHeight
-            }
+            Item { Layout.preferredHeight: Theme.spaceSm }
+        }
+    }
 
-            QQC2.ScrollBar.vertical: ThemedScrollBar {
-                listHovered: flickHover.hovered
-            }
+    Component {
+        id: pageFooterContent
 
-            ColumnLayout {
-                id: results
-                width: flick.width
-                spacing: Theme.spaceLg
+        ColumnLayout {
+            width: parent ? parent.width : 0
+            spacing: Theme.spaceLg
 
-                Item { Layout.preferredHeight: Theme.spaceSm }
-
-                TrackList {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: root.trackListHeight
-                    visible: root.trackRows.length > 0
-                    tracks: search.tracks_json
-                    activeId: root.player.track_id
-                    favorites: root.favorites
-                    onContextRequested: (index, x, y) => {
-                        const rows = JSON.parse(search.tracks_json || "[]")
-                        if (rows[index])
-                            root.trackContextRequested(rows[index], x, y)
-                    }
-                    onTrackActivated: (index) =>
-                        root.player.play_context(search.tracks_json, index, "search")
-                }
 
                 CardCarousel {
                     Layout.fillWidth: true
                     visible: root.albumCards.length > 0
-                    title: "Albums"
+                    title: Tr.t("Albums")
                     items: root.albumCards
                     onItemActivated: (item) => root.openAlbum(item.id)
                 }
@@ -133,7 +109,7 @@ Item {
                 CardCarousel {
                     Layout.fillWidth: true
                     visible: root.artistCards.length > 0
-                    title: "Artists"
+                    title: Tr.t("Artists")
                     items: root.artistCards
                     onItemActivated: (item) => root.openArtist(item.id)
                 }
@@ -141,14 +117,35 @@ Item {
                 CardCarousel {
                     Layout.fillWidth: true
                     visible: root.playlistCards.length > 0
-                    title: "Playlists"
+                    title: Tr.t("Playlists")
                     items: root.playlistCards
                     onItemActivated: (item) => root.openPlaylist(item.id, item.title)
                 }
 
                 Item { Layout.preferredHeight: Theme.spaceLg }
-            }
         }
+    }
+
+    TrackList {
+        id: trackList
+        anchors.fill: parent
+        scrollKey: "search:" + root.query
+        pageHeader: pageHeaderContent
+        pageFooter: pageFooterContent
+                Layout.fillWidth: true
+                visible: root.trackRows.length > 0
+                tracks: search.tracks_json
+                activeId: root.player.track_id
+                favorites: root.favorites
+                onContextRequested: (index, x, y) => {
+                    const rows = JSON.parse(search.tracks_json || "[]")
+                    if (rows[index])
+                        root.trackContextRequested(rows[index], x, y)
+                }
+                onTrackActivated: (index) =>
+                    root.player.play_context(search.tracks_json, index, "search")
+    }
+
     }
 
     QQC2.BusyIndicator {

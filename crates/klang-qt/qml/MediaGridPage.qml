@@ -31,25 +31,14 @@ Item {
         return items || []
     }
 
-    // Kinds without a dedicated page (e.g. a future "video" favourite) fall
-    // back to playing the item directly, same as SectionList's carousels.
     function activate(item) {
-        switch (item.kind) {
-        case "album":
-            root.openAlbum(parseInt(item.id))
-            break
-        case "artist":
-            root.openArtist(parseInt(item.id))
-            break
-        case "playlist":
-            root.openPlaylist(item.id, item.title)
-            break
-        case "mix":
-            root.openMix(item.id, item.title)
-            break
-        default:
-            root.player.play(parseInt(item.id), item.title, item.subtitle, 0, item.image)
-        }
+        MediaRoute.open(item, {
+            album: root.openAlbum,
+            artist: root.openArtist,
+            playlist: root.openPlaylist,
+            mix: root.openMix,
+            play: (it) => root.player.play(parseInt(it.id), it.title, it.subtitle, 0, it.image),
+        })
     }
 
     Rectangle {

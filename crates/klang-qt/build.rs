@@ -7,6 +7,7 @@ fn main() {
         QmlModule::new("me.unbk.klang").qml_files([
             QmlFile::from("qml/Theme.qml").singleton(true),
             QmlFile::from("qml/Format.qml").singleton(true),
+            QmlFile::from("qml/MediaRoute.qml").singleton(true),
             QmlFile::from("qml/ScrollStore.qml").singleton(true),
             QmlFile::from("qml/Tr.qml").singleton(true),
             QmlFile::from("qml/TranslationsDe.qml").singleton(true),

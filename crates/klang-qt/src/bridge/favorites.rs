@@ -85,6 +85,10 @@ pub struct FavoritesControllerRust {
     revision: i32,
     user_id: i64,
     sets: Mutex<Sets>,
+    /// `load` and `load_blocks` are fired back to back at start-up, so
+    /// `loading` is driven by how many are still out rather than by whichever
+    /// finishes first.
+    loads_in_flight: u32,
 }
 
 /// Which set a toggle acts on. Playlists key on a uuid, the rest on an id.
@@ -101,13 +105,13 @@ impl qobject::FavoritesController {
             return;
         }
         self.as_mut().rust_mut().user_id = user_id;
-        self.as_mut().set_loading(true);
+        self.as_mut().begin_load();
         let qt = self.qt_thread();
 
         klang_core::runtime::spawn(async move {
             let result = library::get_all_favorite_ids(app::state(), user_id as u64).await;
             let _ = qt.queue(move |mut obj| {
-                obj.as_mut().set_loading(false);
+                obj.as_mut().end_load();
                 match result {
                     Ok(ids) => {
                         {
@@ -125,22 +129,31 @@ impl qobject::FavoritesController {
         });
     }
 
-pub fn load_blocks(mut self: Pin<&mut Self>, user_id: i64) {
+    pub fn load_blocks(mut self: Pin<&mut Self>, user_id: i64) {
         if user_id == 0 {
             return;
         }
         self.as_mut().rust_mut().user_id = user_id;
+        self.as_mut().begin_load();
         let qt = self.qt_thread();
 
         klang_core::runtime::spawn(async move {
             let mut loaded: Vec<(String, Vec<u64>)> = Vec::new();
+            let mut errors = Vec::new();
             for kind in ["track", "artist", "video"] {
                 match library::get_blocked_ids(app::state(), user_id as u64, kind.into()).await {
                     Ok(ids) => loaded.push((kind.to_string(), ids)),
-                    Err(e) => log::warn!("blocks: could not load {kind}: {e}"),
+                    Err(e) => {
+                        log::warn!("blocks: could not load {kind}: {e}");
+                        errors.push(format!("{kind}: {e}"));
+                    }
                 }
             }
-            let _ = qt.queue(move |obj| {
+            let _ = qt.queue(move |mut obj| {
+                obj.as_mut().end_load();
+                if !errors.is_empty() {
+                    obj.as_mut().set_error(QString::from(&errors.join("; ")));
+                }
                 {
                     let mut sets = obj.rust().sets.lock().unwrap();
                     for (kind, ids) in loaded {
@@ -360,8 +373,22 @@ pub fn load_blocks(mut self: Pin<&mut Self>, user_id: i64) {
         });
     }
 
-    fn bump(mut self: Pin<&mut Self>) {
+    fn bump(self: Pin<&mut Self>) {
         let next = self.revision().wrapping_add(1);
         self.set_revision(next);
+    }
+
+    /// One more loader out; clears a stale error so a successful reload does
+    /// not leave the last failure on screen.
+    fn begin_load(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().loads_in_flight += 1;
+        self.as_mut().set_error(QString::from(""));
+        self.set_loading(true);
+    }
+
+    fn end_load(mut self: Pin<&mut Self>) {
+        let left = self.rust().loads_in_flight.saturating_sub(1);
+        self.as_mut().rust_mut().loads_in_flight = left;
+        self.set_loading(left > 0);
     }
 }

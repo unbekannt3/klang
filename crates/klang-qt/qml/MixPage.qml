@@ -109,7 +109,7 @@ Item {
             Layout.topMargin: Theme.space
             Layout.bottomMargin: Theme.spaceSm
             player: root.player
-            tracks: JSON.stringify(root.trackRows)
+            tracks: root.mixItems
             source: "mix:" + root.mixId
         }
 
@@ -127,7 +127,7 @@ Item {
             }
             emptyText: root.error.length > 0 ? root.error : "This mix has no tracks"
             onTrackActivated: (index) =>
-                root.player.play_context(JSON.stringify(root.trackRows), index, "mix:" + root.mixId)
+                root.player.play_context(root.mixItems, index, "mix:" + root.mixId)
         }
     }
 }

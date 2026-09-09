@@ -71,7 +71,7 @@ ContextMenu {
             return []
 
         const items = [
-            { label: "Play", icon: "play", onTriggered: () => root.playRequested(item) },
+            { label: Tr.t("Play"), icon: "play", onTriggered: () => root.playRequested(item) },
         ]
 
         // Mixes have no favourite endpoint in FavoritesController at all.
@@ -88,7 +88,7 @@ ContextMenu {
         // `artistId` is only on the album-detail header row (catalog.rs); a
         // carousel/search album card does not carry it.
         if (item.kind === "album" && item.artistId)
-            items.push({ label: "Go to artist", onTriggered: () => root.goToArtistRequested(item.artistId) })
+            items.push({ label: Tr.t("Go to artist"), onTriggered: () => root.goToArtistRequested(item.artistId) })
 
         if (item.kind === "artist") {
             items.push({ separator: true })
@@ -98,8 +98,8 @@ ContextMenu {
 
         if (item.kind === "playlist") {
             items.push({ separator: true })
-            items.push({ label: "Edit playlist", onTriggered: () => root.editRequested(item.id) })
-            items.push({ label: "Delete playlist", danger: true, onTriggered: () => root.deleteRequested(item.id) })
+            items.push({ label: Tr.t("Edit playlist"), onTriggered: () => root.editRequested(item.id) })
+            items.push({ label: Tr.t("Delete playlist"), danger: true, onTriggered: () => root.deleteRequested(item.id) })
         }
 
         return items

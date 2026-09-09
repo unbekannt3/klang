@@ -175,7 +175,7 @@ Rectangle {
 
                 Text {
                     text: Format.duration(root.player.position_secs)
-                    font.family: Theme.monoFamily
+                    font.family: Theme.fontFamilyMono
                     font.pixelSize: Theme.fontSizeSm
                     color: Theme.textFaint
                 }
@@ -190,7 +190,7 @@ Rectangle {
 
                 Text {
                     text: Format.duration(root.player.duration_secs)
-                    font.family: Theme.monoFamily
+                    font.family: Theme.fontFamilyMono
                     font.pixelSize: Theme.fontSizeSm
                     color: Theme.textFaint
                 }
@@ -208,9 +208,10 @@ Rectangle {
             // TIDAL brands (MAX in gold for Hi-Res) plus the real bit depth
             // and rate. Clicking it opens the signal path, as in sone.
             Rectangle {
-                readonly property bool hiRes: root.player.quality_tier === "HI_RES_LOSSLESS"
-                                           || root.player.quality_tier === "HI_RES"
-                readonly property color tierColor: hiRes ? Theme.hiRes : Theme.accent
+                // Not Format.qualityColor: that greys the lesser tiers out,
+                // while this badge keeps its accent outline whatever it says.
+                readonly property color tierColor: Format.isHiRes(root.player.quality_tier)
+                                                 ? Theme.hiRes : Theme.accent
 
                 visible: root.player.quality.length > 0
                 implicitWidth: qualityRow.implicitWidth + Theme.space

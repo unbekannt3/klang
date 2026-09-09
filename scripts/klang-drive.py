@@ -30,15 +30,20 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-BINARY = REPO / "target" / "debug" / "klang"
-PORT = 5910          # Qt's vnc plugin serves display :N on 5900+N
+# $KLANG_DRIVE_BINARY points at a copy, so a concurrent `cargo build`
+# replacing the binary cannot kill a run half-way through.
+BINARY = Path(os.environ.get("KLANG_DRIVE_BINARY",
+                             str(REPO / "target" / "debug" / "klang")))
+# Qt's vnc plugin serves display :N on 5900+N. $KLANG_DRIVE_PORT lets a
+# second session drive its own instance without fighting over the port.
+PORT = int(os.environ.get("KLANG_DRIVE_PORT", "5910"))
 SIZE = "1280x820"
 
 
 class Rfb:
     """Just enough RFB 3.8 for screenshots and synthetic input."""
 
-    def __init__(self, port: int = PORT, timeout: float = 10.0):
+    def __init__(self, port: int = PORT, timeout: float = 40.0):
         deadline = time.monotonic() + timeout
         while True:
             try:
@@ -176,8 +181,10 @@ def launch() -> subprocess.Popen:
     if not BINARY.exists():
         raise SystemExit(f"not built: {BINARY}")
     # A stale instance would keep the port and silently serve an old build.
+    # Matched on this binary's own path, not the name: a second session
+    # driving its own copy on its own port must not kill the first.
     if not port_is_free():
-        subprocess.run(["pkill", "-x", "klang"], check=False)
+        subprocess.run(["pkill", "-f", f"^{BINARY}$"], check=False)
         deadline = time.monotonic() + 5
         while not port_is_free():
             if time.monotonic() > deadline:

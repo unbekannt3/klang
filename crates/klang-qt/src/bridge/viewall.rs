@@ -5,10 +5,11 @@
 //! One controller backs all four because they share the same two shapes:
 //! a flat grid of `{id, title, subtitle, image, kind}` rows (sections,
 //! artist view-all, library favourites) or a flat list of tracks (an
-//! artist's full track list). Item flattening duplicates `home.rs`'s
-//! `item_row`/`item_kind` rather than exporting them — `home.rs` is owned by
-//! other in-flight work.
+//! artist's full track list). Item flattening is shared with `home.rs`
+//! through `bridge/media_row.rs`.
 
+use crate::bridge::media_row::{item_row, sections_to_json};
+use crate::bridge::RequestSeq;
 use crate::core as app;
 use crate::rows;
 use cxx_qt::{CxxQtType, Threading};
@@ -149,6 +150,14 @@ pub struct ViewAllControllerRust {
     library_order: String,
     library_direction: String,
     library_items: Vec<Value>,
+
+    // One sequence per independent load. `set_library_sort` in particular
+    // restarts the library list while a page fetch is still in flight, and
+    // that older page must not be appended onto the cleared vector.
+    section_requests: RequestSeq,
+    view_all_requests: RequestSeq,
+    tracks_requests: RequestSeq,
+    library_requests: RequestSeq,
 }
 
 /// `DATE`/`DESC` matches TIDAL's own default for every favourites endpoint —
@@ -178,165 +187,12 @@ impl Default for ViewAllControllerRust {
             library_order: "DATE".to_string(),
             library_direction: "DESC".to_string(),
             library_items: Vec::new(),
+            section_requests: RequestSeq::default(),
+            view_all_requests: RequestSeq::default(),
+            tracks_requests: RequestSeq::default(),
+            library_requests: RequestSeq::default(),
         }
     }
-}
-
-// ==================== Section/item flattening ====================
-//
-// Parallel to `home.rs`'s `item_row`/`item_kind` — not reused from there
-// because `home.rs` is off-limits here. Keep the two in sync by hand if the
-// row shape ever changes.
-
-/// Pull `{text}` or a bare string out of a v2 text-info field.
-fn text_info(v: &Value) -> Option<String> {
-    v.as_str()
-        .map(|s| s.to_string())
-        .or_else(|| v.get("text").and_then(|t| t.as_str()).map(|s| s.to_string()))
-}
-
-/// Entity kind of one raw item: declared `_itemType`/`type` first, then the
-/// section type, then field-shape sniffing.
-fn item_kind(item: &Value, section_type: &str) -> &'static str {
-    let declared = item
-        .get("_itemType")
-        .or_else(|| item.get("type"))
-        .and_then(|t| t.as_str())
-        .unwrap_or("");
-    match declared {
-        "MIX" => return "mix",
-        "ALBUM" => return "album",
-        "PLAYLIST" => return "playlist",
-        "ARTIST" => return "artist",
-        "TRACK" => return "track",
-        _ => {}
-    }
-
-    match section_type {
-        "MIX_LIST" => return "mix",
-        "ALBUM_LIST" => return "album",
-        "PLAYLIST_LIST" => return "playlist",
-        "ARTIST_LIST" => return "artist",
-        "TRACK_LIST" => return "track",
-        _ => {}
-    }
-
-    if item.get("mixType").is_some() || item.get("mixImages").is_some() || item.get("mixId").is_some() {
-        "mix"
-    } else if item.get("uuid").is_some() {
-        "playlist"
-    } else if item.get("cover").is_some() || item.get("numberOfTracks").is_some() {
-        "album"
-    } else if item.get("picture").is_some() && item.get("cover").is_none() {
-        "artist"
-    } else {
-        "track"
-    }
-}
-
-/// `artist.name`, falling back to the first entry of a plural `artists`
-/// array — endpoints differ in which of the two they populate.
-fn item_artist_name(item: &Value) -> Option<String> {
-    item.get("artist")
-        .and_then(|a| a.get("name").or_else(|| a.get("artistName")))
-        .and_then(|n| n.as_str())
-        .map(|s| s.to_string())
-        .or_else(|| {
-            item.get("artists")
-                .and_then(|a| a.as_array())
-                .and_then(|a| a.first())
-                .and_then(|a| a.get("name"))
-                .and_then(|n| n.as_str())
-                .map(|s| s.to_string())
-        })
-}
-
-fn item_id(item: &Value) -> String {
-    if let Some(id) = item.get("id") {
-        if let Some(n) = id.as_u64() {
-            return n.to_string();
-        }
-        if let Some(s) = id.as_str() {
-            return s.to_string();
-        }
-    }
-    item.get("uuid")
-        .and_then(|v| v.as_str())
-        .or_else(|| item.get("mixId").and_then(|v| v.as_str()))
-        .unwrap_or_default()
-        .to_string()
-}
-
-/// Flatten one raw item into `{id, title, subtitle, image, kind}`.
-fn flatten_item(item: &Value, section_type: &str) -> Value {
-    let kind = item_kind(item, section_type);
-
-    let title = match kind {
-        "artist" => item.get("name").and_then(|v| v.as_str()).map(String::from),
-        "mix" => item
-            .get("titleTextInfo")
-            .and_then(text_info)
-            .or_else(|| item.get("title").and_then(|v| v.as_str()).map(String::from)),
-        _ => item.get("title").and_then(|v| v.as_str()).map(String::from),
-    }
-    .unwrap_or_default();
-
-    let subtitle = match kind {
-        "mix" => item
-            .get("subtitleTextInfo")
-            .and_then(text_info)
-            .or_else(|| item.get("shortSubtitleTextInfo").and_then(text_info))
-            .or_else(|| item.get("subTitle").and_then(|v| v.as_str()).map(String::from)),
-        "album" | "track" => item_artist_name(item),
-        "playlist" => item
-            .get("creator")
-            .and_then(|c| c.get("name"))
-            .and_then(|n| n.as_str())
-            .map(String::from)
-            .or_else(|| {
-                item.get("numberOfTracks")
-                    .and_then(|v| v.as_u64())
-                    .map(|n| format!("{} tracks", n))
-            }),
-        _ => None,
-    }
-    .unwrap_or_default();
-
-    let image = match kind {
-        "artist" => item.get("picture").and_then(|v| v.as_str()),
-        "playlist" => item
-            .get("squareImage")
-            .and_then(|v| v.as_str())
-            .or_else(|| item.get("image").and_then(|v| v.as_str())),
-        "album" => item.get("cover").and_then(|v| v.as_str()),
-        "track" => item
-            .get("album")
-            .and_then(|a| a.get("cover"))
-            .and_then(|v| v.as_str())
-            .or_else(|| item.get("imageId").and_then(|v| v.as_str())),
-        "mix" => item
-            .get("mixImages")
-            .and_then(|v| v.as_array())
-            .and_then(|a| a.first())
-            .and_then(|img| img.get("url"))
-            .and_then(|v| v.as_str())
-            .or_else(|| {
-                item.get("artist")
-                    .and_then(|a| a.get("artistImage"))
-                    .and_then(|ai| ai.get("imageUuid"))
-                    .and_then(|v| v.as_str())
-            }),
-        _ => None,
-    }
-    .unwrap_or_default();
-
-    json!({
-        "id": item_id(item),
-        "title": title,
-        "subtitle": subtitle,
-        "image": image,
-        "kind": kind,
-    })
 }
 
 /// `get_artist_view_all`/`get_artist_top_tracks_all` wrap each row as
@@ -344,33 +200,6 @@ fn flatten_item(item: &Value, section_type: &str) -> Value {
 /// others — the same inconsistency sone's own frontend unwraps by hand.
 fn unwrap_item(item: &Value) -> Value {
     item.get("data").cloned().unwrap_or_else(|| item.clone())
-}
-
-/// Turn `HomePageSection`s into the `{title, kind, items}` shape `SectionList`
-/// already renders. Drops any section left with no rows (e.g. one whose
-/// items this bridge can't flatten at all).
-fn sections_to_carousel_json(sections: &[HomePageSection]) -> String {
-    let rows: Vec<Value> = sections
-        .iter()
-        .filter(|s| !s.title.trim().is_empty())
-        .filter_map(|s| {
-            let items: Vec<Value> = s
-                .items
-                .as_array()
-                .map(|arr| arr.iter().map(|it| flatten_item(it, &s.section_type)).collect())
-                .unwrap_or_default();
-            if items.is_empty() {
-                return None;
-            }
-            let kind = items
-                .first()
-                .and_then(|it| it.get("kind"))
-                .and_then(|k| k.as_str())
-                .unwrap_or("track");
-            Some(json!({ "title": s.title, "kind": kind, "items": items }))
-        })
-        .collect();
-    serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into())
 }
 
 /// A section is a link cloud, not media, when it's declared as one or its
@@ -527,6 +356,7 @@ async fn fetch_library_kind(
 
 impl qobject::ViewAllController {
     pub fn load_section(mut self: Pin<&mut Self>, api_path: &QString) {
+        let token = self.as_mut().rust_mut().section_requests.start();
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
         self.as_mut().set_has_more(false);
@@ -537,6 +367,9 @@ impl qobject::ViewAllController {
             let result = pages::get_page_section(app::state(), app::handle(), path).await;
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().section_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
                 match result {
                     Ok(page) => {
@@ -549,7 +382,7 @@ impl qobject::ViewAllController {
                                     .cloned()
                                     .unwrap_or_default()
                                     .into_iter()
-                                    .map(move |it| flatten_item(&it, &s.section_type))
+                                    .map(move |it| item_row(&it, &s.section_type))
                             })
                             .collect();
                         let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
@@ -565,6 +398,7 @@ impl qobject::ViewAllController {
     }
 
     pub fn load_explore_section(mut self: Pin<&mut Self>, api_path: &QString) {
+        let token = self.as_mut().rust_mut().section_requests.start();
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
         let qt = self.qt_thread();
@@ -574,6 +408,9 @@ impl qobject::ViewAllController {
             let result = pages::get_page_section(app::state(), app::handle(), path).await;
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().section_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
                 match result {
                     Ok(page) => {
@@ -595,7 +432,7 @@ impl qobject::ViewAllController {
                             obj.as_mut().set_is_nav_section(false);
                             obj.as_mut().set_nav_items_json(QString::from("[]"));
                             obj.as_mut()
-                                .set_sections_json(QString::from(&sections_to_carousel_json(&page.sections)));
+                                .set_sections_json(QString::from(&sections_to_json(&page.sections)));
                         }
                     }
                     Err(e) => {
@@ -631,7 +468,8 @@ impl qobject::ViewAllController {
         self.fetch_view_all_page();
     }
 
-    fn fetch_view_all_page(self: Pin<&mut Self>) {
+    fn fetch_view_all_page(mut self: Pin<&mut Self>) {
+        let token = self.as_mut().rust_mut().view_all_requests.start();
         let artist_id = self.rust().view_all_artist_id;
         let path = self.rust().view_all_path.clone();
         let offset = self.rust().view_all_offset;
@@ -649,13 +487,16 @@ impl qobject::ViewAllController {
             .await;
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().view_all_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
                 match result {
                     Ok(value) => {
                         let items = value.get("items").and_then(|v| v.as_array()).cloned().unwrap_or_default();
                         let page_len = items.len() as u32;
                         let flattened: Vec<Value> =
-                            items.iter().map(|it| flatten_item(&unwrap_item(it), "")).collect();
+                            items.iter().map(|it| item_row(&unwrap_item(it), "")).collect();
                         {
                             let mut rust = obj.as_mut().rust_mut();
                             rust.view_all_items.extend(flattened);
@@ -695,7 +536,8 @@ impl qobject::ViewAllController {
         self.fetch_tracks_page();
     }
 
-    fn fetch_tracks_page(self: Pin<&mut Self>) {
+    fn fetch_tracks_page(mut self: Pin<&mut Self>) {
+        let token = self.as_mut().rust_mut().tracks_requests.start();
         let artist_id = self.rust().tracks_artist_id;
         let offset = self.rust().tracks_offset;
         let qt = self.qt_thread();
@@ -706,6 +548,9 @@ impl qobject::ViewAllController {
                     .await;
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().tracks_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
                 match result {
                     Ok(value) => {
@@ -775,7 +620,8 @@ impl qobject::ViewAllController {
         self.fetch_library_page();
     }
 
-    fn fetch_library_page(self: Pin<&mut Self>) {
+    fn fetch_library_page(mut self: Pin<&mut Self>) {
+        let token = self.as_mut().rust_mut().library_requests.start();
         let kind = self.rust().library_kind.clone();
         let user_id = self.rust().library_user_id;
         let offset = self.rust().library_offset;
@@ -787,6 +633,9 @@ impl qobject::ViewAllController {
             let outcome = fetch_library_kind(&kind, user_id, offset, LIBRARY_PAGE_SIZE, order, direction).await;
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().library_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
                 match outcome {
                     Ok((page_rows, total)) => {

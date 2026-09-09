@@ -36,15 +36,6 @@ Item {
     /// seekable — swapping `source` resets QtMultimedia's own position.
     property real pendingResumeMs: -1
 
-    function qualityLabel(q) {
-        switch (q) {
-        case "HIGH": return "High"
-        case "MEDIUM": return "Medium"
-        case "LOW": return "Low"
-        default: return q
-        }
-    }
-
     function toggleFullscreen() {
         if (root.hostWindow)
             root.hostWindow.visibility = root.fullscreen ? Window.Windowed : Window.FullScreen
@@ -110,7 +101,7 @@ Item {
         Text {
             anchors.centerIn: parent
             visible: controller.error.length > 0
-            text: "Unable to play this video"
+            text: Tr.t("Unable to play this video")
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
             color: Theme.textMuted
@@ -293,7 +284,7 @@ Item {
 
                 Text {
                     text: Format.duration(mediaPlayer.position / 1000)
-                    font.family: Theme.monoFamily
+                    font.family: Theme.fontFamilyMono
                     font.pixelSize: Theme.fontSizeSm
                     color: Theme.textFaint
                 }
@@ -309,7 +300,7 @@ Item {
 
                 Text {
                     text: Format.duration(mediaPlayer.duration / 1000)
-                    font.family: Theme.monoFamily
+                    font.family: Theme.fontFamilyMono
                     font.pixelSize: Theme.fontSizeSm
                     color: Theme.textFaint
                 }
@@ -373,7 +364,7 @@ Item {
     ContextMenu {
         id: qualityMenu
         model: root.qualities.map((q) => ({
-            label: root.qualityLabel(q),
+            label: Format.qualityName(q),
             onTriggered: () => root.selectQuality(q),
         }))
     }

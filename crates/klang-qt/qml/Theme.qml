@@ -76,9 +76,9 @@ QtObject {
     // ---- type -----------------------------------------------------------
     // Square Sans Text is TIDAL's and will not resolve on a stock Fedora.
     readonly property string fontFamily: "Square Sans Text, Inter, Noto Sans, DejaVu Sans, sans-serif"
-    /// For values that are copied rather than read: tokens, URLs, ports.
+    /// For values that are copied rather than read, and for figures that must
+    /// not jitter as they count: tokens, URLs, ports, elapsed time.
     readonly property string fontFamilyMono: "JetBrains Mono, Fira Code, DejaVu Sans Mono, monospace"
-    readonly property string monoFamily: "monospace"
 
     readonly property int fontSizeSm: 12
     readonly property int fontSize: 14
@@ -86,14 +86,17 @@ QtObject {
     readonly property int fontSizeHeading: 22
     readonly property int fontSizeDisplay: 42
 
-    // Animations run only while the window has focus: a hover fade or a
-    // spinner left running in the background keeps the GPU awake for a window
-    // nobody is looking at (sone issue #191). Zero-length animations still
-    // reach their end value, so bindings stay correct either way.
     /// TIDAL's Hi-Res gold. Fixed rather than theme-derived: it is a tier
     /// marker, and the same colour in every palette is the point.
     readonly property color hiRes: "#E8C87E"
 
+    // Animations run only while the window has focus: a hover fade or a
+    // spinner left running in the background keeps the GPU awake for a window
+    // nobody is looking at (sone issue #191). Zero-length animations still
+    // reach their end value, so bindings stay correct either way.
+    //
+    // This is focus, not visibility — Qt keeps animating hidden items, so a
+    // looping animation must be gated on its own `visible` as well.
     readonly property bool animated: Qt.application.active
     readonly property int durationFast: animated ? 120 : 0
     readonly property int duration: animated ? 180 : 0

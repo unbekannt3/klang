@@ -136,7 +136,7 @@ Rectangle {
                     anchors.fill: parent
                     verticalAlignment: Text.AlignVCenter
                     visible: !search.text && !search.activeFocus
-                    text: "Search"
+                    text: Tr.t("Search")
                     font: search.font
                     color: Theme.textFaint
                 }

@@ -32,9 +32,6 @@ Item {
         return JSON.parse(viewAll.tracks_json || "[]")
     }
 
-    function trackListHeight(count) {
-        return 34 + Math.max(count, 1) * Theme.rowHeight
-    }
 
 
     Rectangle {
@@ -42,29 +39,13 @@ Item {
         color: Theme.base
     }
 
-    Flickable {
-        id: flick
-        anchors.fill: parent
-        contentWidth: width
-        contentHeight: column.implicitHeight
-        boundsBehavior: Flickable.StopAtBounds
-        clip: true
-
-        HoverHandler { id: pageHover }
-
-        WheelScroller {
-            view: flick
-            rowHeight: Theme.rowHeight
-        }
-
-        QQC2.ScrollBar.vertical: ThemedScrollBar {
-            listHovered: pageHover.hovered
-        }
+    Component {
+        id: pageHeaderContent
 
         ColumnLayout {
-            id: column
-            width: flick.width
-            spacing: Theme.space
+            width: parent ? parent.width : 0
+            spacing: Theme.spaceLg
+
 
             ColumnLayout {
                 Layout.fillWidth: true
@@ -74,7 +55,7 @@ Item {
                 spacing: Theme.spaceXs
 
                 Text {
-                    text: "Popular tracks"
+                    text: Tr.t("Popular tracks")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeDisplay
                     font.weight: Font.Bold
@@ -105,22 +86,16 @@ Item {
                 Item { Layout.fillWidth: true }
             }
 
-            TrackList {
-                Layout.fillWidth: true
-                Layout.preferredHeight: root.trackListHeight(root.tracks().length)
-                tracks: viewAll.tracks_json
-                loading: viewAll.loading
-                activeId: root.player.track_id
-                favorites: root.favorites
-                onContextRequested: (index, x, y) => {
-                    const rows = root.tracks()
-                    if (rows[index])
-                        root.trackContextRequested(rows[index], x, y)
-                }
-                emptyText: viewAll.error.length > 0 ? viewAll.error : "No tracks"
-                onTrackActivated: (index) =>
-                        root.player.play_context(viewAll.tracks_json, index, "artist-tracks:" + root.artistId)
-            }
+        }
+    }
+
+    Component {
+        id: pageFooterContent
+
+        ColumnLayout {
+            width: parent ? parent.width : 0
+            spacing: Theme.spaceLg
+
 
             Rectangle {
                 visible: viewAll.has_more
@@ -143,7 +118,7 @@ Item {
                 Text {
                     id: moreLabel
                     anchors.centerIn: parent
-                    text: "Show more"
+                    text: Tr.t("Show more")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeSm
                     font.weight: Font.DemiBold
@@ -153,8 +128,26 @@ Item {
         }
     }
 
-    ScrollMemory {
-        flickable: flick
-        pageKey: "artist-tracks:" + root.artistId
+    TrackList {
+        id: trackList
+        anchors.fill: parent
+        scrollKey: "artist-tracks:" + root.artistId
+        pageHeader: pageHeaderContent
+        pageFooter: pageFooterContent
+            Layout.fillWidth: true
+            tracks: viewAll.tracks_json
+            loading: viewAll.loading
+            activeId: root.player.track_id
+            favorites: root.favorites
+            onContextRequested: (index, x, y) => {
+                const rows = root.tracks()
+                if (rows[index])
+                    root.trackContextRequested(rows[index], x, y)
+            }
+            emptyText: viewAll.error.length > 0 ? viewAll.error : "No tracks"
+            onTrackActivated: (index) =>
+                    root.player.play_context(viewAll.tracks_json, index, "artist-tracks:" + root.artistId)
     }
+
+
 }

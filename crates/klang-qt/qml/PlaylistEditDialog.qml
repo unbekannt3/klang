@@ -75,7 +75,7 @@ Item {
 
                 Text {
                     Layout.fillWidth: true
-                    text: "Edit playlist"
+                    text: Tr.t("Edit playlist")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeLg
                     font.weight: Font.DemiBold
@@ -104,7 +104,7 @@ Item {
                 spacing: Theme.spaceXs
 
                 Text {
-                    text: "Title"
+                    text: Tr.t("Title")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeSm
                     color: Theme.textFaint
@@ -140,7 +140,7 @@ Item {
                 spacing: Theme.spaceXs
 
                 Text {
-                    text: "Description"
+                    text: Tr.t("Description")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeSm
                     color: Theme.textFaint
@@ -210,7 +210,7 @@ Item {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "Cancel"
+                        text: Tr.t("Cancel")
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeSm
                         color: Theme.textSecondary
@@ -229,7 +229,7 @@ Item {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "Save"
+                        text: Tr.t("Save")
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeSm
                         font.weight: Font.DemiBold

@@ -144,7 +144,7 @@ Item {
 
             FileDialog {
                 id: pictureDialog
-                title: "Choose profile picture"
+                title: Tr.t("Choose profile picture")
                 nameFilters: ["Images (*.png *.jpg *.jpeg)"]
                 onAccepted: {
                     panelRoot.pendingAction = "picture"
@@ -178,7 +178,7 @@ Item {
 
                         Text {
                             Layout.fillWidth: true
-                            text: "Edit profile"
+                            text: Tr.t("Edit profile")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeLg
                             font.weight: Font.Bold
@@ -217,7 +217,7 @@ Item {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: "Information you add to your profile will be visible to everyone on and off TIDAL."
+                                text: Tr.t("Information you add to your profile will be visible to everyone on and off TIDAL.")
                                 wrapMode: Text.WordWrap
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontSizeSm
@@ -241,7 +241,7 @@ Item {
                                     spacing: Theme.spaceXs
 
                                     Text {
-                                        text: "Profile picture"
+                                        text: Tr.t("Profile picture")
                                         font.family: Theme.fontFamily
                                         font.pixelSize: Theme.fontSize
                                         font.weight: Font.DemiBold
@@ -252,13 +252,13 @@ Item {
                                         spacing: Theme.spaceSm
 
                                         SettingsButton {
-                                            label: "Choose picture"
+                                            label: Tr.t("Choose picture")
                                             enabled: panelRoot.canEdit && !panelRoot.busy
                                             onClicked: pictureDialog.open()
                                         }
 
                                         SettingsButton {
-                                            label: "Delete"
+                                            label: Tr.t("Delete")
                                             enabled: panelRoot.canEdit && !panelRoot.busy
                                             onClicked: panelRoot.deletePicture()
                                         }
@@ -271,7 +271,7 @@ Item {
                                 spacing: Theme.spaceXs
 
                                 Text {
-                                    text: "Name"
+                                    text: Tr.t("Name")
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeSm
                                     font.weight: Font.DemiBold
@@ -290,7 +290,7 @@ Item {
                                 spacing: Theme.spaceXs
 
                                 Text {
-                                    text: "Username"
+                                    text: Tr.t("Username")
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeSm
                                     font.weight: Font.DemiBold
@@ -304,7 +304,7 @@ Item {
                                 }
 
                                 Text {
-                                    text: "Use only the letters a-z, numbers 0-9 and underscores."
+                                    text: Tr.t("Use only the letters a-z, numbers 0-9 and underscores.")
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeSm
                                     color: Theme.textFaint
@@ -316,7 +316,7 @@ Item {
                                 spacing: Theme.spaceXs
 
                                 Text {
-                                    text: "Link"
+                                    text: Tr.t("Link")
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeSm
                                     font.weight: Font.DemiBold
@@ -326,7 +326,7 @@ Item {
                                 SettingsField {
                                     id: websiteInput
                                     Layout.fillWidth: true
-                                    placeholder: "Link"
+                                    placeholder: Tr.t("Link")
                                     text: root.splitLinks(panelRoot.initialProfile.externalLinks || []).website
                                 }
                             }
@@ -336,7 +336,7 @@ Item {
                                 spacing: Theme.spaceXs
 
                                 Text {
-                                    text: "Bio"
+                                    text: Tr.t("Bio")
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeSm
                                     font.weight: Font.DemiBold
@@ -398,7 +398,7 @@ Item {
 
                                     Text {
                                         Layout.fillWidth: true
-                                        text: "Social media"
+                                        text: Tr.t("Social media")
                                         font.family: Theme.fontFamily
                                         font.pixelSize: Theme.fontSize
                                         color: Theme.textPrimary
@@ -495,7 +495,7 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
-                            text: "Social media"
+                            text: Tr.t("Social media")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeLg
                             font.weight: Font.Bold
@@ -535,7 +535,7 @@ Item {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: "Your public profile will show links to social media accounts you add here."
+                                text: Tr.t("Your public profile will show links to social media accounts you add here.")
                                 wrapMode: Text.WordWrap
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontSizeSm

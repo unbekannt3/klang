@@ -69,6 +69,54 @@ Item {
     readonly property string upcomingHeading: root.sourceName.length > 0
         ? "NEXT UP FROM " + root.sourceName.toUpperCase() : "NEXT UP"
 
+    // History, now playing and the two up-next lists flattened into one model
+    // so a ListView can virtualize the lot. As three Repeaters in a column, a
+    // 300-track radio built 300 rows and asked the CDN for 300 covers at once.
+    readonly property var queueModel: {
+        const rows = []
+
+        if (root.historyRows.length > 0)
+            rows.push({ type: "label", gap: Theme.spaceXl, text: "HISTORY" })
+        // History rows are a no-op: there is nothing to jump back to.
+        for (const t of root.historyRows)
+            rows.push({ type: "track", track: t, mode: "history" })
+
+        if (root.player.track_id !== 0) {
+            rows.push({ type: "label", gap: Theme.space, text: "NOW PLAYING" })
+            rows.push({ type: "track", mode: "current", track: {
+                title: root.player.title, artist: root.player.artist,
+                cover: root.player.cover, duration: root.player.duration_secs,
+            } })
+        }
+
+        const manual = root.manualRows
+        const upcoming = root.upcomingRows
+        if (manual.length > 0 || upcoming.length > 0)
+            rows.push({ type: "heading", gap: Theme.space, text: root.upcomingHeading,
+                        clearable: manual.length > 0 })
+
+        if (manual.length > 0) {
+            rows.push({ type: "label", gap: Theme.spaceXs, text: "NEXT IN QUEUE" })
+            // Index is the row's position within manualRows itself, matching
+            // jump_to's "manual" list — same convention as QueuePanel.
+            manual.forEach((t, i) => rows.push({ type: "track", track: t, mode: "manual", index: i }))
+            if (upcoming.length > 0)
+                rows.push({ type: "divider" })
+        }
+        upcoming.forEach((t, i) => rows.push({ type: "track", track: t, mode: "upcoming", index: i }))
+
+        return rows
+    }
+
+    function entryHeight(entry) {
+        switch (entry.type) {
+        case "track":   return Theme.rowHeight
+        case "label":   return entry.gap + 18
+        case "heading": return entry.gap + 22
+        }
+        return Theme.spaceSm * 2 + 1
+    }
+
     // Queue entries carry no album field (see Entry in queue.rs), so this
     // degrades to the artist alone until that changes.
     function subtitle(track) {
@@ -94,8 +142,7 @@ Item {
         signal activated()
         signal removeRequested()
 
-        Layout.fillWidth: true
-        Layout.preferredHeight: Theme.rowHeight
+        implicitHeight: Theme.rowHeight
         radius: Theme.radiusXs
         color: hover.hovered && row.interactive ? Theme.hlFaint : "transparent"
 
@@ -145,7 +192,7 @@ Item {
                     anchors.centerIn: parent
                     visible: !(row.removable && hover.hovered)
                     text: Format.duration(row.track.duration)
-                    font.family: Theme.monoFamily
+                    font.family: Theme.fontFamilyMono
                     font.pixelSize: Theme.fontSizeSm
                     color: Theme.textFaint
                 }
@@ -237,9 +284,8 @@ Item {
         return panels.loading ? "" : "No lyrics for this track"
     }
 
-    function creditRows() {
-        return JSON.parse(panels.credits_json || "[]")
-    }
+    /// Parsed once rather than per binding that reads it.
+    readonly property var creditRows: JSON.parse(panels.credits_json || "[]")
 
     component EmptyState: Item {
         id: empty
@@ -374,273 +420,262 @@ Item {
                         color: Theme.border
                     }
 
+                    // Only the visible tab exists: the suggestions list, the
+                    // lyrics and the credits are all per-track fetches nobody
+                    // asked for until they switch to them.
                     Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
 
-                        Flickable {
-                            id: flick
+                        ListView {
+                            id: queueList
                             anchors.fill: parent
                             visible: root.activeTab === 0
                             clip: true
-                            contentWidth: width
-                            contentHeight: content.implicitHeight
+                            model: root.queueModel
+                            topMargin: Theme.spaceXl
+                            bottomMargin: Theme.spaceLg
                             boundsBehavior: Flickable.StopAtBounds
+                            reuseItems: true
 
-                            HoverHandler { id: flickHover }
+                            HoverHandler { id: queueHover }
 
                             WheelScroller {
-                                view: flick
+                                view: queueList
                                 rowHeight: Theme.rowHeight
                             }
 
                             QQC2.ScrollBar.vertical: ThemedScrollBar {
-                                listHovered: flickHover.hovered
+                                listHovered: queueHover.hovered
                             }
 
-                            ColumnLayout {
-                                id: content
-                                width: flick.width
-                                spacing: Theme.spaceXs
+                            delegate: Item {
+                                id: entry
+                                required property var modelData
 
-                                Text {
-                                    Layout.fillWidth: true
-                                    Layout.topMargin: Theme.spaceXl
-                                    Layout.leftMargin: Theme.spaceLg
-                                    Layout.rightMargin: Theme.spaceLg
-                                    visible: root.historyRows.length === 0 && root.player.track_id === 0
-                                             && root.manualRows.length === 0 && root.upcomingRows.length === 0
-                                    horizontalAlignment: Text.AlignHCenter
-                                    wrapMode: Text.WordWrap
-                                    text: "Nothing playing yet"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSize
-                                    color: Theme.textFaint
-                                }
+                                width: queueList.width
+                                height: root.entryHeight(entry.modelData)
 
-                                SectionLabel {
-                                    Layout.topMargin: Theme.spaceXl
-                                    Layout.leftMargin: Theme.spaceLg
-                                    visible: root.historyRows.length > 0
-                                    text: "HISTORY"
-                                }
+                                Loader {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: Theme.spaceSm
+                                    anchors.rightMargin: Theme.spaceSm
+                                    active: entry.modelData.type === "track"
 
-                                Repeater {
-                                    model: root.historyRows
-                                    // A no-op for now: history rows have nothing to jump back to.
-                                    delegate: QueueRow {
-                                        required property var modelData
-                                        Layout.leftMargin: Theme.spaceSm
-                                        Layout.rightMargin: Theme.spaceSm
-                                        track: modelData
-                                        interactive: false
+                                    sourceComponent: QueueRow {
+                                        readonly property string mode: entry.modelData.mode
+                                        track: entry.modelData.track
+                                        active: mode === "current"
+                                        interactive: mode === "manual" || mode === "upcoming"
+                                        removable: mode === "manual"
+                                        onActivated: root.player.jump_to(entry.modelData.index,
+                                                                        mode === "manual")
+                                        onRemoveRequested: root.player.remove_queued(entry.modelData.index)
                                     }
                                 }
 
-                                SectionLabel {
-                                    Layout.topMargin: Theme.space
-                                    Layout.leftMargin: Theme.spaceLg
-                                    visible: root.player.track_id !== 0
-                                    text: "NOW PLAYING"
+                                // A Loader resizes its item to its own size, so
+                                // anything anchored inside sits in a wrapper.
+                                Loader {
+                                    anchors.fill: parent
+                                    active: entry.modelData.type === "label"
+
+                                    sourceComponent: Item {
+                                        SectionLabel {
+                                            anchors.left: parent.left
+                                            anchors.bottom: parent.bottom
+                                            anchors.leftMargin: Theme.spaceLg
+                                            text: entry.modelData.text
+                                        }
+                                    }
                                 }
 
-                                QueueRow {
-                                    Layout.leftMargin: Theme.spaceSm
-                                    Layout.rightMargin: Theme.spaceSm
-                                    visible: root.player.track_id !== 0
-                                    active: true
-                                    interactive: false
-                                    track: ({
-                                        title: root.player.title, artist: root.player.artist,
-                                        cover: root.player.cover, duration: root.player.duration_secs,
-                                    })
+                                Loader {
+                                    anchors.fill: parent
+                                    active: entry.modelData.type === "heading"
+
+                                    sourceComponent: Item {
+                                        RowLayout {
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.bottom: parent.bottom
+                                            anchors.leftMargin: Theme.spaceLg
+                                            anchors.rightMargin: Theme.spaceLg
+
+                                            SectionLabel {
+                                                Layout.fillWidth: true
+                                                text: entry.modelData.text
+                                            }
+
+                                            Text {
+                                                visible: entry.modelData.clearable
+                                                text: "Clear"
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: Theme.fontSizeSm
+                                                color: clearHover.hovered ? Theme.textPrimary
+                                                                          : Theme.textMuted
+
+                                                HoverHandler { id: clearHover }
+                                                TapHandler { onSingleTapped: root.player.clear_queue() }
+                                            }
+                                        }
+                                    }
                                 }
 
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Layout.topMargin: Theme.space
-                                    Layout.leftMargin: Theme.spaceLg
-                                    Layout.rightMargin: Theme.spaceLg
-                                    visible: root.manualRows.length > 0 || root.upcomingRows.length > 0
+                                Loader {
+                                    anchors.fill: parent
+                                    active: entry.modelData.type === "divider"
 
-                                    SectionLabel {
-                                        Layout.fillWidth: true
-                                        text: root.upcomingHeading
+                                    sourceComponent: Item {
+                                        Rectangle {
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            anchors.leftMargin: Theme.spaceLg
+                                            anchors.rightMargin: Theme.spaceLg
+                                            height: 1
+                                            color: Theme.border
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.top: parent.top
+                            anchors.topMargin: Theme.spaceXl
+                            width: parent.width - Theme.spaceLg * 2
+                            visible: root.activeTab === 0 && root.queueModel.length === 0
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            text: "Nothing playing yet"
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSize
+                            color: Theme.textFaint
+                        }
+
+                        Loader {
+                            anchors.fill: parent
+                            active: root.activeTab === 1
+
+                            sourceComponent: TrackList {
+                                tracks: panels.suggested_json
+                                loading: panels.loading
+                                activeId: root.player.track_id
+                                favorites: root.favorites
+                                showBpm: false
+                                showKey: false
+                                emptyText: "No suggestions for this track"
+                                onTrackActivated: (index) =>
+                                        root.player.play_context(panels.suggested_json, index,
+                                                                 "radio:" + root.player.track_id)
+                                onContextRequested: (index, x, y) => {
+                                    const rows = JSON.parse(panels.suggested_json || "[]")
+                                    if (rows[index])
+                                        root.trackContextRequested(rows[index], x, y)
+                                }
+                            }
+                        }
+
+                        Loader {
+                            anchors.fill: parent
+                            anchors.margins: Theme.spaceLg
+                            active: root.activeTab === 2
+
+                            sourceComponent: Flickable {
+                                id: lyricsFlick
+                                contentHeight: lyricsText.implicitHeight
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+
+                                WheelScroller {
+                                    view: lyricsFlick
+                                    rowHeight: Theme.rowHeight
+                                }
+
+                                QQC2.ScrollBar.vertical: ThemedScrollBar {
+                                    listHovered: lyricsHover.hovered
+                                }
+
+                                HoverHandler { id: lyricsHover }
+
+                                Text {
+                                    id: lyricsText
+                                    width: lyricsFlick.width
+                                    text: root.lyricsText()
+                                    wrapMode: Text.WordWrap
+                                    lineHeight: 1.5
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeLg
+                                    color: panels.lyrics.length > 0 ? Theme.textPrimary : Theme.textFaint
+                                }
+                            }
+                        }
+
+                        Loader {
+                            anchors.fill: parent
+                            anchors.margins: Theme.spaceLg
+                            active: root.activeTab === 3
+
+                            sourceComponent: Flickable {
+                                id: creditsFlick
+                                contentHeight: creditsColumn.implicitHeight
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+
+                                WheelScroller {
+                                    view: creditsFlick
+                                    rowHeight: Theme.rowHeight
+                                }
+
+                                QQC2.ScrollBar.vertical: ThemedScrollBar {
+                                    listHovered: creditsHover.hovered
+                                }
+
+                                HoverHandler { id: creditsHover }
+
+                                ColumnLayout {
+                                    id: creditsColumn
+                                    width: creditsFlick.width
+                                    spacing: Theme.space
+
+                                    Repeater {
+                                        model: root.creditRows
+
+                                        ColumnLayout {
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            spacing: 2
+
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: modelData.role
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: Theme.fontSizeSm
+                                                color: Theme.textFaint
+                                            }
+
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: modelData.contributors.join(", ")
+                                                wrapMode: Text.WordWrap
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: Theme.fontSize
+                                                color: Theme.textPrimary
+                                            }
+                                        }
                                     }
 
                                     Text {
-                                        visible: root.manualRows.length > 0
-                                        text: "Clear"
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeSm
-                                        color: clearHover.hovered ? Theme.textPrimary : Theme.textMuted
-
-                                        HoverHandler { id: clearHover }
-                                        TapHandler { onSingleTapped: root.player.clear_queue() }
-                                    }
-                                }
-
-                                SectionLabel {
-                                    Layout.topMargin: Theme.spaceXs
-                                    Layout.leftMargin: Theme.spaceLg
-                                    visible: root.manualRows.length > 0
-                                    text: "NEXT IN QUEUE"
-                                }
-
-                                // Index is the row's position within manualRows itself, matching
-                                // jump_to's "manual" list — same convention as QueuePanel.
-                                Repeater {
-                                    model: root.manualRows
-                                    delegate: QueueRow {
-                                        required property var modelData
-                                        required property int index
-                                        Layout.leftMargin: Theme.spaceSm
-                                        Layout.rightMargin: Theme.spaceSm
-                                        track: modelData
-                                        removable: true
-                                        onActivated: root.player.jump_to(index, true)
-                                        onRemoveRequested: root.player.remove_queued(index)
-                                    }
-                                }
-
-                                Rectangle {
-                                    Layout.fillWidth: true
-                                    Layout.topMargin: Theme.spaceSm
-                                    Layout.leftMargin: Theme.spaceLg
-                                    Layout.rightMargin: Theme.spaceLg
-                                    visible: root.manualRows.length > 0 && root.upcomingRows.length > 0
-                                    height: 1
-                                    color: Theme.border
-                                }
-
-                                Repeater {
-                                    model: root.upcomingRows
-                                    delegate: QueueRow {
-                                        required property var modelData
-                                        required property int index
-                                        Layout.leftMargin: Theme.spaceSm
-                                        Layout.rightMargin: Theme.spaceSm
-                                        track: modelData
-                                        onActivated: root.player.jump_to(index, false)
-                                    }
-                                }
-
-                                Item { Layout.preferredHeight: Theme.spaceLg }
-                            }
-                        }
-
-                        TrackList {
-                            anchors.fill: parent
-                            visible: root.activeTab === 1
-                            tracks: panels.suggested_json
-                            loading: panels.loading
-                            activeId: root.player.track_id
-                            favorites: root.favorites
-                            showBpm: false
-                            showKey: false
-                            emptyText: "No suggestions for this track"
-                            onTrackActivated: (index) =>
-                                    root.player.play_context(panels.suggested_json, index,
-                                                             "radio:" + root.player.track_id)
-                            onContextRequested: (index, x, y) => {
-                                const rows = JSON.parse(panels.suggested_json || "[]")
-                                if (rows[index])
-                                    root.trackContextRequested(rows[index], x, y)
-                            }
-                        }
-
-                        Flickable {
-                            id: lyricsFlick
-                            anchors.fill: parent
-                            anchors.margins: Theme.spaceLg
-                            visible: root.activeTab === 2
-                            contentHeight: lyricsText.implicitHeight
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-
-                            WheelScroller {
-                                view: lyricsFlick
-                                rowHeight: Theme.rowHeight
-                            }
-
-                            QQC2.ScrollBar.vertical: ThemedScrollBar {
-                                listHovered: lyricsHover.hovered
-                            }
-
-                            HoverHandler { id: lyricsHover }
-
-                            Text {
-                                id: lyricsText
-                                width: lyricsFlick.width
-                                text: root.lyricsText()
-                                wrapMode: Text.WordWrap
-                                lineHeight: 1.5
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontSizeLg
-                                color: panels.lyrics.length > 0 ? Theme.textPrimary : Theme.textFaint
-                            }
-                        }
-
-                        Flickable {
-                            id: creditsFlick
-                            anchors.fill: parent
-                            anchors.margins: Theme.spaceLg
-                            visible: root.activeTab === 3
-                            contentHeight: creditsColumn.implicitHeight
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-
-                            WheelScroller {
-                                view: creditsFlick
-                                rowHeight: Theme.rowHeight
-                            }
-
-                            QQC2.ScrollBar.vertical: ThemedScrollBar {
-                                listHovered: creditsHover.hovered
-                            }
-
-                            HoverHandler { id: creditsHover }
-
-                            ColumnLayout {
-                                id: creditsColumn
-                                width: creditsFlick.width
-                                spacing: Theme.space
-
-                                Repeater {
-                                    model: root.creditRows()
-
-                                    ColumnLayout {
-                                        required property var modelData
                                         Layout.fillWidth: true
-                                        spacing: 2
-
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: modelData.role
-                                            font.family: Theme.fontFamily
-                                            font.pixelSize: Theme.fontSizeSm
-                                            color: Theme.textFaint
-                                        }
-
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: modelData.contributors.join(", ")
-                                            wrapMode: Text.WordWrap
-                                            font.family: Theme.fontFamily
-                                            font.pixelSize: Theme.fontSize
-                                            color: Theme.textPrimary
-                                        }
+                                        visible: root.creditRows.length === 0
+                                        horizontalAlignment: Text.AlignHCenter
+                                        text: panels.loading ? "" : "No credits for this track"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSize
+                                        color: Theme.textFaint
                                     }
-                                }
-
-                                Text {
-                                    Layout.fillWidth: true
-                                    visible: root.creditRows().length === 0
-                                    horizontalAlignment: Text.AlignHCenter
-                                    text: panels.loading ? "" : "No credits for this track"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSize
-                                    color: Theme.textFaint
                                 }
                             }
                         }

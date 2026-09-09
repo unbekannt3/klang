@@ -46,14 +46,14 @@ ContextMenu {
             return []
 
         const items = [
-            { label: "Play now", icon: "play",
+            { label: Tr.t("Play now"), icon: "play",
               onTriggered: () => player.play_context(trackJson(), 0, "track:" + track.id) },
-            { label: "Play next", icon: "next",
+            { label: Tr.t("Play next"), icon: "next",
               onTriggered: () => player.play_next(trackJson()) },
-            { label: "Add to queue", icon: "queue",
+            { label: Tr.t("Add to queue"), icon: "queue",
               onTriggered: () => player.enqueue(trackJson()) },
             { separator: true },
-            { label: "Add to playlist", icon: "playlist",
+            { label: Tr.t("Add to playlist"), icon: "playlist",
               onTriggered: () => root.addToPlaylistRequested(track.id) },
             { label: root.loved ? "Remove from Loved Tracks" : "Add to Loved Tracks",
               icon: root.loved ? "heart-filled" : "heart",
@@ -62,12 +62,12 @@ ContextMenu {
 
         // Only shown once the row actually carries these ids.
         if (track.albumId)
-            items.push({ label: "Go to album", onTriggered: () => root.goToAlbumRequested(track.albumId) })
+            items.push({ label: Tr.t("Go to album"), onTriggered: () => root.goToAlbumRequested(track.albumId) })
         if (track.artistId)
-            items.push({ label: "Go to artist", onTriggered: () => root.goToArtistRequested(track.artistId) })
+            items.push({ label: Tr.t("Go to artist"), onTriggered: () => root.goToArtistRequested(track.artistId) })
 
         items.push({ separator: true })
-        items.push({ label: "Track radio", icon: "radio",
+        items.push({ label: Tr.t("Track radio"), icon: "radio",
                      onTriggered: () => root.radioRequested(track.id) })
 
         items.push({ separator: true })

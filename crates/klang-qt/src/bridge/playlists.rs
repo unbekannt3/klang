@@ -7,6 +7,7 @@
 //! reference client); `playlist_json`/`tracks_json` are the header and track
 //! list of whichever playlist is currently open.
 
+use crate::bridge::RequestSeq;
 use crate::core as app;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
@@ -28,7 +29,6 @@ pub mod qobject {
         #[qproperty(QString, playlists_json)]
         #[qproperty(QString, playlist_json)]
         #[qproperty(QString, tracks_json)]
-        #[qproperty(QString, last_action)]
         type PlaylistsController = super::PlaylistsControllerRust;
 
         /// Load the sidebar tree: every playlist and folder the signed-in
@@ -40,15 +40,6 @@ pub mod qobject {
         #[qinvokable]
         fn load_playlist(self: Pin<&mut PlaylistsController>, uuid: &QString);
 
-        /// Create a new unlisted playlist, then refresh the sidebar tree.
-        #[qinvokable]
-        fn create(self: Pin<&mut PlaylistsController>, title: &QString, description: &QString);
-
-        /// Remove the track at `index` from playlist `uuid`, then refresh its
-        /// header and track list.
-        #[qinvokable]
-        fn remove_track(self: Pin<&mut PlaylistsController>, uuid: &QString, index: i32);
-
         /// Add one track to a playlist, then refresh the sidebar tree.
         #[qinvokable]
         fn add_track(self: Pin<&mut PlaylistsController>, uuid: &QString, track_id: i64);
@@ -58,23 +49,13 @@ pub mod qobject {
         #[qinvokable]
         fn create_with_track(self: Pin<&mut PlaylistsController>, title: &QString, track_id: i64);
 
-        /// Change title and description, keeping the current access type.
-        #[qinvokable]
-        fn rename(
-            self: Pin<&mut PlaylistsController>,
-            uuid: &QString,
-            title: &QString,
-            description: &QString,
-        );
-
         /// Delete a playlist, then refresh the sidebar tree.
         #[qinvokable]
         fn remove(self: Pin<&mut PlaylistsController>, uuid: &QString);
 
         /// Change title, description and visibility together — the
-        /// PlaylistEditDialog save path. Unlike `rename`, the access type is
-        /// explicit rather than read back first, since the dialog always
-        /// knows it.
+        /// PlaylistEditDialog save path. The access type is explicit rather
+        /// than read back first, since the dialog always knows it.
         #[qinvokable]
         fn update_metadata(
             self: Pin<&mut PlaylistsController>,
@@ -127,7 +108,14 @@ pub struct PlaylistsControllerRust {
     playlists_json: QString,
     playlist_json: QString,
     tracks_json: QString,
-    last_action: QString,
+
+    /// The sidebar tree and the open playlist load independently — one
+    /// sequence each, so opening a playlist does not cancel the tree load
+    /// still in flight from start-up. Every mutation that refreshes one of
+    /// them takes a token too, so a read issued before the write cannot land
+    /// after it and show the pre-write state.
+    tree_requests: RequestSeq,
+    playlist_requests: RequestSeq,
 }
 
 /// Flatten a TIDAL track into what a playlist row needs, plus its position —
@@ -221,36 +209,11 @@ fn folder_item(item: &serde_json::Value) -> serde_json::Value {
     }
 }
 
-/// Find a playlist's title among already-flattened sidebar rows.
-fn title_in(rows: &[serde_json::Value], id: &str) -> Option<String> {
-    rows.iter()
-        .find(|r| {
-            r.get("kind").and_then(|v| v.as_str()) == Some("playlist")
-                && r.get("id").and_then(|v| v.as_str()) == Some(id)
-        })
-        .and_then(|r| r.get("title").and_then(|v| v.as_str()))
-        .map(|s| s.to_string())
-}
-
-fn title_in_json(rows_json: &str, id: &str) -> Option<String> {
-    let rows: Vec<serde_json::Value> = serde_json::from_str(rows_json).ok()?;
-    title_in(&rows, id)
-}
-
-/// TIDAL's `publicPlaylist` flag, folded to the `accessType` string the
-/// write endpoints expect.
-fn access_type_of(raw: &serde_json::Value) -> String {
-    let is_public = raw
-        .get("publicPlaylist")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-    (if is_public { "PUBLIC" } else { "UNLISTED" }).to_string()
-}
-
 impl qobject::PlaylistsController {
     pub fn load_all(mut self: Pin<&mut Self>, user_id: i64) {
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().tree_requests.start();
         let qt = self.qt_thread();
 
         // The flattened-folders endpoint is scoped to the signed-in user via
@@ -262,6 +225,9 @@ impl qobject::PlaylistsController {
             let result = library::get_all_flattened_playlists(app::state()).await;
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().tree_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
                 match result {
                     Ok(items) => {
@@ -281,6 +247,7 @@ impl qobject::PlaylistsController {
     pub fn load_playlist(mut self: Pin<&mut Self>, uuid: &QString) {
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().playlist_requests.start();
         let qt = self.qt_thread();
         let playlist_id = uuid.to_string();
 
@@ -291,6 +258,9 @@ impl qobject::PlaylistsController {
             );
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().playlist_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
 
                 match details {
@@ -321,106 +291,10 @@ impl qobject::PlaylistsController {
         });
     }
 
-    pub fn create(mut self: Pin<&mut Self>, title: &QString, description: &QString) {
-        self.as_mut().set_loading(true);
-        self.as_mut().set_error(QString::from(""));
-        let qt = self.qt_thread();
-        let title = title.to_string();
-        let description = description.to_string();
-
-        klang_core::runtime::spawn(async move {
-            let created = library::create_playlist(
-                app::state(),
-                title,
-                description,
-                "UNLISTED".to_string(),
-            )
-            .await;
-
-            if let Err(e) = created {
-                let _ = qt.queue(move |mut obj| {
-                    obj.as_mut().set_loading(false);
-                    obj.as_mut().set_error(QString::from(&e.to_string()));
-                });
-                return;
-            }
-
-            // Refresh the sidebar tree so the new playlist shows up.
-            let refreshed = library::get_all_flattened_playlists(app::state()).await;
-
-            let _ = qt.queue(move |mut obj| {
-                obj.as_mut().set_loading(false);
-                match refreshed {
-                    Ok(items) => {
-                        let rows: Vec<_> = items.iter().map(folder_item).collect();
-                        let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
-                        obj.as_mut().set_playlists_json(QString::from(&json));
-                    }
-                    Err(e) => {
-                        obj.as_mut().set_error(QString::from(&e.to_string()));
-                    }
-                }
-            });
-        });
-    }
-
-    pub fn remove_track(mut self: Pin<&mut Self>, uuid: &QString, index: i32) {
-        self.as_mut().set_loading(true);
-        self.as_mut().set_error(QString::from(""));
-        let qt = self.qt_thread();
-        let playlist_id = uuid.to_string();
-        let idx = index.max(0) as u32;
-
-        klang_core::runtime::spawn(async move {
-            let removed =
-                library::remove_track_from_playlist(app::state(), playlist_id.clone(), idx).await;
-
-            if let Err(e) = removed {
-                let _ = qt.queue(move |mut obj| {
-                    obj.as_mut().set_loading(false);
-                    obj.as_mut().set_error(QString::from(&e.to_string()));
-                });
-                return;
-            }
-
-            // The track count/duration changed — refresh header and list.
-            let (details, tracks) = tokio::join!(
-                metadata::get_playlist_details(app::state(), playlist_id.clone()),
-                library::get_playlist_tracks(app::state(), app::handle(), playlist_id.clone()),
-            );
-
-            let _ = qt.queue(move |mut obj| {
-                obj.as_mut().set_loading(false);
-
-                match details {
-                    Ok(raw) => {
-                        let header = playlist_header(&playlist_id, &raw);
-                        let json = serde_json::to_string(&header).unwrap_or_else(|_| "{}".into());
-                        obj.as_mut().set_playlist_json(QString::from(&json));
-                    }
-                    Err(e) => {
-                        obj.as_mut().set_error(QString::from(&e.to_string()));
-                    }
-                }
-
-                match tracks {
-                    Ok(list) => {
-                        let rows: Vec<_> =
-                            list.iter().enumerate().map(|(i, t)| crate::rows::track(i, t)).collect();
-                        let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
-                        obj.as_mut().set_tracks_json(QString::from(&json));
-                    }
-                    Err(e) => {
-                        obj.as_mut().set_error(QString::from(&e.to_string()));
-                    }
-                }
-            });
-        });
-    }
-
     pub fn add_track(mut self: Pin<&mut Self>, uuid: &QString, track_id: i64) {
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().tree_requests.start();
         let qt = self.qt_thread();
         let playlist_id = uuid.to_string();
         let track = track_id.max(0) as u64;
@@ -440,14 +314,13 @@ impl qobject::PlaylistsController {
             let refreshed = library::get_all_flattened_playlists(app::state()).await;
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().tree_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
                 match refreshed {
                     Ok(items) => {
                         let rows: Vec<_> = items.iter().map(folder_item).collect();
-                        let title = title_in(&rows, &playlist_id)
-                            .unwrap_or_else(|| "playlist".to_string());
-                        obj.as_mut()
-                            .set_last_action(QString::from(&format!("Added to {}", title)));
                         let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
                         obj.as_mut().set_playlists_json(QString::from(&json));
                     }
@@ -462,6 +335,7 @@ impl qobject::PlaylistsController {
     pub fn create_with_track(mut self: Pin<&mut Self>, title: &QString, track_id: i64) {
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().tree_requests.start();
         let qt = self.qt_thread();
         let title = title.to_string();
         let track = track_id.max(0) as u64;
@@ -497,72 +371,12 @@ impl qobject::PlaylistsController {
             }
 
             let refreshed = library::get_all_flattened_playlists(app::state()).await;
-            let confirm_title = if playlist.title.is_empty() { title } else { playlist.title };
 
             let _ = qt.queue(move |mut obj| {
-                obj.as_mut().set_loading(false);
-                obj.as_mut()
-                    .set_last_action(QString::from(&format!("Added to {}", confirm_title)));
-                match refreshed {
-                    Ok(items) => {
-                        let rows: Vec<_> = items.iter().map(folder_item).collect();
-                        let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
-                        obj.as_mut().set_playlists_json(QString::from(&json));
-                    }
-                    Err(e) => {
-                        obj.as_mut().set_error(QString::from(&e.to_string()));
-                    }
+                if !obj.rust().tree_requests.is_current(token) {
+                    return;
                 }
-            });
-        });
-    }
-
-    pub fn rename(
-        mut self: Pin<&mut Self>,
-        uuid: &QString,
-        title: &QString,
-        description: &QString,
-    ) {
-        self.as_mut().set_loading(true);
-        self.as_mut().set_error(QString::from(""));
-        let qt = self.qt_thread();
-        let playlist_id = uuid.to_string();
-        let new_title = title.to_string();
-        let new_description = description.to_string();
-
-        klang_core::runtime::spawn(async move {
-            // update_playlist's PATCH body carries name/description/accessType
-            // together, so the current access type has to be read back first
-            // or renaming would silently flip a public playlist to unlisted.
-            let details = metadata::get_playlist_details(app::state(), playlist_id.clone()).await;
-            let access_type = details
-                .as_ref()
-                .map(access_type_of)
-                .unwrap_or_else(|_| "UNLISTED".to_string());
-
-            let updated = library::update_playlist(
-                app::state(),
-                playlist_id.clone(),
-                new_title.clone(),
-                new_description,
-                access_type,
-            )
-            .await;
-
-            if let Err(e) = updated {
-                let _ = qt.queue(move |mut obj| {
-                    obj.as_mut().set_loading(false);
-                    obj.as_mut().set_error(QString::from(&e.to_string()));
-                });
-                return;
-            }
-
-            let refreshed = library::get_all_flattened_playlists(app::state()).await;
-
-            let _ = qt.queue(move |mut obj| {
                 obj.as_mut().set_loading(false);
-                obj.as_mut()
-                    .set_last_action(QString::from(&format!("Renamed to {}", new_title)));
                 match refreshed {
                     Ok(items) => {
                         let rows: Vec<_> = items.iter().map(folder_item).collect();
@@ -580,10 +394,8 @@ impl qobject::PlaylistsController {
     pub fn remove(mut self: Pin<&mut Self>, uuid: &QString) {
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().tree_requests.start();
         let playlist_id = uuid.to_string();
-        // Read the title before it drops out of the refreshed sidebar tree.
-        let title = title_in_json(&self.rust().playlists_json.to_string(), &playlist_id)
-            .unwrap_or_else(|| "playlist".to_string());
         let qt = self.qt_thread();
 
         klang_core::runtime::spawn(async move {
@@ -611,9 +423,10 @@ impl qobject::PlaylistsController {
             let refreshed = library::get_all_flattened_playlists(app::state()).await;
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().tree_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
-                obj.as_mut()
-                    .set_last_action(QString::from(&format!("Removed {}", title)));
                 match refreshed {
                     Ok(items) => {
                         let rows: Vec<_> = items.iter().map(folder_item).collect();
@@ -637,6 +450,8 @@ impl qobject::PlaylistsController {
     ) {
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
+        let tree_token = self.as_mut().rust_mut().tree_requests.start();
+        let playlist_token = self.as_mut().rust_mut().playlist_requests.start();
         let qt = self.qt_thread();
         let playlist_id = uuid.to_string();
         let new_title = title.to_string();
@@ -647,7 +462,7 @@ impl qobject::PlaylistsController {
             let updated = library::update_playlist(
                 app::state(),
                 playlist_id.clone(),
-                new_title.clone(),
+                new_title,
                 new_description,
                 access_type,
             )
@@ -670,22 +485,25 @@ impl qobject::PlaylistsController {
 
             let _ = qt.queue(move |mut obj| {
                 obj.as_mut().set_loading(false);
-                obj.as_mut()
-                    .set_last_action(QString::from(&format!("Updated {}", new_title)));
-                match refreshed {
-                    Ok(items) => {
-                        let rows: Vec<_> = items.iter().map(folder_item).collect();
-                        let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
-                        obj.as_mut().set_playlists_json(QString::from(&json));
-                    }
-                    Err(e) => {
-                        obj.as_mut().set_error(QString::from(&e.to_string()));
+                if obj.rust().tree_requests.is_current(tree_token) {
+                    match refreshed {
+                        Ok(items) => {
+                            let rows: Vec<_> = items.iter().map(folder_item).collect();
+                            let json =
+                                serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
+                            obj.as_mut().set_playlists_json(QString::from(&json));
+                        }
+                        Err(e) => {
+                            obj.as_mut().set_error(QString::from(&e.to_string()));
+                        }
                     }
                 }
-                if let Ok(raw) = details {
-                    let header = playlist_header(&playlist_id, &raw);
-                    let json = serde_json::to_string(&header).unwrap_or_else(|_| "{}".into());
-                    obj.as_mut().set_playlist_json(QString::from(&json));
+                if obj.rust().playlist_requests.is_current(playlist_token) {
+                    if let Ok(raw) = details {
+                        let header = playlist_header(&playlist_id, &raw);
+                        let json = serde_json::to_string(&header).unwrap_or_else(|_| "{}".into());
+                        obj.as_mut().set_playlist_json(QString::from(&json));
+                    }
                 }
             });
         });
@@ -697,6 +515,7 @@ impl qobject::PlaylistsController {
         }
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().playlist_requests.start();
         let qt = self.qt_thread();
         let playlist_id = uuid.to_string();
         let from = from_index as u32;
@@ -720,6 +539,9 @@ impl qobject::PlaylistsController {
             );
 
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().playlist_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
 
                 if let Ok(raw) = details {
@@ -746,6 +568,7 @@ impl qobject::PlaylistsController {
     pub fn create_folder(mut self: Pin<&mut Self>, name: &QString) {
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().tree_requests.start();
         let qt = self.qt_thread();
         let name = name.to_string();
 
@@ -768,6 +591,9 @@ impl qobject::PlaylistsController {
 
             let refreshed = library::get_all_flattened_playlists(app::state()).await;
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().tree_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
                 match refreshed {
                     Ok(items) => {
@@ -786,13 +612,14 @@ impl qobject::PlaylistsController {
     pub fn rename_folder(mut self: Pin<&mut Self>, id: &QString, name: &QString) {
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().tree_requests.start();
         let qt = self.qt_thread();
         let folder_trn = format!("trn:folder:{}", id.to_string());
         let new_name = name.to_string();
 
         klang_core::runtime::spawn(async move {
             let renamed =
-                library::rename_playlist_folder(app::state(), folder_trn, new_name.clone()).await;
+                library::rename_playlist_folder(app::state(), folder_trn, new_name).await;
 
             if let Err(e) = renamed {
                 let _ = qt.queue(move |mut obj| {
@@ -804,9 +631,10 @@ impl qobject::PlaylistsController {
 
             let refreshed = library::get_all_flattened_playlists(app::state()).await;
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().tree_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
-                obj.as_mut()
-                    .set_last_action(QString::from(&format!("Renamed to {}", new_name)));
                 match refreshed {
                     Ok(items) => {
                         let rows: Vec<_> = items.iter().map(folder_item).collect();
@@ -824,6 +652,7 @@ impl qobject::PlaylistsController {
     pub fn delete_folder(mut self: Pin<&mut Self>, id: &QString) {
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().tree_requests.start();
         let qt = self.qt_thread();
         let folder_trn = format!("trn:folder:{}", id.to_string());
 
@@ -840,6 +669,9 @@ impl qobject::PlaylistsController {
 
             let refreshed = library::get_all_flattened_playlists(app::state()).await;
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().tree_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
                 match refreshed {
                     Ok(items) => {
@@ -858,6 +690,7 @@ impl qobject::PlaylistsController {
     pub fn move_to_folder(mut self: Pin<&mut Self>, playlist_uuid: &QString, folder_id: &QString) {
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().tree_requests.start();
         let qt = self.qt_thread();
         let playlist_trn = format!("trn:playlist:{}", playlist_uuid.to_string());
         // TIDAL has no concept of an empty folderId for "top level" — it
@@ -880,6 +713,9 @@ impl qobject::PlaylistsController {
 
             let refreshed = library::get_all_flattened_playlists(app::state()).await;
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().tree_requests.is_current(token) {
+                    return;
+                }
                 obj.as_mut().set_loading(false);
                 match refreshed {
                     Ok(items) => {

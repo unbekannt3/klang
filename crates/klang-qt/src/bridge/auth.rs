@@ -31,8 +31,6 @@ pub mod qobject {
         #[qproperty(QString, verification_uri)]
         #[qproperty(QString, error)]
         #[qproperty(i64, user_id)]
-        /// PKCE grants lossless; device-code does not.
-        #[qproperty(bool, lossless_capable)]
         /// Set once the browser is open and klang is waiting for the redirect.
         #[qproperty(bool, awaiting_redirect)]
         type AuthController = super::AuthControllerRust;
@@ -70,7 +68,6 @@ pub struct AuthControllerRust {
     verification_uri: QString,
     error: QString,
     user_id: i64,
-    lossless_capable: bool,
     awaiting_redirect: bool,
     /// Parked between opening the browser and the redirect coming back.
     pending: Option<(String, String)>,
@@ -184,7 +181,6 @@ pub fn start_browser_login(mut self: Pin<&mut Self>) {
                         obj.as_mut().rust_mut().pending = None;
                         obj.as_mut().set_awaiting_redirect(false);
                         obj.as_mut().set_verification_uri(QString::from(""));
-                        obj.as_mut().set_lossless_capable(true);
                         obj.as_mut().set_user_id(user_id as i64);
                         obj.as_mut().set_logged_in(true);
                     }
@@ -276,8 +272,6 @@ pub fn start_browser_login(mut self: Pin<&mut Self>) {
                             obj.as_mut().set_busy(false);
                             obj.as_mut().set_user_code(QString::from(""));
                             obj.as_mut().set_user_id(user_id as i64);
-                            // The device-code client is restricted to lossy.
-                            obj.as_mut().set_lossless_capable(false);
                             obj.as_mut().set_logged_in(true);
                         });
                         return;

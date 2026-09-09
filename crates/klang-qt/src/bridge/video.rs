@@ -8,6 +8,7 @@
 //! `load_video` emits `pause_audio_requested` and leaves the actual pause to
 //! whoever connects that signal (see the report for the Main.qml wiring).
 
+use crate::bridge::RequestSeq;
 use crate::core as app;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
@@ -92,10 +93,10 @@ pub struct VideoControllerRust {
     /// Remembered so `toggle_favorite` doesn't need the caller to pass it
     /// again — same convention as `FavoritesControllerRust::user_id`.
     user_id: i64,
-    /// Bumped by every request and by `close`; a queued response is applied
-    /// only if it still matches, so a superseded `load_video`/`select_quality`
-    /// or a `close` mid-flight can never clobber newer state.
-    request_seq: u64,
+    /// A queued response is applied only while its token is current, so a
+    /// superseded `load_video`/`select_quality` or a `close` mid-flight can
+    /// never clobber newer state.
+    requests: RequestSeq,
 }
 
 /// Same `artist`/`artists` fallback chain as `library.rs`'s `video_card_row`
@@ -113,8 +114,7 @@ impl qobject::VideoController {
     pub fn load_video(mut self: Pin<&mut Self>, video_id: i64, quality: &QString, user_id: i64) {
         self.as_mut().pause_audio_requested();
 
-        let seq = self.rust().request_seq.wrapping_add(1);
-        self.as_mut().rust_mut().request_seq = seq;
+        let token = self.as_mut().rust_mut().requests.start();
         self.as_mut().rust_mut().user_id = user_id;
 
         self.as_mut().set_loading(true);
@@ -144,7 +144,7 @@ impl qobject::VideoController {
             );
 
             let _ = qt.queue(move |mut obj| {
-                if obj.rust().request_seq != seq {
+                if !obj.rust().requests.is_current(token) {
                     return; // superseded by a newer load_video/select_quality/close
                 }
                 obj.as_mut().set_loading(false);
@@ -190,8 +190,7 @@ impl qobject::VideoController {
         if video_id == 0 {
             return;
         }
-        let seq = self.rust().request_seq.wrapping_add(1);
-        self.as_mut().rust_mut().request_seq = seq;
+        let token = self.as_mut().rust_mut().requests.start();
         self.as_mut().set_error(QString::from(""));
 
         let qt = self.qt_thread();
@@ -201,7 +200,7 @@ impl qobject::VideoController {
         klang_core::runtime::spawn(async move {
             let result = playback::get_video_stream_info(app::state(), id, Some(quality_req)).await;
             let _ = qt.queue(move |mut obj| {
-                if obj.rust().request_seq != seq {
+                if !obj.rust().requests.is_current(token) {
                     return;
                 }
                 match result {
@@ -248,7 +247,7 @@ impl qobject::VideoController {
     }
 
     pub fn close(mut self: Pin<&mut Self>) {
-        self.as_mut().rust_mut().request_seq = self.rust().request_seq.wrapping_add(1);
+        self.as_mut().rust_mut().requests.cancel();
         self.as_mut().set_loading(false);
         self.as_mut().set_error(QString::from(""));
         self.as_mut().set_video_id(0);

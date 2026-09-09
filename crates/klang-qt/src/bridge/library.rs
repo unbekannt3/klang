@@ -29,6 +29,8 @@ pub mod qobject {
         #[qproperty(QString, tracks_json)]
         #[qproperty(QString, error)]
         #[qproperty(i32, total)]
+        /// Whether another page of loved tracks is waiting.
+        #[qproperty(bool, has_more)]
         #[qproperty(QString, albums_json)]
         #[qproperty(QString, artists_json)]
         #[qproperty(QString, playlists_json)]
@@ -42,6 +44,11 @@ pub mod qobject {
         /// by `sort_order`/`sort_direction`.
         #[qinvokable]
         fn load_favorites(self: Pin<&mut LibraryController>, user_id: i64, limit: i32);
+
+        /// Append the next page of loved tracks. No-op while one is in
+        /// flight or once the last page has arrived.
+        #[qinvokable]
+        fn load_more_favorites(self: Pin<&mut LibraryController>);
 
         /// Load favourite albums as card rows (`albums_json`).
         #[qinvokable]
@@ -88,6 +95,9 @@ pub struct LibraryControllerRust {
     /// Remembered so `set_sort` can redo the same load with a new order.
     fav_user_id: i64,
     fav_limit: i32,
+    /// How many loved tracks are already in `tracks_json`.
+    fav_loaded: i32,
+    has_more: bool,
 }
 
 /// `DATE`/`DESC` is TIDAL's own default for every favourites endpoint, and
@@ -108,6 +118,8 @@ impl Default for LibraryControllerRust {
             sort_direction: QString::from("DESC"),
             fav_user_id: 0,
             fav_limit: 0,
+            fav_loaded: 0,
+            has_more: false,
         }
     }
 }
@@ -207,8 +219,35 @@ fn mix_card_row(mix: &TidalFavoriteMix) -> Value {
 
 impl qobject::LibraryController {
     pub fn load_favorites(mut self: Pin<&mut Self>, user_id: i64, limit: i32) {
-        self.as_mut().rust_mut().fav_user_id = user_id;
-        self.as_mut().rust_mut().fav_limit = limit;
+        {
+            let mut rust = self.as_mut().rust_mut();
+            rust.fav_user_id = user_id;
+            rust.fav_limit = limit;
+            rust.fav_loaded = 0;
+        }
+        self.as_mut().set_tracks_json(QString::from("[]"));
+        self.as_mut().set_has_more(false);
+        self.fetch_favorites_page();
+    }
+
+    pub fn load_more_favorites(self: Pin<&mut Self>) {
+        if !*self.has_more() || *self.loading() {
+            return;
+        }
+        self.fetch_favorites_page();
+    }
+
+    /// Fetch one page and append it. The rows cross to QML as one JSON array,
+    /// so appending means parsing what is already there — cheap next to the
+    /// round-trip, and it keeps the single-property contract every list binds
+    /// to.
+    fn fetch_favorites_page(mut self: Pin<&mut Self>) {
+        let user_id = self.rust().fav_user_id;
+        if user_id == 0 {
+            return;
+        }
+        let offset = self.rust().fav_loaded;
+        let limit = self.rust().fav_limit.max(1);
         self.as_mut().set_loading(true);
         self.as_mut().set_error(QString::from(""));
         let order = self.rust().sort_order.to_string();
@@ -220,8 +259,8 @@ impl qobject::LibraryController {
                 app::state(),
                 app::handle(),
                 user_id as u64,
-                0,
-                limit.max(1) as u32,
+                offset.max(0) as u32,
+                limit as u32,
                 order,
                 direction,
             )
@@ -231,15 +270,24 @@ impl qobject::LibraryController {
                 obj.as_mut().set_loading(false);
                 match result {
                     Ok(page) => {
-                        let rows: Vec<_> = page.items.iter().map(crate::rows::track_unindexed).collect();
+                        let mut rows: Vec<serde_json::Value> =
+                            serde_json::from_str(&obj.tracks_json().to_string())
+                                .unwrap_or_default();
+                        if offset == 0 {
+                            rows.clear();
+                        }
+                        rows.extend(page.items.iter().map(crate::rows::track_unindexed));
+
+                        let total = page.total_number_of_items as i32;
+                        let loaded = rows.len() as i32;
+                        obj.as_mut().rust_mut().fav_loaded = loaded;
+                        obj.as_mut().set_total(total);
+                        obj.as_mut().set_has_more(!page.items.is_empty() && loaded < total);
+
                         let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
-                        obj.as_mut().set_total(page.total_number_of_items as i32);
                         obj.as_mut().set_tracks_json(QString::from(&json));
                     }
-                    Err(e) => {
-                        obj.as_mut().set_tracks_json(QString::from("[]"));
-                        obj.as_mut().set_error(QString::from(&e.to_string()));
-                    }
+                    Err(e) => obj.as_mut().set_error(QString::from(&e.to_string())),
                 }
             });
         });

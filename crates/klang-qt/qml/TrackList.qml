@@ -32,6 +32,21 @@ Item {
     property string sortColumn: ""
     property bool sortDescending: true
 
+    /// Page header scrolled above the rows. Pages pass their own so the whole
+    /// page scrolls as one list — a page-level Flickable around this would
+    /// have to size the list to its full content, which defeats delegate
+    /// recycling and builds every row up front.
+    property Component pageHeader: null
+
+    /// Anything the page shows below the rows — credits, carousels — so it
+    /// scrolls with them instead of forcing a second scroller.
+    property Component pageFooter: null
+
+    /// Emitted while the view approaches the last rows, for pages that page
+    /// through their source. Repeats until the page arrives; the bridge is
+    /// what guards against overlapping requests.
+    signal endReached()
+
     signal trackActivated(int index)
     signal contextRequested(int index, real x, real y)
     /// Emitted when a sortable header is clicked; the page re-fetches.
@@ -138,7 +153,9 @@ Item {
     }
 
     /// Where the first row starts, for overlays drawn on top of the list.
-    readonly property real rowsTop: view.y
+    readonly property real rowsTop: view.y + (view.headerItem ? view.headerItem.height - view.contentY : 0)
+    /// The scroller itself, for a page that wants to follow its offset.
+    readonly property Flickable scroller: view
     readonly property real listRowHeight: Theme.rowHeight
 
     function columnX(name) {
@@ -171,131 +188,156 @@ Item {
         })
     }
 
-    SettingsField {
-        id: filterField
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: Theme.spaceLg
-        anchors.rightMargin: Theme.spaceLg
-        anchors.bottomMargin: Theme.space
-        visible: root.filterable
-        height: visible ? 38 : 0
-        placeholder: "Filter by title, artist or album"
-        onTextChanged: root.filterText = text
-    }
+    // The page's own header, then the column labels, both scrolling with the
+    // rows: the list is the page's only scroller, so its delegates recycle
+    // instead of every row existing at once.
+    Component {
+        id: listHeader
 
-    // Column header, TIDAL-style: thin uppercase labels over a hairline. It
-    // sits outside the ListView so it keeps a row's exact geometry — and so
-    // it stays put while the list scrolls.
-    Item {
-        id: columnHeader
-        anchors.top: root.filterable ? filterField.bottom : parent.top
-        anchors.topMargin: root.filterable ? Theme.space : 0
-        anchors.left: parent.left
-        anchors.right: parent.right
-        height: 34
+        Column {
+            width: view.width
 
-        Text {
-            visible: root.numbered
-            x: root.columnX("number")
-            width: root.columnWidth("number")
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Theme.spaceSm
-            horizontalAlignment: Text.AlignRight
-            text: "#"
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeSm - 1
-            font.letterSpacing: 1
-            color: Theme.textFaint
-        }
+            Loader {
+                width: parent.width
+                sourceComponent: root.pageHeader
+            }
 
-        SortableHeading {
-            x: root.columnX("title")
-            width: root.columnWidth("title")
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Theme.spaceSm
-            label: "TITLE"
-            column: "NAME"
-        }
+            Item {
+                width: parent.width
+                height: root.filterable ? 38 + Theme.space : 0
+                visible: root.filterable
 
-        SortableHeading {
-            visible: root.showArtist
-            x: root.columnX("artist")
-            width: root.columnWidth("artist")
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Theme.spaceSm
-            label: "ARTIST"
-            column: "ARTIST"
-        }
+                SettingsField {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.leftMargin: Theme.spaceLg
+                    anchors.rightMargin: Theme.spaceLg
+                    height: 38
+                    placeholder: Tr.t("Filter by title, artist or album")
+                    onTextChanged: root.filterText = text
+                }
+            }
 
-        SortableHeading {
-            visible: root.showAlbum
-            x: root.columnX("album")
-            width: root.columnWidth("album")
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Theme.spaceSm
-            label: "ALBUM"
-            column: "ALBUM"
-        }
+            // Column header, TIDAL-style: thin uppercase labels over a
+            // hairline, placed from the same column table as the rows.
+            Item {
+                width: parent.width
+                height: 34
 
-        Text {
-            visible: root.showBpm
-            x: root.columnX("bpm")
-            width: root.columnWidth("bpm")
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Theme.spaceSm
-            horizontalAlignment: Text.AlignRight
-            text: "BPM"
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeSm - 1
-            font.letterSpacing: 1
-            color: Theme.textFaint
-        }
+                Text {
+                    visible: root.numbered
+                    x: root.columnX("number")
+                    width: root.columnWidth("number")
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: Theme.spaceSm
+                    horizontalAlignment: Text.AlignRight
+                    text: "#"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSm - 1
+                    font.letterSpacing: 1
+                    color: Theme.textFaint
+                }
 
-        Text {
-            visible: root.showKey
-            x: root.columnX("key")
-            width: root.columnWidth("key")
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Theme.spaceSm
-            horizontalAlignment: Text.AlignRight
-            text: "KEY"
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSizeSm - 1
-            font.letterSpacing: 1
-            color: Theme.textFaint
-        }
+                SortableHeading {
+                    x: root.columnX("title")
+                    width: root.columnWidth("title")
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: Theme.spaceSm
+                    label: Tr.t("TITLE")
+                    column: "NAME"
+                }
 
-        SortableHeading {
-            x: root.columnX("length")
-            width: root.columnWidth("length")
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Theme.spaceSm
-            label: "LENGTH"
-            column: "DURATION"
-            alignment: Text.AlignRight
-        }
+                SortableHeading {
+                    visible: root.showArtist
+                    x: root.columnX("artist")
+                    width: root.columnWidth("artist")
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: Theme.spaceSm
+                    label: Tr.t("ARTIST")
+                    column: "ARTIST"
+                }
 
-        Rectangle {
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.leftMargin: Theme.spaceLg
-            anchors.rightMargin: Theme.spaceLg
-            height: 1
-            color: Theme.border
+                SortableHeading {
+                    visible: root.showAlbum
+                    x: root.columnX("album")
+                    width: root.columnWidth("album")
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: Theme.spaceSm
+                    label: Tr.t("ALBUM")
+                    column: "ALBUM"
+                }
+
+                Text {
+                    visible: root.showBpm
+                    x: root.columnX("bpm")
+                    width: root.columnWidth("bpm")
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: Theme.spaceSm
+                    horizontalAlignment: Text.AlignRight
+                    text: Tr.t("BPM")
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSm - 1
+                    font.letterSpacing: 1
+                    color: Theme.textFaint
+                }
+
+                Text {
+                    visible: root.showKey
+                    x: root.columnX("key")
+                    width: root.columnWidth("key")
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: Theme.spaceSm
+                    horizontalAlignment: Text.AlignRight
+                    text: Tr.t("KEY")
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSm - 1
+                    font.letterSpacing: 1
+                    color: Theme.textFaint
+                }
+
+                SortableHeading {
+                    x: root.columnX("length")
+                    width: root.columnWidth("length")
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: Theme.spaceSm
+                    label: Tr.t("LENGTH")
+                    column: "DURATION"
+                    alignment: Text.AlignRight
+                }
+
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: Theme.spaceLg
+                    anchors.rightMargin: Theme.spaceLg
+                    height: 1
+                    color: Theme.border
+                }
+            }
         }
     }
 
     ListView {
         id: view
-        anchors.top: columnHeader.bottom
+        anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         clip: true
         model: root.visibleRows()
+        header: listHeader
+        footer: root.pageFooter
+        // Enough rows off-screen that a flick does not tear.
+        cacheBuffer: Theme.rowHeight * 8
+
+        onContentYChanged: {
+            if (contentHeight <= height)
+                return
+            if (contentY + height > contentHeight - Theme.rowHeight * 8)
+                root.endReached()
+        }
         currentIndex: -1
         reuseItems: true
 
@@ -437,7 +479,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 horizontalAlignment: Text.AlignRight
                 text: row.track.bpm ? row.track.bpm : "–"
-                font.family: Theme.monoFamily
+                font.family: Theme.fontFamilyMono
                 font.pixelSize: Theme.fontSizeSm
                 color: row.track.bpm ? Theme.textSecondary : Theme.textDisabled
             }
@@ -474,7 +516,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: !row.track.key
                     text: "–"
-                    font.family: Theme.monoFamily
+                    font.family: Theme.fontFamilyMono
                     font.pixelSize: Theme.fontSizeSm
                     color: Theme.textDisabled
                 }
@@ -516,7 +558,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 horizontalAlignment: Text.AlignRight
                 text: Format.duration(row.track.duration)
-                font.family: Theme.monoFamily
+                font.family: Theme.fontFamilyMono
                 font.pixelSize: Theme.fontSizeSm
                 color: Theme.textFaint
             }

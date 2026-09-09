@@ -1,5 +1,6 @@
 //! Playback control and the now-playing state QML binds to.
 
+use crate::bridge::RequestSeq;
 use crate::core as app;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
@@ -8,7 +9,8 @@ use klang_core::api::{pages, playback, utility};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::pin::Pin;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -77,10 +79,6 @@ pub mod qobject {
             index: i32,
             source: &QString,
         );
-
-        /// Name shown as "playing from"; the source id alone is not readable.
-        #[qinvokable]
-        fn set_source_name(self: Pin<&mut PlayerController>, name: &QString);
 
         #[qinvokable]
         fn next(self: Pin<&mut PlayerController>);
@@ -159,6 +157,13 @@ pub struct PlayerControllerRust {
     /// Position to seek to once the in-flight `play()` reports it started —
     /// set by `toggle`'s cold-start path, consumed in `play`.
     pending_seek: Option<f32>,
+    /// Clicking track A then B leaves two `play_tidal_track` tasks racing;
+    /// only the newest may write quality, `playing` or the metadata push.
+    plays: RequestSeq,
+    /// `playing`, readable from the position poll's own thread so it can skip
+    /// a tick without waking the GUI thread to find out nothing is playing.
+    /// Written only through `set_playback_active`.
+    playback_active: Arc<AtomicBool>,
 }
 
 impl Default for PlayerControllerRust {
@@ -190,6 +195,8 @@ impl Default for PlayerControllerRust {
             queue_dirty: false,
             pipeline_loaded: false,
             pending_seek: None,
+            plays: RequestSeq::default(),
+            playback_active: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -257,6 +264,7 @@ impl qobject::PlayerController {
         self.as_mut().set_position_secs(0.0);
         self.as_mut().set_track_id(track_id);
         self.as_mut().rust_mut().pipeline_loaded = true;
+        let token = self.as_mut().rust_mut().plays.start();
         self.publish_metadata();
         let qt = self.qt_thread();
 
@@ -265,6 +273,9 @@ impl qobject::PlayerController {
             // so track gain is the right normalization reference.
             let result = playback::play_tidal_track(app::state(), track_id as u64, true).await;
             let _ = qt.queue(move |mut obj| {
+                if !obj.rust().plays.is_current(token) {
+                    return; // a newer play() owns the display and the pipeline
+                }
                 obj.as_mut().set_busy(false);
                 match result {
                     Ok(info) => {
@@ -272,7 +283,7 @@ impl qobject::PlayerController {
                         obj.as_mut().set_quality_tier(QString::from(
                             &info.audio_quality.clone().unwrap_or_default(),
                         ));
-                        obj.as_mut().set_playing(true);
+                        obj.as_mut().set_playback_active(true);
                         obj.as_mut().publish_metadata();
                         push_playback_status(true, 0.0);
                         // The queue-driven callers (start/gapless/resume) set this
@@ -283,13 +294,20 @@ impl qobject::PlayerController {
                                 // play_url just returned; the pipeline is still
                                 // negotiating caps and is not reliably seekable yet.
                                 tokio::time::sleep(std::time::Duration::from_millis(400)).await;
-                                let _ = qt2.queue(move |mut obj| obj.as_mut().seek(pos));
+                                let _ = qt2.queue(move |mut obj| {
+                                    // Another track may have started during
+                                    // the wait; seeking it to this position
+                                    // would be worse than not seeking at all.
+                                    if obj.rust().plays.is_current(token) {
+                                        obj.as_mut().seek(pos);
+                                    }
+                                });
                             });
                         }
                         obj.as_mut().on_queue_changed();
                     }
                     Err(e) => {
-                        obj.as_mut().set_playing(false);
+                        obj.as_mut().set_playback_active(false);
                         obj.as_mut().set_error(QString::from(&e.to_string()));
                         push_playback_status(false, 0.0);
                     }
@@ -315,7 +333,7 @@ impl qobject::PlayerController {
         }
 
         let want_play = !*self.playing();
-        self.as_mut().set_playing(want_play);
+        self.as_mut().set_playback_active(want_play);
         push_playback_status(want_play, *self.position_secs() as f64);
         let qt = self.qt_thread();
 
@@ -329,7 +347,7 @@ impl qobject::PlayerController {
                 let msg = e.to_string();
                 let _ = qt.queue(move |mut obj| {
                     // The pipeline refused, so put the button back where it was.
-                    obj.as_mut().set_playing(!want_play);
+                    obj.as_mut().set_playback_active(!want_play);
                     push_playback_status(!want_play, 0.0);
                     obj.as_mut().set_error(QString::from(&msg));
                 });
@@ -338,7 +356,7 @@ impl qobject::PlayerController {
     }
 
     pub fn stop(mut self: Pin<&mut Self>) {
-        self.as_mut().set_playing(false);
+        self.as_mut().set_playback_active(false);
         self.as_mut().set_position_secs(0.0);
         self.as_mut().rust_mut().queue_dirty = true;
         // Nothing is going to play next right now; drop whatever was prerolled.
@@ -371,20 +389,24 @@ impl qobject::PlayerController {
         self.as_mut().restore_queue();
 
         // Position poll. The pipeline is the source of truth for where we are;
-        // 500 ms is the cadence the React UI used.
+        // 500 ms is the cadence the React UI used. While paused the tick is
+        // dropped here rather than in a queued closure — waking the GUI
+        // thread twice a second only to find nothing is playing is waste.
         let qt = self.qt_thread();
+        let active = self.rust().playback_active.clone();
         klang_core::runtime::spawn(async move {
             let mut tick = tokio::time::interval(std::time::Duration::from_millis(500));
             loop {
                 tick.tick().await;
+                if !active.load(Ordering::Relaxed) {
+                    continue;
+                }
                 let Ok(pos) = playback::get_playback_position(app::state()) else {
                     continue;
                 };
                 let _ = qt.queue(move |mut obj| {
-                    if *obj.playing() {
-                        obj.as_mut().set_position_secs(pos);
-                        obj.as_mut().rust_mut().queue_dirty = true;
-                    }
+                    obj.as_mut().set_position_secs(pos);
+                    obj.as_mut().rust_mut().queue_dirty = true;
                 });
             }
         });
@@ -417,7 +439,7 @@ impl qobject::PlayerController {
                             match next {
                                 Some(entry) => obj.as_mut().start(entry),
                                 None => {
-                                    obj.as_mut().set_playing(false);
+                                    obj.as_mut().set_playback_active(false);
                                     obj.as_mut().set_position_secs(0.0);
                                     obj.as_mut().rust_mut().queue_dirty = true;
                                     push_playback_status(false, 0.0);
@@ -442,7 +464,7 @@ impl qobject::PlayerController {
                             .unwrap_or("playback failed")
                             .to_string();
                         let _ = qt.queue(move |mut obj| {
-                            obj.as_mut().set_playing(false);
+                            obj.as_mut().set_playback_active(false);
                             obj.as_mut().set_error(QString::from(&msg));
                             push_playback_status(false, 0.0);
                         });
@@ -555,10 +577,6 @@ fn entries_from_json(json: &str) -> Vec<Entry> {
 
 impl qobject::PlayerController {
     /// Publish what is queued, manual entries first, so QML can render one list.
-    pub fn set_source_name(mut self: Pin<&mut Self>, name: &QString) {
-        self.as_mut().set_source_label(name.clone());
-    }
-
     fn publish_queue(mut self: Pin<&mut Self>) {
         let (json, history, source) = {
             let queue = self.rust().queue.lock().unwrap();
@@ -825,6 +843,14 @@ impl qobject::PlayerController {
 }
 
 impl qobject::PlayerController {
+    /// Set `playing` and the copy the position poll reads off the Qt thread.
+    /// Every transition goes through here; writing the property directly
+    /// would leave the poll ticking against a stale answer.
+    fn set_playback_active(self: Pin<&mut Self>, on: bool) {
+        self.rust().playback_active.store(on, Ordering::Relaxed);
+        self.set_playing(on);
+    }
+
     /// Called after anything that can change what plays next: mark the
     /// snapshot for its next debounced save and re-arm the gapless preload.
     fn on_queue_changed(mut self: Pin<&mut Self>) {
@@ -878,7 +904,7 @@ impl qobject::PlayerController {
         self.as_mut().set_duration_secs(entry.duration);
         self.as_mut().set_track_id(entry.id);
         self.as_mut().set_position_secs(0.0);
-        self.as_mut().set_playing(true);
+        self.as_mut().set_playback_active(true);
         self.publish_metadata();
         push_playback_status(true, 0.0);
         self.as_mut().publish_queue();
@@ -888,19 +914,28 @@ impl qobject::PlayerController {
     /// Write the queue and current position, but only if something changed
     /// since the last flush — the position tick marks this dirty every 500 ms
     /// while playing, so writing on every call would defeat the debounce.
+    ///
+    /// Runs on the Qt thread, so only the snapshot clone happens here: both
+    /// the serialisation (~120 KB for a long queue) and
+    /// `save_playback_queue`'s synchronous `fs::write` are handed off, or the
+    /// GUI would stall on disk every five seconds.
     fn flush_queue_if_dirty(mut self: Pin<&mut Self>) {
         if !self.rust().queue_dirty {
             return;
         }
         self.as_mut().rust_mut().queue_dirty = false;
-        let position_secs = *self.position_secs();
         let snapshot = QueueSnapshot {
             queue: self.rust().queue.lock().unwrap().clone(),
-            position_secs,
+            position_secs: *self.position_secs(),
         };
-        if let Ok(json) = serde_json::to_string(&snapshot) {
-            let _ = playback::save_playback_queue(app::state(), json);
-        }
+        klang_core::runtime::spawn(async move {
+            let Ok(json) = serde_json::to_string(&snapshot) else {
+                return;
+            };
+            if let Err(e) = playback::save_playback_queue(app::state(), json) {
+                log::warn!("[player] could not save the queue snapshot: {e}");
+            }
+        });
     }
 
     /// Bring back the queue and now-playing display from the last session.

@@ -56,7 +56,6 @@ pub mod qobject {
         // Integrations
         #[qproperty(bool, discord_rpc)]
         #[qproperty(QString, discord_status_text)]
-        #[qproperty(bool, report_plays)]
         // System
         #[qproperty(bool, minimize_to_tray)]
         #[qproperty(bool, enable_logging)]
@@ -106,8 +105,6 @@ pub mod qobject {
         fn apply_discord_rpc(self: Pin<&mut SettingsController>, enabled: bool);
         #[qinvokable]
         fn apply_discord_status_text(self: Pin<&mut SettingsController>, text: &QString);
-        #[qinvokable]
-        fn apply_report_plays(self: Pin<&mut SettingsController>, enabled: bool);
 
         #[qinvokable]
         fn apply_minimize_to_tray(self: Pin<&mut SettingsController>, enabled: bool);
@@ -127,8 +124,6 @@ pub mod qobject {
         #[qinvokable]
         fn clear_cache(self: Pin<&mut SettingsController>);
 
-        #[qinvokable]
-        fn refresh_scrobble_status(self: Pin<&mut SettingsController>);
         #[qinvokable]
         fn connect_lastfm(self: Pin<&mut SettingsController>);
         #[qinvokable]
@@ -178,7 +173,6 @@ pub struct SettingsControllerRust {
     audio_devices_json: QString,
     discord_rpc: bool,
     discord_status_text: QString,
-    report_plays: bool,
     minimize_to_tray: bool,
     enable_logging: bool,
     proxy_json: QString,
@@ -250,9 +244,6 @@ impl qobject::SettingsController {
         self.as_mut().set_discord_status_text(QString::from(
             &utility::get_discord_status_text(state),
         ));
-        self.as_mut()
-            .set_report_plays(utility::get_report_plays(state));
-
         self.as_mut()
             .set_minimize_to_tray(utility::get_minimize_to_tray(state));
         self.as_mut()
@@ -357,17 +348,6 @@ impl qobject::SettingsController {
         }
     }
 
-    pub fn apply_report_plays(self: Pin<&mut Self>, enabled: bool) {
-        let qt = self.qt_thread();
-        klang_core::runtime::spawn(async move {
-            let result = utility::set_report_plays(app::state(), enabled).await;
-            let _ = qt.queue(move |mut obj| match result {
-                Ok(()) => obj.as_mut().set_report_plays(enabled),
-                Err(e) => obj.as_mut().set_error(QString::from(&e.to_string())),
-            });
-        });
-    }
-
     pub fn apply_minimize_to_tray(mut self: Pin<&mut Self>, enabled: bool) {
         match utility::set_minimize_to_tray(app::state(), enabled) {
             Ok(()) => self.as_mut().set_minimize_to_tray(enabled),
@@ -448,7 +428,7 @@ impl qobject::SettingsController {
         }
     }
 
-    pub fn refresh_scrobble_status(mut self: Pin<&mut Self>) {
+    fn refresh_scrobble_status(mut self: Pin<&mut Self>) {
         let statuses = klang_core::runtime::block_on(scrobble::get_scrobble_status(app::state()));
         match statuses {
             Ok(list) => {
