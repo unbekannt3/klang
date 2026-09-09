@@ -156,6 +156,8 @@ Item {
         }
         onTrackActivated: (index) =>
             root.player.play_context(search.tracks_json, index, "search")
+        onArtistActivated: (id) => root.openArtist(id)
+        onAlbumActivated: (id) => root.openAlbum(id)
     }
 
     QQC2.BusyIndicator {

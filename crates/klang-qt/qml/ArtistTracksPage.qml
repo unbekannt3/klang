@@ -17,6 +17,8 @@ Item {
 
     /// Bubbles a row's right-click up to the window's shared menu.
     signal trackContextRequested(var track, real x, real y)
+    signal openArtist(int artistId)
+    signal openAlbum(int albumId)
 
     ViewAllController { id: viewAll }
 
@@ -147,6 +149,8 @@ Item {
             emptyText: viewAll.error.length > 0 ? viewAll.error : Tr.t("No tracks")
             onTrackActivated: (index) =>
                     root.player.play_context(viewAll.tracks_json, index, "artist-tracks:" + root.artistId)
+            onArtistActivated: (id) => root.openArtist(id)
+            onAlbumActivated: (id) => root.openAlbum(id)
     }
 
 

@@ -52,6 +52,52 @@ Item {
     /// Emitted when a sortable header is clicked; the page re-fetches.
     signal sortRequested(string column)
 
+    /// The artist and album cells are links, as on tidal.com. A page that
+    /// leaves these unconnected still gets plain text — `linked` below.
+    signal artistActivated(int artistId)
+    signal albumActivated(int albumId)
+
+    /// One cell of a row that navigates somewhere. Plain text when it has
+    /// nowhere to go, so a row without an id looks like what it is.
+    component LinkCell: Item {
+        id: cell
+        property string text: ""
+        property bool linked: false
+        signal activated()
+
+        implicitHeight: label.implicitHeight
+
+        Text {
+            id: label
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width
+            text: cell.text
+            elide: Text.ElideRight
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSize
+            font.underline: cell.linked && cellHover.hovered
+            color: cell.linked && cellHover.hovered ? Theme.textPrimary : Theme.textMuted
+        }
+
+        HoverHandler {
+            id: cellHover
+            enabled: cell.linked
+            cursorShape: Qt.PointingHandCursor
+        }
+
+        TapHandler {
+            enabled: cell.linked
+            onSingleTapped: cell.activated()
+        }
+
+        QQC2.ToolTip {
+            // The columns elide, so the tooltip is where the full name lives.
+            visible: cellHover.hovered && label.truncated
+            delay: 400
+            text: cell.text
+        }
+    }
+
     component SortableHeading: Item {
         id: heading
         required property string label
@@ -419,28 +465,24 @@ Item {
 
             // Artist and album are their own columns, as on tidal.com,
             // rather than one subtitle line under the title.
-            Text {
+            LinkCell {
                 visible: root.showArtist
                 x: root.columnX("artist")
                 width: root.columnWidth("artist")
                 anchors.verticalCenter: parent.verticalCenter
                 text: row.track.artist
-                elide: Text.ElideRight
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                color: Theme.textMuted
+                linked: !!row.track.artistId
+                onActivated: root.artistActivated(row.track.artistId)
             }
 
-            Text {
+            LinkCell {
                 visible: root.showAlbum
                 x: root.columnX("album")
                 width: root.columnWidth("album")
                 anchors.verticalCenter: parent.verticalCenter
                 text: row.track.album || ""
-                elide: Text.ElideRight
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                color: Theme.textMuted
+                linked: !!row.track.albumId
+                onActivated: root.albumActivated(row.track.albumId)
             }
 
             // Quality badge, only when the API told us something.

@@ -306,6 +306,8 @@ Item {
             emptyText: catalog.error.length > 0 ? catalog.error : Tr.t("No tracks")
             onTrackActivated: (index) =>
                     root.player.play_context(catalog.album_tracks_json, index, "album:" + root.albumId)
+            onArtistActivated: (id) => root.openArtist(id)
+            onAlbumActivated: (id) => root.openAlbum(id)
         scrollKey: "album:" + root.albumId
     }
 

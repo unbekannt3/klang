@@ -13,6 +13,8 @@ Item {
     property var favorites: null
     /// Bubbles a suggested row's right-click up to the window's shared menu.
     signal trackContextRequested(var track, real x, real y)
+    signal openArtist(int artistId)
+    signal openAlbum(int albumId)
     property bool open: false
     signal closeRequested()
 
@@ -597,6 +599,8 @@ Item {
                                 onTrackActivated: (index) =>
                                         root.player.play_context(panels.suggested_json, index,
                                                                  "radio:" + root.player.track_id)
+                                onArtistActivated: (id) => root.openArtist(id)
+                                onAlbumActivated: (id) => root.openAlbum(id)
                                 onContextRequested: (index, x, y) => {
                                     const rows = JSON.parse(panels.suggested_json || "[]")
                                     if (rows[index])

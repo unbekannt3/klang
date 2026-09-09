@@ -8,6 +8,7 @@ Rectangle {
     id: root
 
     required property var player
+    signal openArtist(int artistId)
     /// FavoritesController; when unset the heart is hidden.
     property var favorites: null
     property bool shuffle: false
@@ -94,9 +95,9 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: 2
 
-                HoverHandler { cursorShape: Qt.PointingHandCursor }
-                TapHandler { onSingleTapped: root.expandRequested() }
-
+                // The title opens the full view; the artist line below goes
+                // to the artist, as on tidal.com. A handler on the column
+                // would take both.
                 Text {
                     Layout.fillWidth: true
                     text: root.player.title
@@ -104,15 +105,34 @@ Rectangle {
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSize
                     color: Theme.textPrimary
+
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onSingleTapped: root.expandRequested() }
                 }
 
                 Text {
+                    id: barArtist
                     Layout.fillWidth: true
                     text: root.player.artist
                     elide: Text.ElideRight
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeSm
-                    color: Theme.textMuted
+                    font.underline: barArtist.linked && barArtistHover.hovered
+                    color: barArtist.linked && barArtistHover.hovered
+                           ? Theme.textPrimary : Theme.textMuted
+
+                    readonly property bool linked: root.player.artist_id !== 0
+
+                    HoverHandler {
+                        id: barArtistHover
+                        enabled: barArtist.linked
+                        cursorShape: Qt.PointingHandCursor
+                    }
+
+                    TapHandler {
+                        enabled: barArtist.linked
+                        onSingleTapped: root.openArtist(root.player.artist_id)
+                    }
                 }
             }
         }

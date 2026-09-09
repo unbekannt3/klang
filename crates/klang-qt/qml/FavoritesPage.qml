@@ -12,6 +12,8 @@ Item {
 
     /// Bubbles a row's right-click up to the window's shared menu.
     signal trackContextRequested(var track, real x, real y)
+    signal openArtist(int artistId)
+    signal openAlbum(int albumId)
     required property int userId
 
     LibraryController { id: library }
@@ -83,6 +85,13 @@ Item {
         activeId: root.player.track_id
         favorites: root.favorites
         filterable: true
+        // TIDAL's own sort keys, which is what the column names are.
+        sortColumn: library.sort_order
+        sortDescending: library.sort_direction === "DESC"
+        onSortRequested: (column) => {
+            const flip = column === library.sort_order && library.sort_direction === "DESC"
+            library.set_sort(column, flip ? "ASC" : "DESC")
+        }
         emptyText: library.error.length > 0 ? library.error : Tr.t("Nothing here")
         onEndReached: library.load_more_favorites()
         onContextRequested: (index, x, y) => {
@@ -92,5 +101,7 @@ Item {
         }
         onTrackActivated: (index) =>
                 root.player.play_context(library.tracks_json, index, "favorites")
+        onArtistActivated: (id) => root.openArtist(id)
+        onAlbumActivated: (id) => root.openAlbum(id)
     }
 }

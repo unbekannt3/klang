@@ -29,6 +29,8 @@ pub mod qobject {
         #[qproperty(QString, title)]
         #[qproperty(QString, artist)]
         #[qproperty(QString, cover)]
+        #[qproperty(i64, artist_id)]
+        #[qproperty(i64, album_id)]
         #[qproperty(QString, quality)]
         /// The tier TIDAL served — LOW/HIGH/LOSSLESS/HI_RES_LOSSLESS — kept
         /// apart from `quality`, which is the bit depth and sample rate.
@@ -128,6 +130,8 @@ pub struct PlayerControllerRust {
     title: QString,
     artist: QString,
     cover: QString,
+    artist_id: i64,
+    album_id: i64,
     quality: QString,
     quality_tier: QString,
     error: QString,
@@ -176,6 +180,8 @@ impl Default for PlayerControllerRust {
             title: QString::default(),
             artist: QString::default(),
             cover: QString::default(),
+            artist_id: 0,
+            album_id: 0,
             quality: QString::default(),
             quality_tier: QString::default(),
             error: QString::default(),
@@ -260,6 +266,10 @@ impl qobject::PlayerController {
         self.as_mut().set_title(title.clone());
         self.as_mut().set_artist(artist.clone());
         self.as_mut().set_cover(cover.clone());
+        // A card played on its own carries no ids, so the bar's links go
+        // quiet rather than pointing at whatever played before.
+        self.as_mut().set_artist_id(0);
+        self.as_mut().set_album_id(0);
         self.as_mut().set_duration_secs(duration);
         self.as_mut().set_position_secs(0.0);
         self.as_mut().set_track_id(track_id);
@@ -564,6 +574,8 @@ fn entry_from_json(value: &serde_json::Value) -> Option<Entry> {
         album: value.get("album").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
         track_mix: value.get("trackMix").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
         cover: value.get("cover").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+        artist_id: value.get("artistId").and_then(|v| v.as_i64()).unwrap_or_default(),
+        album_id: value.get("albumId").and_then(|v| v.as_i64()).unwrap_or_default(),
     })
 }
 
@@ -709,6 +721,9 @@ impl qobject::PlayerController {
         let artist = QString::from(&entry.artist);
         let cover = QString::from(&entry.cover);
         self.as_mut().play(entry.id, &title, &artist, entry.duration, &cover);
+        // `play` clears the ids for the ad-hoc case; a queue entry has them.
+        self.as_mut().set_artist_id(entry.artist_id);
+        self.as_mut().set_album_id(entry.album_id);
         self.publish_queue();
     }
 }
@@ -901,6 +916,8 @@ impl qobject::PlayerController {
         self.as_mut().set_title(QString::from(&entry.title));
         self.as_mut().set_artist(QString::from(&entry.artist));
         self.as_mut().set_cover(QString::from(&entry.cover));
+        self.as_mut().set_artist_id(entry.artist_id);
+        self.as_mut().set_album_id(entry.album_id);
         self.as_mut().set_duration_secs(entry.duration);
         self.as_mut().set_track_id(entry.id);
         self.as_mut().set_position_secs(0.0);
@@ -958,6 +975,8 @@ impl qobject::PlayerController {
         self.as_mut().set_title(QString::from(&entry.title));
         self.as_mut().set_artist(QString::from(&entry.artist));
         self.as_mut().set_cover(QString::from(&entry.cover));
+        self.as_mut().set_artist_id(entry.artist_id);
+        self.as_mut().set_album_id(entry.album_id);
         self.as_mut().set_duration_secs(entry.duration);
         self.as_mut().set_track_id(entry.id);
         self.as_mut().set_position_secs(snapshot.position_secs);

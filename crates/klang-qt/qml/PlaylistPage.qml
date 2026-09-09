@@ -190,6 +190,8 @@ Item {
         onTrackActivated: (index) =>
                 root.player.play_context(playlists.tracks_json, index,
                                          "playlist:" + root.playlistUuid)
+        onArtistActivated: (id) => root.openArtist(id)
+        onAlbumActivated: (id) => root.openAlbum(id)
     }
 
         // Drag-to-reorder overlay: the grips live in the left gutter

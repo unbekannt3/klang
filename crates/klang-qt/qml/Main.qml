@@ -267,6 +267,7 @@ QQC2.ApplicationWindow {
             visible: playerCtl.track_id !== 0
             player: playerCtl
             favorites: favoritesCtl
+            onOpenArtist: (id) => root.go("artist", { artistId: id })
             shuffle: playerCtl.shuffle
             repeat: playerCtl.repeat
             volume: playerCtl.volume
@@ -294,6 +295,8 @@ QQC2.ApplicationWindow {
                 trackMenu.track = track
                 trackMenu.openAt(Qt.point(x, y), content)
             }
+            onOpenArtist: (id) => root.go("artist", { artistId: id })
+            onOpenAlbum: (id) => root.go("album", { albumId: id })
         }
     }
 
@@ -445,6 +448,8 @@ QQC2.ApplicationWindow {
                 trackMenu.track = track
                 trackMenu.openAt(Qt.point(x, y), content)
             }
+            onOpenArtist: (id) => root.go("artist", { artistId: id })
+            onOpenAlbum: (id) => root.go("album", { albumId: id })
         }
     }
 
@@ -724,6 +729,8 @@ QQC2.ApplicationWindow {
                 trackMenu.track = track
                 trackMenu.openAt(Qt.point(x, y), content)
             }
+            onOpenArtist: (id) => root.go("artist", { artistId: id })
+            onOpenAlbum: (id) => root.go("album", { albumId: id })
         }
     }
 

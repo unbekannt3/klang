@@ -132,6 +132,8 @@ Item {
                                              : Tr.t("This mix has no tracks")
             onTrackActivated: (index) =>
                 root.player.play_context(root.mixItems, index, "mix:" + root.mixId)
+            onArtistActivated: (id) => root.openArtist(id)
+            onAlbumActivated: (id) => root.openAlbum(id)
         }
     }
 }
