@@ -49,6 +49,15 @@ pub mod qobject {
         #[qinvokable]
         fn create_with_track(self: Pin<&mut PlaylistsController>, title: &QString, track_id: i64);
 
+        /// Save a whole list of tracks as a new playlist — the queue, turned
+        /// into something that outlives it.
+        #[qinvokable]
+        fn create_with_tracks(
+            self: Pin<&mut PlaylistsController>,
+            title: &QString,
+            track_ids_json: &QString,
+        );
+
         /// Delete a playlist, then refresh the sidebar tree.
         #[qinvokable]
         fn remove(self: Pin<&mut PlaylistsController>, uuid: &QString);
@@ -331,6 +340,75 @@ impl qobject::PlaylistsController {
                     Err(e) => {
                         obj.as_mut().set_error(QString::from(&e.to_string()));
                     }
+                }
+            });
+        });
+    }
+
+    pub fn create_with_tracks(
+        mut self: Pin<&mut Self>,
+        title: &QString,
+        track_ids_json: &QString,
+    ) {
+        let ids: Vec<u64> = serde_json::from_str::<Vec<i64>>(&track_ids_json.to_string())
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|id| *id > 0)
+            .map(|id| id as u64)
+            .collect();
+        if ids.is_empty() {
+            return;
+        }
+        self.as_mut().set_loading(true);
+        self.as_mut().set_error(QString::from(""));
+        let token = self.as_mut().rust_mut().tree_requests.start();
+        let qt = self.qt_thread();
+        let title = title.to_string();
+
+        klang_core::runtime::spawn(async move {
+            let created = library::create_playlist(
+                app::state(),
+                title,
+                String::new(),
+                "UNLISTED".to_string(),
+            )
+            .await;
+
+            let playlist = match created {
+                Ok(p) => p,
+                Err(e) => {
+                    let _ = qt.queue(move |mut obj| {
+                        obj.as_mut().set_loading(false);
+                        obj.as_mut().set_error(QString::from(&e.to_string()));
+                    });
+                    return;
+                }
+            };
+
+            if let Err(e) =
+                library::add_tracks_to_playlist(app::state(), playlist.uuid.clone(), ids).await
+            {
+                let _ = qt.queue(move |mut obj| {
+                    obj.as_mut().set_loading(false);
+                    obj.as_mut().set_error(QString::from(&e.to_string()));
+                });
+                return;
+            }
+
+            let refreshed = library::get_all_flattened_playlists(app::state()).await;
+
+            let _ = qt.queue(move |mut obj| {
+                if !obj.rust().tree_requests.is_current(token) {
+                    return;
+                }
+                obj.as_mut().set_loading(false);
+                match refreshed {
+                    Ok(items) => {
+                        let rows: Vec<_> = items.iter().map(folder_item).collect();
+                        let json = serde_json::to_string(&rows).unwrap_or_else(|_| "[]".into());
+                        obj.as_mut().set_playlists_json(QString::from(&json));
+                    }
+                    Err(e) => obj.as_mut().set_error(QString::from(&e.to_string())),
                 }
             });
         });

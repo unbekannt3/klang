@@ -34,6 +34,7 @@ fn main() {
             QmlFile::from("qml/CoverArt.qml"),
             QmlFile::from("qml/MediaCard.qml"),
             QmlFile::from("qml/ModalShield.qml"),
+            QmlFile::from("qml/NamePrompt.qml"),
             QmlFile::from("qml/CoverWash.qml"),
             QmlFile::from("qml/Glass.qml"),
             QmlFile::from("qml/ArtistHoverCard.qml"),

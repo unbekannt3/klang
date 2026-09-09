@@ -107,7 +107,7 @@ Rectangle {
 
     function openFolderMenu(folder, point) {
         folderMenu.model = [
-            { label: Tr.t("Rename folder"), onTriggered: () => namePrompt.renameFolder(folder.id, folder.name) },
+            { label: Tr.t("Rename folder"), onTriggered: () => namePrompt.showAt(Tr.t("Rename folder"), "rename", folder.id, folder.name) },
             { separator: true },
             { label: Tr.t("Delete folder"), danger: true, onTriggered: () => writer.delete_folder(folder.id) },
         ]
@@ -190,134 +190,7 @@ Rectangle {
     // Modal single-line prompt shared by "new folder" and "rename folder" —
     // a Popup rather than a plain Item, since the sidebar's own bounds are
     // only 220px wide and this needs to sit centred over the whole window.
-    component NamePrompt: QQC2.Popup {
-        id: prompt
-        modal: true
-        focus: true
-        padding: Theme.spaceLg
-        width: 320
-        closePolicy: QQC2.Popup.CloseOnEscape
 
-        property string promptTitle: ""
-        property string mode: "create"
-        property string targetId: ""
-
-        background: Rectangle {
-            color: Theme.elevated
-            radius: Theme.radiusLg
-            border.color: Theme.border
-            border.width: 1
-        }
-
-        function showAt(t, mode_, targetId_, initial) {
-            promptTitle = t
-            mode = mode_
-            targetId = targetId_
-            field.text = initial
-            parent = QQC2.Overlay.overlay
-            x = (parent.width - width) / 2
-            y = (parent.height - implicitHeight) / 3
-            open()
-            field.forceActiveFocus()
-            field.selectAll()
-        }
-
-        function createFolder() { showAt("New folder", "create", "", "") }
-        function renameFolder(id, name) { showAt("Rename folder", "rename", id, name) }
-
-        function commit() {
-            const text = field.text.trim()
-            if (text.length === 0)
-                return
-            if (mode === "create")
-                writer.create_folder(text)
-            else
-                writer.rename_folder(targetId, text)
-            close()
-        }
-
-        contentItem: ColumnLayout {
-            spacing: Theme.space
-
-            Text {
-                text: prompt.promptTitle
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSizeLg
-                font.weight: Font.DemiBold
-                color: Theme.textPrimary
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: 36
-                radius: Theme.radiusSm
-                color: Theme.inset
-                border.color: field.activeFocus ? Theme.accent : Theme.border
-                border.width: 1
-
-                TextInput {
-                    id: field
-                    anchors.fill: parent
-                    anchors.leftMargin: Theme.spaceSm
-                    anchors.rightMargin: Theme.spaceSm
-                    verticalAlignment: TextInput.AlignVCenter
-                    clip: true
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSm
-                    color: Theme.textPrimary
-                    selectionColor: Theme.accent
-                    selectedTextColor: Theme.onAccent
-                    onAccepted: prompt.commit()
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignRight
-                spacing: Theme.spaceSm
-
-                Rectangle {
-                    implicitWidth: 68
-                    implicitHeight: 32
-                    radius: Theme.radiusSm
-                    color: cancelHover.hovered ? Theme.hlFaint : "transparent"
-                    border.color: Theme.border
-                    border.width: 1
-
-                    HoverHandler { id: cancelHover }
-                    TapHandler { onSingleTapped: prompt.close() }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: Tr.t("Cancel")
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSm
-                        color: Theme.textSecondary
-                    }
-                }
-
-                Rectangle {
-                    implicitWidth: 68
-                    implicitHeight: 32
-                    radius: Theme.radiusSm
-                    opacity: field.text.trim().length > 0 ? 1 : 0.4
-                    color: saveHover.hovered ? Theme.accentHover : Theme.accent
-
-                    HoverHandler { id: saveHover; enabled: field.text.trim().length > 0 }
-                    TapHandler { enabled: field.text.trim().length > 0; onSingleTapped: prompt.commit() }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: Tr.t("Save")
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSm
-                        font.weight: Font.DemiBold
-                        color: Theme.onAccent
-                    }
-                }
-            }
-        }
-    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -432,7 +305,7 @@ Rectangle {
                 implicitHeight: 20
 
                 HoverHandler { id: addFolderHover }
-                TapHandler { onSingleTapped: namePrompt.createFolder() }
+                TapHandler { onSingleTapped: namePrompt.showAt(Tr.t("New folder"), "create", "", "") }
 
                 Text {
                     anchors.centerIn: parent
@@ -581,7 +454,12 @@ Rectangle {
 
     ContextMenu { id: folderMenu }
     ContextMenu { id: playlistMenu }
-    NamePrompt { id: namePrompt }
+    NamePrompt {
+        id: namePrompt
+        onAccepted: (text, mode, targetId) => mode === "create"
+            ? writer.create_folder(text)
+            : writer.rename_folder(targetId, text)
+    }
 
     PlaylistEditDialog {
         id: editDialog

@@ -11,6 +11,8 @@ Item {
 
     required property var player
     property var favorites: null
+    /// PlaylistsController, for saving the queue.
+    property var playlists: null
     /// Bubbles a suggested row's right-click up to the window's shared menu.
     signal trackContextRequested(var track, real x, real y)
     signal openArtist(int artistId)
@@ -110,6 +112,18 @@ Item {
         upcoming.forEach((t, i) => rows.push({ type: "track", track: t, mode: "upcoming", index: i }))
 
         return rows
+    }
+
+    /// Everything lined up, in playback order: the current track and what
+    /// follows it, manual entries first.
+    function queueTrackIds() {
+        const ids = []
+        if (root.player.track_id !== 0)
+            ids.push(root.player.track_id)
+        for (const t of root.manualRows.concat(root.upcomingRows))
+            if (t.id && ids.indexOf(t.id) < 0)
+                ids.push(t.id)
+        return ids
     }
 
     function entryHeight(entry) {
@@ -316,6 +330,22 @@ Item {
         }
     }
 
+    // A Popup places itself on the window overlay; it takes no anchors.
+    NamePrompt {
+        id: queueSaveName
+
+        function begin() {
+            queueSaveName.ask(Tr.t("Save queue as playlist"),
+                              root.sourceName.length > 0 ? root.sourceName : Tr.t("Queue"))
+        }
+
+        onAccepted: (text) => {
+            if (root.playlists)
+                root.playlists.create_with_tracks(text,
+                                                  JSON.stringify(root.queueTrackIds()))
+        }
+    }
+
     Rectangle {
         id: sheet
         width: root.width
@@ -480,6 +510,14 @@ Item {
                         }
 
                         Item { Layout.fillWidth: true }
+
+                        // tidal.com keeps the queue itself: this turns what
+                        // is lined up into a playlist that outlives it.
+                        CornerButton {
+                            visible: root.activeTab === 0 && root.queueTrackIds().length > 0
+                            iconName: "playlist"
+                            onActivated: queueSaveName.begin()
+                        }
 
                         CornerButton {
                             iconName: root.expanded ? "restore" : "maximize"

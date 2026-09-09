@@ -780,6 +780,7 @@ QQC2.ApplicationWindow {
         sourceComponent: NowPlayingView {
             player: playerCtl
             favorites: favoritesCtl
+            playlists: playlistsCtl
             onCloseRequested: root.nowPlayingOpen = false
             onTrackContextRequested: (track, x, y) => {
                 trackMenu.track = track
