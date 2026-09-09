@@ -5,7 +5,6 @@ use rmcp::{ErrorData, tool_router};
 use serde::Deserialize;
 use crate::app::Emitter;
 
-use crate::AppState;
 use crate::mcp::events::{
     EV_PLAYLIST_CREATED, EV_PLAYLIST_DELETED, EV_PLAYLIST_TRACKS_CHANGED, EV_PLAYLIST_UPDATED,
     PlaylistDeletedPayload, PlaylistTracksChangedPayload, PlaylistUpdatedPayload,

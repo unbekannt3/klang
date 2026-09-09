@@ -5,7 +5,6 @@ use rmcp::{ErrorData, tool_router};
 use serde::Deserialize;
 use crate::app::Emitter;
 
-use crate::AppState;
 use crate::mcp::events::{EV_FAVORITE_CHANGED, FavoriteChangedPayload};
 use crate::mcp::sanitizer::{SanitizedAlbum, SanitizedArtist, backfill_and_sanitize_tracks};
 use crate::mcp::server::SoneMcpServer;

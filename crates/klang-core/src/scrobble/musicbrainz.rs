@@ -75,7 +75,7 @@ impl MusicBrainzLookup {
     /// Uses title + artist to filter ambiguous results.
     /// Returns an empty/default `MbidLookup` (recording_mbid `None`, artist_mbids
     /// empty) on cache miss with no result, or on error.
-    pub async fn lookup_isrc(&self, isrc: &str, track_name: &str, artist_name: &str) -> MbidLookup {
+    pub(crate) async fn lookup_isrc(&self, isrc: &str, track_name: &str, artist_name: &str) -> MbidLookup {
         {
             let cache = self.cache.lock().await;
             if let Some(cached) = cache.get(isrc) {

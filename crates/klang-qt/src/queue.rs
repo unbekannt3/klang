@@ -30,13 +30,6 @@ impl Repeat {
         }
     }
 
-    pub fn from_i32(v: i32) -> Self {
-        match v {
-            1 => Repeat::All,
-            2 => Repeat::One,
-            _ => Repeat::Off,
-        }
-    }
 }
 
 /// One entry. `cover` is a TIDAL image UUID, passed through to the UI.

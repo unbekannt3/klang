@@ -4,7 +4,6 @@ use rmcp::schemars::JsonSchema;
 use rmcp::{ErrorData, tool_router};
 use serde::Deserialize;
 
-use crate::AppState;
 use crate::mcp::server::SoneMcpServer;
 
 use super::util::NoArgs;
