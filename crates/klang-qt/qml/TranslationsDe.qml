@@ -69,6 +69,12 @@ QtObject {
         "Artist": "Künstler",
         "Mix": "Mix",
         "Radio": "Radio",
+        "%1 MB across %2 items — %3% of the %4 MB cap":
+            "%1 MB in %2 Einträgen — %3 % von %4 MB",
+        "%1 fan": "%1 Fan",
+        "%1 fans": "%1 Fans",
+        "Copied!": "Kopiert!",
+        "Share": "Teilen",
         // Navigation
         "Removes silence between consecutive tracks.":
             "Entfernt Stille zwischen aufeinanderfolgenden Titeln.",

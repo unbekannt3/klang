@@ -27,10 +27,11 @@ ColumnLayout {
     Component.onCompleted: root.refreshCacheStats()
 
     readonly property string cacheSummary:
-        (root.cacheStats.totalDiskMb || 0).toFixed(1) + " MB across "
-        + (root.cacheStats.totalEntries || 0) + " items — "
-        + Math.round(root.cacheStats.usagePercent || 0) + "% of the "
-        + (root.cacheStats.maxDiskMb || 0).toFixed(0) + " MB cap"
+        Tr.t("%1 MB across %2 items — %3% of the %4 MB cap")
+            .arg((root.cacheStats.totalDiskMb || 0).toFixed(1))
+            .arg(root.cacheStats.totalEntries || 0)
+            .arg(Math.round(root.cacheStats.usagePercent || 0))
+            .arg((root.cacheStats.maxDiskMb || 0).toFixed(0))
 
     component ActionButton: Rectangle {
         id: btn

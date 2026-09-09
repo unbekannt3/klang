@@ -59,7 +59,8 @@ Item {
         if (p.handle)
             parts.push("@" + p.handle)
         if (p.hasFanCount)
-            parts.push(root.formatCompact(p.fanCount) + (p.fanCount === 1 ? " fan" : " fans"))
+            parts.push(Tr.t(p.fanCount === 1 ? "%1 fan" : "%1 fans")
+                       .arg(root.formatCompact(p.fanCount)))
         return parts.join(" · ")
     }
 
@@ -112,7 +113,7 @@ Item {
         if (!artistId)
             return
         clipboardHelper.copyText("https://tidal.com/artist/" + artistId + "/u")
-        root.shareFeedback = "Copied!"
+        root.shareFeedback = Tr.t("Copied!")
         shareFeedbackTimer.restart()
     }
 
@@ -354,7 +355,7 @@ Item {
                         }
 
                         Text {
-                            text: root.shareFeedback.length > 0 ? root.shareFeedback : "Share"
+                            text: root.shareFeedback.length > 0 ? root.shareFeedback : Tr.t("Share")
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSm
                             font.weight: Font.Bold
