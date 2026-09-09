@@ -614,9 +614,12 @@ QQC2.ApplicationWindow {
     Loader {
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: parent.top
-        // The player bar lives in the layout, so it cannot be anchored to.
-        height: parent.height - (bar.visible ? bar.height : 0)
+        // Below the titlebar, not over it: the panel's own close glyph would
+        // otherwise sit on the window's close button, and a tap that misses
+        // the panel by a pixel quits the app. Both bars live in the layout,
+        // so their heights are read rather than anchored to.
+        y: titleBar.height
+        height: parent.height - titleBar.height - (bar.visible ? bar.height : 0)
         active: root.nowPlayingLive
 
         // Bound after creation: as an initial value `open` would already be

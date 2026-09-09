@@ -60,15 +60,16 @@ Item {
         const kind = source.split(":")[0]
         const names = {
             favorites: "Favorites", playlist: "Playlist", album: "Album",
-            artist: "Artist", mix: "Mix", search: "Search",
+            artist: "Artist", mix: "Mix", search: "Search", radio: "Radio",
         }
-        return names[kind] || (kind.charAt(0).toUpperCase() + kind.slice(1))
+        return Tr.t(names[kind] || (kind.charAt(0).toUpperCase() + kind.slice(1)))
     }
 
     readonly property string sourceName: root.player.source_label.length > 0
         ? root.player.source_label : root.sourceLabel(root.player.source)
     readonly property string upcomingHeading: root.sourceName.length > 0
-        ? "NEXT UP FROM " + root.sourceName.toUpperCase() : "NEXT UP"
+        ? Tr.t("NEXT UP FROM %1").arg(root.sourceName.toUpperCase())
+        : Tr.t("NEXT UP")
 
     // History, now playing and the two up-next lists flattened into one model
     // so a ListView can virtualize the lot. As three Repeaters in a column, a

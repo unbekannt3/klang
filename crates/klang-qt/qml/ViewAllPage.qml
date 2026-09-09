@@ -167,7 +167,7 @@ Item {
                 Text {
                     id: sortLabel
                     anchors.centerIn: parent
-                    text: (root.sortOrder === "NAME" ? "Name" : "Recently added")
+                    text: Tr.t(root.sortOrder === "NAME" ? "Name" : "Recently added")
                           + (root.sortDirection === "ASC" ? " ↑" : " ↓")
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeSm

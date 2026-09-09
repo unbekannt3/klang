@@ -60,6 +60,15 @@ QtObject {
         "%1 playlists": "%1 Playlists",
         "%1 item": "%1 Eintrag",
         "%1 items": "%1 Einträge",
+        "Recently added": "Zuletzt hinzugefügt",
+        "NEXT UP FROM %1": "ALS NÄCHSTES AUS %1",
+        "NEXT UP": "ALS NÄCHSTES",
+        "Favorites": "Lieblingstitel",
+        "Playlist": "Playlist",
+        "Album": "Album",
+        "Artist": "Künstler",
+        "Mix": "Mix",
+        "Radio": "Radio",
         // Navigation
         "Removes silence between consecutive tracks.":
             "Entfernt Stille zwischen aufeinanderfolgenden Titeln.",
