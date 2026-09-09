@@ -330,4 +330,22 @@ Item {
         pageKey: "album:" + root.albumId
     }
 
+
+    StickyHeader {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        flickable: flick
+        threshold: root.coverSize
+        cover: root.album().cover || ""
+        title: root.album().title || ""
+        subtitle: root.album().artist || ""
+
+        PlayActions {
+            player: root.player
+            tracks: catalog.album_tracks_json
+            source: "album:" + root.albumId
+        }
+    }
+
 }

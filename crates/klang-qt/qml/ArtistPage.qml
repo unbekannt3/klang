@@ -244,4 +244,21 @@ Item {
         pageKey: "artist:" + root.artistId
     }
 
+
+    StickyHeader {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        flickable: flick
+        threshold: root.avatarSize
+        cover: root.artist().picture || ""
+        title: root.artist().name || ""
+
+        PlayActions {
+            player: root.player
+            tracks: catalog.artist_top_tracks_json
+            source: "artist:" + root.artistId
+        }
+    }
+
 }

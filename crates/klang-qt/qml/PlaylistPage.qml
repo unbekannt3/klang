@@ -207,6 +207,7 @@ Item {
                 Layout.preferredHeight: root.trackListHeight
 
                 TrackList {
+                    filterable: true
                     anchors.fill: parent
                     tracks: playlists.tracks_json
                     numbered: true
@@ -327,4 +328,22 @@ Item {
         playlists: playlists
         onCloseRequested: open = false
     }
+
+    StickyHeader {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        flickable: flick
+        threshold: 200
+        cover: root.meta.image || ""
+        title: root.meta.title || root.playlistTitle
+        subtitle: root.metaLine
+
+        PlayActions {
+            player: root.player
+            tracks: playlists.tracks_json
+            source: "playlist:" + root.playlistUuid
+        }
+    }
+
 }

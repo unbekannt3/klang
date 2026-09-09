@@ -33,53 +33,37 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        // Header band. The gradient stands in for the cover-derived colour the
-        // real client pulls from artwork.
-        Rectangle {
+        // tidal.com's own collection pages have no coloured banner: a plain
+        // title, then Play and Shuffle, then the list.
+        ColumnLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 180
+            Layout.leftMargin: Theme.spaceLg
+            Layout.rightMargin: Theme.spaceLg
+            Layout.topMargin: Theme.spaceLg
+            Layout.bottomMargin: Theme.space
+            spacing: Theme.spaceSm
 
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Theme.accent }
-                GradientStop { position: 1.0; color: Theme.base }
+            Text {
+                text: "Loved Tracks"
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeDisplay
+                font.weight: Font.Bold
+                color: Theme.textPrimary
             }
 
-            // Knock the gradient back so the title stays readable on any accent.
-            Rectangle {
-                anchors.fill: parent
-                color: Theme.base
-                opacity: 0.55
+            Text {
+                visible: library.total > 0
+                text: library.total + " tracks"
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeSm
+                color: Theme.textMuted
             }
 
-            ColumnLayout {
-                anchors.left: parent.left
-                anchors.bottom: parent.bottom
-                anchors.margins: Theme.spaceLg
-                spacing: Theme.spaceXs
-
-                Text {
-                    text: "COLLECTION"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSm - 1
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: 1.5
-                    color: Theme.textSecondary
-                }
-
-                Text {
-                    text: "Loved Tracks"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeDisplay
-                    font.weight: Font.Bold
-                    color: Theme.textPrimary
-                }
-
-                Text {
-                    text: library.total > 0 ? library.total + " tracks" : ""
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSm
-                    color: Theme.textMuted
-                }
+            PlayActions {
+                Layout.topMargin: Theme.spaceSm
+                player: root.player
+                tracks: library.tracks_json
+                source: "favorites"
             }
         }
 
@@ -91,6 +75,7 @@ Item {
             loading: library.loading
             activeId: root.player.track_id
             favorites: root.favorites
+            filterable: true
             onContextRequested: (index, x, y) => {
                 const rows = JSON.parse(library.tracks_json || "[]")
                 if (rows[index])

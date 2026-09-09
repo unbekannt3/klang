@@ -14,7 +14,8 @@ Commands run in order. `run` starts the app first and stops it at the end;
 without it, an already-running instance on the port is used.
 
 Limitation: Qt's VNC plugin does not translate RFB buttons 4/5 into wheel
-events, so scrolling cannot be exercised here — check that by hand.
+events, so `drag` stands in for the wheel: it presses and moves in steps,
+which a Flickable follows.
 """
 
 from __future__ import annotations
@@ -129,6 +130,19 @@ class Rfb:
         self.sock.sendall(struct.pack(">BBHH", 5, 0, x, y))
         time.sleep(0.1)
 
+    def drag(self, x1: int, y1: int, x2: int, y2: int, steps: int = 12) -> None:
+        """Press, move in steps, release — a Flickable only follows a drag
+        that arrives as several move events, not one jump."""
+        self.move(x1, y1)
+        self.sock.sendall(struct.pack(">BBHH", 5, 1, x1, y1))
+        for i in range(1, steps + 1):
+            x = round(x1 + (x2 - x1) * i / steps)
+            y = round(y1 + (y2 - y1) * i / steps)
+            self.sock.sendall(struct.pack(">BBHH", 5, 1, x, y))
+            time.sleep(0.02)
+        self.sock.sendall(struct.pack(">BBHH", 5, 0, x2, y2))
+        time.sleep(0.3)
+
     def key(self, name: str) -> None:
         code = KEYS.get(name)
         if code is None:
@@ -216,6 +230,11 @@ def main(argv: list[str]) -> int:
                 x, y = int(args[i + 1]), int(args[i + 2]); i += 3
                 vnc.click(x, y, button=3)
                 print(f"rclick {x},{y}")
+            elif cmd == "drag":
+                x1, y1, x2, y2 = (int(args[i + 1 + n]) for n in range(4))
+                i += 5
+                vnc.drag(x1, y1, x2, y2)
+                print(f"drag {x1},{y1} -> {x2},{y2}")
             elif cmd == "key":
                 vnc.key(args[i + 1]); i += 2
             elif cmd == "type":

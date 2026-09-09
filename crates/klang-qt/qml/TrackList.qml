@@ -23,6 +23,9 @@ Item {
     property bool showCovers: true
     /// An album page already names the album in its header.
     property bool showAlbum: true
+    property bool showArtist: true
+    /// Shows the filter field tidal.com puts above its lists.
+    property bool filterable: false
     /// FavoritesController; when unset the heart column is hidden.
     property var favorites: null
 
@@ -83,17 +86,53 @@ Item {
         }
     }
 
+    property string filterText: ""
+
     function rows() {
         if (typeof tracks === "string")
             return JSON.parse(tracks || "[]")
         return tracks || []
     }
 
+    /// Rows as rendered: filtered, each carrying the index it has in the
+    /// unfiltered list so activating one still plays the right track.
+    function visibleRows() {
+        const all = root.rows()
+        const numbered = all.map((row, i) => ({ row: row, position: i }))
+        const needle = root.filterText.trim().toLowerCase()
+        if (needle.length === 0)
+            return numbered
+        return numbered.filter((entry) => {
+            const r = entry.row
+            return (r.title || "").toLowerCase().includes(needle)
+                || (r.artist || "").toLowerCase().includes(needle)
+                || (r.album || "").toLowerCase().includes(needle)
+        })
+    }
+
+    SettingsField {
+        id: filterField
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: Theme.spaceLg
+        anchors.rightMargin: Theme.spaceLg
+        anchors.bottomMargin: Theme.space
+        visible: root.filterable
+        height: visible ? 38 : 0
+        placeholder: "Filter by title, artist or album"
+        onTextChanged: root.filterText = text
+    }
+
     ListView {
         id: view
-        anchors.fill: parent
+        anchors.top: root.filterable ? filterField.bottom : parent.top
+        anchors.topMargin: root.filterable ? Theme.space : 0
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
         clip: true
-        model: root.rows()
+        model: root.visibleRows()
         currentIndex: -1
         reuseItems: true
 
@@ -135,8 +174,25 @@ Item {
 
                 SortableHeading {
                     Layout.fillWidth: true
+                    Layout.preferredWidth: 3
                     label: "TITLE"
                     column: "NAME"
+                }
+
+                SortableHeading {
+                    visible: root.showArtist
+                    Layout.fillWidth: root.showArtist
+                    Layout.preferredWidth: root.showArtist ? 2 : 0
+                    label: "ARTIST"
+                    column: "ARTIST"
+                }
+
+                SortableHeading {
+                    visible: root.showAlbum
+                    Layout.fillWidth: root.showAlbum
+                    Layout.preferredWidth: root.showAlbum ? 2 : 0
+                    label: "ALBUM"
+                    column: "ALBUM"
                 }
 
                 Text {
@@ -185,9 +241,11 @@ Item {
         delegate: Rectangle {
             id: row
             required property var modelData
-            required property int index
+            /// The row's track, and where it sits in the unfiltered list.
+            readonly property var track: modelData.row
+            readonly property int position: modelData.position
 
-            readonly property bool active: modelData.id === root.activeId
+            readonly property bool active: track.id === root.activeId
 
             width: view.width - Theme.spaceLg * 2
             x: Theme.spaceLg
@@ -197,13 +255,13 @@ Item {
 
             HoverHandler { id: hover }
             TapHandler {
-                onSingleTapped: root.trackActivated(row.index)
+                onSingleTapped: root.trackActivated(row.position)
             }
             TapHandler {
                 acceptedButtons: Qt.RightButton
                 onSingleTapped: (point) => {
                     const p = row.mapToItem(root, point.position.x, point.position.y)
-                    root.contextRequested(row.index, p.x, p.y)
+                    root.contextRequested(row.position, p.x, p.y)
                 }
             }
 
@@ -217,7 +275,7 @@ Item {
                     visible: root.numbered
                     Layout.preferredWidth: 28
                     horizontalAlignment: Text.AlignRight
-                    text: row.active ? "▶" : (row.index + 1)
+                    text: row.active ? "▶" : (row.position + 1)
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeSm
                     color: row.active ? Theme.accent : Theme.textFaint
@@ -227,40 +285,49 @@ Item {
                     visible: root.showCovers
                     Layout.preferredWidth: Theme.coverThumb
                     Layout.preferredHeight: Theme.coverThumb
-                    uuid: row.modelData.cover || ""
+                    uuid: row.track.cover || ""
                 }
 
-                ColumnLayout {
+                Text {
                     Layout.fillWidth: true
-                    spacing: 1
+                    Layout.preferredWidth: 3
+                    text: row.track.title
+                    elide: Text.ElideRight
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize
+                    color: row.active ? Theme.accent : Theme.textPrimary
+                }
 
-                    Text {
-                        Layout.fillWidth: true
-                        text: row.modelData.title
-                        elide: Text.ElideRight
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSize
-                        color: row.active ? Theme.accent : Theme.textPrimary
-                    }
+                // Artist and album are their own columns, as on tidal.com,
+                // rather than one subtitle line under the title.
+                Text {
+                    visible: root.showArtist
+                    Layout.fillWidth: root.showArtist
+                    Layout.preferredWidth: root.showArtist ? 2 : 0
+                    text: row.track.artist
+                    elide: Text.ElideRight
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize
+                    color: Theme.textMuted
+                }
 
-                    Text {
-                        Layout.fillWidth: true
-                        text: root.showAlbum && row.modelData.album
-                              ? row.modelData.artist + " · " + row.modelData.album
-                              : row.modelData.artist
-                        elide: Text.ElideRight
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSm
-                        color: Theme.textMuted
-                    }
+                Text {
+                    visible: root.showAlbum
+                    Layout.fillWidth: root.showAlbum
+                    Layout.preferredWidth: root.showAlbum ? 2 : 0
+                    text: row.track.album || ""
+                    elide: Text.ElideRight
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize
+                    color: Theme.textMuted
                 }
 
                 // Quality badge, only when the API told us something.
                 Rectangle {
-                    readonly property bool hiRes: row.modelData.quality === "HI_RES_LOSSLESS"
-                                               || row.modelData.quality === "HI_RES"
+                    readonly property bool hiRes: row.track.quality === "HI_RES_LOSSLESS"
+                                               || row.track.quality === "HI_RES"
 
-                    visible: !!row.modelData.quality
+                    visible: !!row.track.quality
                     implicitWidth: qualityText.implicitWidth + Theme.spaceSm
                     implicitHeight: 18
                     radius: Theme.radiusXs
@@ -271,11 +338,11 @@ Item {
                     Text {
                         id: qualityText
                         anchors.centerIn: parent
-                        text: Format.qualityLabel(row.modelData.quality)
+                        text: Format.qualityLabel(row.track.quality)
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeSm - 2
                         font.letterSpacing: 0.5
-                        color: Format.qualityColor(row.modelData.quality)
+                        color: Format.qualityColor(row.track.quality)
                     }
                 }
 
@@ -285,10 +352,10 @@ Item {
                     visible: root.showBpm
                     Layout.preferredWidth: 52
                     horizontalAlignment: Text.AlignRight
-                    text: row.modelData.bpm ? row.modelData.bpm : "–"
+                    text: row.track.bpm ? row.track.bpm : "–"
                     font.family: Theme.monoFamily
                     font.pixelSize: Theme.fontSizeSm
-                    color: row.modelData.bpm ? Theme.textSecondary : Theme.textDisabled
+                    color: row.track.bpm ? Theme.textSecondary : Theme.textDisabled
                 }
 
                 Item {
@@ -299,7 +366,7 @@ Item {
                     Rectangle {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: !!row.modelData.key
+                        visible: !!row.track.key
                         width: keyText.implicitWidth + Theme.spaceSm
                         height: 20
                         radius: Theme.radiusXs
@@ -308,7 +375,7 @@ Item {
                         Text {
                             id: keyText
                             anchors.centerIn: parent
-                            text: row.modelData.key || ""
+                            text: row.track.key || ""
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSm - 1
                             font.weight: Font.DemiBold
@@ -319,7 +386,7 @@ Item {
                     Text {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: !row.modelData.key
+                        visible: !row.track.key
                         text: "–"
                         font.family: Theme.monoFamily
                         font.pixelSize: Theme.fontSizeSm
@@ -335,7 +402,7 @@ Item {
 
                     property bool loved: root.favorites
                         && root.favorites.revision >= 0
-                        && root.favorites.is_track(row.modelData.id)
+                        && root.favorites.is_track(row.track.id)
 
                     Icon {
                         anchors.centerIn: parent
@@ -350,14 +417,14 @@ Item {
 
                     HoverHandler { id: heartHover }
                     TapHandler {
-                        onSingleTapped: root.favorites.toggle_track(row.modelData.id)
+                        onSingleTapped: root.favorites.toggle_track(row.track.id)
                     }
                 }
 
                 Text {
                     Layout.preferredWidth: 64
                     horizontalAlignment: Text.AlignRight
-                    text: Format.duration(row.modelData.duration)
+                    text: Format.duration(row.track.duration)
                     font.family: Theme.monoFamily
                     font.pixelSize: Theme.fontSizeSm
                     color: Theme.textFaint
