@@ -380,7 +380,9 @@ Item {
                 }
 
                 ColumnLayout {
-                    anchors.centerIn: parent
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.verticalCenterOffset: -Theme.contentBottomInset / 2
                     width: Math.min(parent.width - Theme.spaceXl * 2, 560)
                     spacing: Theme.space
 
@@ -388,8 +390,9 @@ Item {
                     Item {
                         id: coverTilt
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: Math.min(parent.width,
-                                                        sheet.height - Theme.spaceXl * 2)
+                        Layout.preferredWidth: Math.min(
+                            parent.width,
+                            sheet.height - Theme.contentBottomInset - Theme.spaceXl * 2)
                         Layout.preferredHeight: Layout.preferredWidth
 
                         readonly property real maxTilt: 7
@@ -551,7 +554,7 @@ Item {
                             clip: true
                             model: root.queueModel
                             topMargin: Theme.spaceXl
-                            bottomMargin: Theme.spaceLg
+                            bottomMargin: Theme.spaceLg + Theme.contentBottomInset
                             boundsBehavior: Flickable.StopAtBounds
                             reuseItems: true
 
@@ -710,6 +713,7 @@ Item {
                             sourceComponent: Flickable {
                                 id: lyricsFlick
                                 contentHeight: lyricsText.implicitHeight
+                                               + Theme.contentBottomInset
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
 
@@ -745,6 +749,7 @@ Item {
                             sourceComponent: Flickable {
                                 id: creditsFlick
                                 contentHeight: creditsColumn.implicitHeight
+                                               + Theme.contentBottomInset
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
 

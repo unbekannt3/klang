@@ -303,7 +303,9 @@ QQC2.ApplicationWindow {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             z: 500
-            behind: pageArea
+            // Whatever is actually under the bar: the now-playing panel when
+            // it is up, the page otherwise.
+            behind: nowPlayingLayer.item ? nowPlayingLayer.item : pageArea
             visible: playerCtl.track_id !== 0
             player: playerCtl
             favorites: favoritesCtl
@@ -763,14 +765,17 @@ QQC2.ApplicationWindow {
     }
 
     Loader {
+        id: nowPlayingLayer
         anchors.left: parent.left
         anchors.right: parent.right
         // Below the titlebar, not over it: the panel's own close glyph would
         // otherwise sit on the window's close button, and a tap that misses
-        // the panel by a pixel quits the app. Both bars live in the layout,
-        // so their heights are read rather than anchored to.
+        // the panel by a pixel quits the app.
         y: titleBar.height
-        height: parent.height - titleBar.height - (bar.visible ? bar.height : 0)
+        // Runs under the floating bar, like the page does — otherwise the
+        // bar's glass has the page behind it while the panel is open, and
+        // blurs a list nobody is looking at.
+        height: parent.height - titleBar.height
         active: root.nowPlayingLive
 
         // Bound after creation: as an initial value `open` would already be
