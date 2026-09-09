@@ -63,6 +63,9 @@ QtObject {
     readonly property int cardSize: 174
     readonly property int rowHeight: 56
     readonly property int coverThumb: 40
+    /// The now-playing cover in the player bar, sized to the bar's height
+    /// less its padding.
+    readonly property int coverPlayer: 64
 
     readonly property int spaceXs: 4
     readonly property int spaceSm: 8

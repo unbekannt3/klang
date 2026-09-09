@@ -89,8 +89,8 @@ Window {
             spacing: Theme.spaceSm
 
             CoverArt {
-                Layout.preferredWidth: 40
-                Layout.preferredHeight: 40
+                Layout.preferredWidth: Theme.coverThumb
+                Layout.preferredHeight: Theme.coverThumb
                 visible: root.tier !== "full"
                 uuid: root.player.cover
                 radius: Theme.radiusXs

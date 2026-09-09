@@ -82,8 +82,8 @@ Rectangle {
 
             // Cover and title open the full view, as tidal.com does.
             CoverArt {
-                Layout.preferredWidth: Theme.coverThumb + 16
-                Layout.preferredHeight: Theme.coverThumb + 16
+                Layout.preferredWidth: Theme.coverPlayer
+                Layout.preferredHeight: Theme.coverPlayer
                 uuid: root.player.cover
 
                 HoverHandler { cursorShape: Qt.PointingHandCursor }
