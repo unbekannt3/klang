@@ -427,6 +427,11 @@ QQC2.ApplicationWindow {
         id: mixPage
         MixPage {
             player: playerCtl
+            favorites: favoritesCtl
+            onTrackContextRequested: (track, x, y) => {
+                trackMenu.track = track
+                trackMenu.openAt(Qt.point(x, y), content)
+            }
             mixId: root.page.params.mixId || ""
             mixTitle: root.page.params.title || ""
             mixItems: mixCtl.tracks_json
@@ -556,8 +561,13 @@ QQC2.ApplicationWindow {
         // The player bar lives in the layout, so it cannot be anchored to.
         height: parent.height - (bar.visible ? bar.height : 0)
         player: playerCtl
+        favorites: favoritesCtl
         open: root.nowPlayingOpen
         onCloseRequested: root.nowPlayingOpen = false
+        onTrackContextRequested: (track, x, y) => {
+            trackMenu.track = track
+            trackMenu.openAt(Qt.point(x, y), content)
+        }
     }
 
     ResizeEdges {

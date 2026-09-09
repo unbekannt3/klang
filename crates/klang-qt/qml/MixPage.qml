@@ -20,6 +20,9 @@ Item {
     property bool loading: false
     property string error: ""
 
+    property var favorites: null
+    /// Bubbles a row's right-click up to the window's shared menu.
+    signal trackContextRequested(var track, real x, real y)
     signal openAlbum(int albumId)
     signal openArtist(int artistId)
 
@@ -108,6 +111,11 @@ Item {
             tracks: root.mixItems
             loading: root.loading
             activeId: root.player.track_id
+            favorites: root.favorites
+            onContextRequested: (index, x, y) => {
+                if (root.trackRows[index])
+                    root.trackContextRequested(root.trackRows[index], x, y)
+            }
             emptyText: root.error.length > 0 ? root.error : "This mix has no tracks"
             onTrackActivated: (index) =>
                 root.player.play_context(JSON.stringify(root.trackRows), index, "mix:" + root.mixId)

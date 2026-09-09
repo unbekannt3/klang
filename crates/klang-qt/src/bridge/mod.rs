@@ -5,6 +5,7 @@ pub mod feed;
 pub mod home;
 pub mod library;
 pub mod mix;
+pub mod nowplaying;
 pub mod playlists;
 pub mod player;
 pub mod profile;

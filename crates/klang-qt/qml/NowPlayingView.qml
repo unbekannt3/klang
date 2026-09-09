@@ -10,6 +10,9 @@ Item {
     id: root
 
     required property var player
+    property var favorites: null
+    /// Bubbles a suggested row's right-click up to the window's shared menu.
+    signal trackContextRequested(var track, real x, real y)
     property bool open: false
     signal closeRequested()
 
@@ -32,6 +35,22 @@ Item {
     readonly property var upcomingRows: root.queueRows.filter((r) => !r.manual)
     // history_json is newest-first (see publish_queue in player.rs); TIDAL
     // lists oldest at the top, so the display order is reversed here.
+    NowPlayingController { id: panels }
+
+    // Only fetch while the sheet is open: a background window has no reason
+    // to pull lyrics for every track that plays.
+    function refreshPanels() {
+        if (root.open)
+            panels.load(root.player.track_id)
+    }
+
+    onOpenChanged: refreshPanels()
+
+    Connections {
+        target: root.player
+        function onTrack_idChanged() { root.refreshPanels() }
+    }
+
     readonly property var historyRows: root.parseRows(root.player.history_json).slice().reverse()
 
     function sourceLabel(source) {
@@ -207,6 +226,19 @@ Item {
 
         HoverHandler { id: hover }
         TapHandler { onSingleTapped: tab.activated() }
+    }
+
+    /// TIDAL returns plain lyrics and, for some tracks, an LRC subtitle
+    /// track. klang shows the plain text: without a synced view the
+    /// timestamps are noise.
+    function lyricsText() {
+        if (panels.lyrics.length > 0)
+            return panels.lyrics
+        return panels.loading ? "" : "No lyrics for this track"
+    }
+
+    function creditRows() {
+        return JSON.parse(panels.credits_json || "[]")
     }
 
     component EmptyState: Item {
@@ -497,25 +529,120 @@ Item {
                             }
                         }
 
-                        // Nothing in klang-core's facade feeds these yet (see report):
-                        // no per-track radio, and metadata.rs's lyrics/credits calls
-                        // are not exposed through any qml_element.
-                        EmptyState {
+                        TrackList {
                             anchors.fill: parent
                             visible: root.activeTab === 1
-                            message: "Suggested tracks aren't available yet"
+                            tracks: panels.suggested_json
+                            loading: panels.loading
+                            activeId: root.player.track_id
+                            favorites: root.favorites
+                            showBpm: false
+                            showKey: false
+                            emptyText: "No suggestions for this track"
+                            onTrackActivated: (index) =>
+                                    root.player.play_context(panels.suggested_json, index,
+                                                             "radio:" + root.player.track_id)
+                            onContextRequested: (index, x, y) => {
+                                const rows = JSON.parse(panels.suggested_json || "[]")
+                                if (rows[index])
+                                    root.trackContextRequested(rows[index], x, y)
+                            }
                         }
 
-                        EmptyState {
+                        Flickable {
+                            id: lyricsFlick
                             anchors.fill: parent
+                            anchors.margins: Theme.spaceLg
                             visible: root.activeTab === 2
-                            message: "Lyrics aren't available yet"
+                            contentHeight: lyricsText.implicitHeight
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+
+                            WheelScroller {
+                                view: lyricsFlick
+                                rowHeight: Theme.rowHeight
+                            }
+
+                            QQC2.ScrollBar.vertical: ThemedScrollBar {
+                                listHovered: lyricsHover.hovered
+                            }
+
+                            HoverHandler { id: lyricsHover }
+
+                            Text {
+                                id: lyricsText
+                                width: lyricsFlick.width
+                                text: root.lyricsText()
+                                wrapMode: Text.WordWrap
+                                lineHeight: 1.5
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeLg
+                                color: panels.lyrics.length > 0 ? Theme.textPrimary : Theme.textFaint
+                            }
                         }
 
-                        EmptyState {
+                        Flickable {
+                            id: creditsFlick
                             anchors.fill: parent
+                            anchors.margins: Theme.spaceLg
                             visible: root.activeTab === 3
-                            message: "Credits aren't available yet"
+                            contentHeight: creditsColumn.implicitHeight
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+
+                            WheelScroller {
+                                view: creditsFlick
+                                rowHeight: Theme.rowHeight
+                            }
+
+                            QQC2.ScrollBar.vertical: ThemedScrollBar {
+                                listHovered: creditsHover.hovered
+                            }
+
+                            HoverHandler { id: creditsHover }
+
+                            ColumnLayout {
+                                id: creditsColumn
+                                width: creditsFlick.width
+                                spacing: Theme.space
+
+                                Repeater {
+                                    model: root.creditRows()
+
+                                    ColumnLayout {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        spacing: 2
+
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: modelData.role
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSizeSm
+                                            color: Theme.textFaint
+                                        }
+
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: modelData.contributors.join(", ")
+                                            wrapMode: Text.WordWrap
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSize
+                                            color: Theme.textPrimary
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    visible: root.creditRows().length === 0
+                                    horizontalAlignment: Text.AlignHCenter
+                                    text: panels.loading ? "" : "No credits for this track"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSize
+                                    color: Theme.textFaint
+                                }
+                            }
                         }
                     }
                 }
