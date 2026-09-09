@@ -75,26 +75,29 @@ jobs:
           path: dist/*.pkg.tar.*
 
   flatpak:
+    # Not one of the flatpak-github-actions images: they stop at KDE 6.7 and
+    # cxx-qt needs the 6.11 runtime to match its private-API linkage.
     runs-on: ubuntu-latest
-    container:
-      image: bilelmoussaoui/flatpak-github-actions:kde-6.11
-      options: --privileged
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Build
+      - name: Install flatpak-builder
         run: |
-          flatpak install --user -y flathub \
-            org.freedesktop.Sdk.Extension.rust-stable//25.08
-          flatpak-builder --user --force-clean --repo=repo build \
-            packaging/flatpak/me.unbk.klang.yml
-          flatpak build-bundle repo klang.flatpak me.unbk.klang stable
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder
+          flatpak remote-add --if-not-exists --user \
+            flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+      # The same script the repo uses locally, so the recipe lives in one place.
+      - run: scripts/build-flatpak.sh
 
       - uses: actions/upload-artifact@v4
         with:
           name: klang-flatpak
           path: |
-            klang.flatpak
+            dist/klang.flatpak
             packaging/flatpak/me.unbk.klang.flatpakref
 
       # The repo is what a .flatpakref installs from; the release workflow
@@ -102,4 +105,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: klang-flatpak-repo
-          path: repo
+          path: dist/flatpak-repo

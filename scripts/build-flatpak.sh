@@ -37,7 +37,7 @@ flatpak-builder --user --force-clean --repo="$REPO" "$BUILD" "$MANIFEST"
 
 # Unsigned: the .flatpakref turns gpg verification off to match. Signing needs
 # a key we would have to distribute anyway.
-flatpak build-bundle "$REPO" "$BUNDLE" me.unbk.klang
+flatpak build-bundle "$REPO" "$BUNDLE" me.unbk.klang stable
 
 echo
 echo "repo:   $REPO"
