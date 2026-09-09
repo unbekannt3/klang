@@ -21,7 +21,8 @@ Rectangle {
     readonly property bool shown: flickable && flickable.contentY > threshold
 
     height: 64
-    color: Theme.surface
+    // The glass below carries the surface.
+    color: "transparent"
     opacity: shown ? 1 : 0
     visible: opacity > 0
     // Nothing underneath should react while the bar is fading out.
@@ -29,6 +30,14 @@ Rectangle {
 
     Behavior on opacity {
         NumberAnimation { duration: Theme.durationFast }
+    }
+
+    // tidal.com's page header material: the same blur as the player bar over
+    // a darker tint, sampling the list it is sitting on.
+    Glass {
+        anchors.fill: parent
+        behind: root.flickable
+        tint: Qt.rgba(0, 0, 0, 0.55)
     }
 
     Rectangle {

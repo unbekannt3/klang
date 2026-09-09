@@ -365,9 +365,19 @@ Item {
                         readonly property real maxTilt: 7
                         readonly property point centre: Qt.point(width / 2, height / 2)
 
+                        // Lifts the cover off the wash, as tidal.com does.
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            radius: Theme.radius
+                            color: "#000000"
+                            opacity: 0.45
+                        }
+
                         CoverArt {
                             id: cover
                             anchors.fill: parent
+                            radius: Theme.radiusSm
                             uuid: root.player.cover
 
                             transform: [
@@ -420,7 +430,7 @@ Item {
                         elide: Text.ElideRight
                         text: root.player.title
                         font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeHeading
+                        font.pixelSize: Theme.fontSizeHeading + 6
                         font.weight: Font.Bold
                         color: Theme.textPrimary
                     }
@@ -443,16 +453,9 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                Rectangle {
-                    anchors.left: parent.left
-                    width: 1
-                    height: parent.height
-                    color: Theme.border
-                }
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 1
                     spacing: 0
 
                     RowLayout {
