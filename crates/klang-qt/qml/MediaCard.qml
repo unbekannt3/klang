@@ -36,7 +36,11 @@ Rectangle {
                     + Theme.cardPadding * 3
 
     radius: Theme.radius
-    color: hover.hovered ? Theme.surfaceHover : Theme.elevated
+    // A round cover's corners are painted over in the card's colour, and the
+    // Shape that does it does not repaint when that colour animates, so an
+    // artist card keeps one background and shows its hover state through the
+    // play button alone.
+    color: hover.hovered && !circular ? Theme.surfaceHover : Theme.elevated
 
     Behavior on color {
         ColorAnimation { duration: Theme.durationSlow }
