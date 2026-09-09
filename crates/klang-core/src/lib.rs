@@ -67,6 +67,7 @@ mod defaults {
     pub fn overlay_port() -> u16 { 5578 }
     pub fn overlay_host() -> String { "127.0.0.1".to_string() }
     pub fn max_quality() -> String { "HI_RES_LOSSLESS".to_string() }
+    pub fn language() -> String { "auto".to_string() }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -155,6 +156,10 @@ pub struct Settings {
     /// store, so it lives with the rest of the settings.
     #[serde(default)]
     pub autoplay: bool,
+    /// UI language: "auto" follows the system locale, otherwise an ISO code
+    /// the UI has a table for ("en", "de").
+    #[serde(default = "defaults::language")]
+    pub language: String,
     /// Whether explicit tracks may be added automatically (radio, autoplay).
     /// Tracks the user picks by hand are never filtered.
     #[serde(default = "defaults::yes")]
@@ -221,6 +226,7 @@ impl Default for Settings {
             auth_method: AuthMethod::default(),
             minimize_to_tray: false,
             autoplay: false,
+            language: defaults::language(),
             allow_explicit: true,
             decorations: false,
             titlebar_migration_v1: true,

@@ -97,6 +97,14 @@ QQC2.ApplicationWindow {
         }
     }
 
+    // The translation table is a singleton, so the saved language reaches it
+    // through a binding rather than through every page.
+    Binding {
+        target: Tr
+        property: "language"
+        value: settingsCtl.language
+    }
+
     Component.onCompleted: {
         Theme.controller.restore()
         playerCtl.attach()

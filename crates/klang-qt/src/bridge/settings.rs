@@ -46,6 +46,8 @@ pub mod qobject {
         #[qproperty(bool, gapless)]
         #[qproperty(bool, autoplay)]
         #[qproperty(bool, allow_explicit)]
+        /// "auto", "en" or "de"; `Tr` resolves "auto" against the locale.
+        #[qproperty(QString, language)]
         #[qproperty(bool, gapless_supported)]
         #[qproperty(bool, exclusive_mode)]
         #[qproperty(bool, bit_perfect)]
@@ -88,6 +90,8 @@ pub mod qobject {
         fn apply_gapless(self: Pin<&mut SettingsController>, enabled: bool);
         #[qinvokable]
         fn apply_autoplay(self: Pin<&mut SettingsController>, enabled: bool);
+        #[qinvokable]
+        fn apply_language(self: Pin<&mut SettingsController>, language: &QString);
         /// Only filters what klang queues on its own — radio and autoplay.
         #[qinvokable]
         fn apply_allow_explicit(self: Pin<&mut SettingsController>, allowed: bool);
@@ -166,6 +170,7 @@ pub struct SettingsControllerRust {
     gapless: bool,
     autoplay: bool,
     allow_explicit: bool,
+    language: QString,
     gapless_supported: bool,
     exclusive_mode: bool,
     bit_perfect: bool,
@@ -224,6 +229,8 @@ impl qobject::SettingsController {
         self.as_mut()
             .set_allow_explicit(utility::get_allow_explicit(state));
         self.as_mut()
+            .set_language(QString::from(&utility::get_language(state)));
+        self.as_mut()
             .set_gapless_supported(utility::get_gapless_supported());
         self.as_mut()
             .set_exclusive_mode(utility::get_exclusive_mode(state));
@@ -268,6 +275,14 @@ impl qobject::SettingsController {
     pub fn apply_volume_normalization(mut self: Pin<&mut Self>, enabled: bool) {
         match utility::set_volume_normalization(app::state(), enabled) {
             Ok(()) => self.as_mut().set_volume_normalization(enabled),
+            Err(e) => self.as_mut().set_error(QString::from(&e.to_string())),
+        }
+    }
+
+    pub fn apply_language(mut self: Pin<&mut Self>, language: &QString) {
+        let language = language.to_string();
+        match utility::set_language(app::state(), language.clone()) {
+            Ok(()) => self.as_mut().set_language(QString::from(&language)),
             Err(e) => self.as_mut().set_error(QString::from(&e.to_string())),
         }
     }

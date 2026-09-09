@@ -115,6 +115,17 @@ pub fn set_autoplay(state: &AppState, enabled: bool) -> Result<(), SoneError> {
     Ok(())
 }
 
+pub fn get_language(state: &AppState) -> String {
+    state.load_settings().unwrap_or_default().language
+}
+
+pub fn set_language(state: &AppState, language: String) -> Result<(), SoneError> {
+    let mut settings = state.load_settings().unwrap_or_default();
+    settings.language = language;
+    state.save_settings(&settings)?;
+    Ok(())
+}
+
 pub fn get_allow_explicit(state: &AppState) -> bool {
     state.load_settings().unwrap_or_default().allow_explicit
 }

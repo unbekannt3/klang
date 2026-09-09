@@ -8,6 +8,7 @@ fn main() {
             QmlFile::from("qml/Theme.qml").singleton(true),
             QmlFile::from("qml/Format.qml").singleton(true),
             QmlFile::from("qml/ScrollStore.qml").singleton(true),
+            QmlFile::from("qml/Tr.qml").singleton(true),
             QmlFile::from("qml/Main.qml"),
             QmlFile::from("qml/LoginPage.qml"),
             QmlFile::from("qml/FavoritesPage.qml"),
