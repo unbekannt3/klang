@@ -256,6 +256,7 @@ Item {
                 visible: viewAll.is_nav_section
                 anchors.fill: parent
                 anchors.margins: Theme.spaceLg
+                bottomMargin: Theme.contentBottomInset
                 clip: true
                 model: root.navRows()
                 reuseItems: true

@@ -53,7 +53,7 @@ Item {
         model: root.rows()
         spacing: Theme.spaceXl
         topMargin: Theme.spaceLg
-        bottomMargin: Theme.spaceLg
+        bottomMargin: Theme.spaceLg + Theme.contentBottomInset
         reuseItems: true
 
         HoverHandler { id: listHover }

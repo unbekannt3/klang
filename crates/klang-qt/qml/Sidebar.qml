@@ -401,6 +401,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             id: playlistView
+            bottomMargin: Theme.contentBottomInset
             clip: true
             model: root.treeRows()
             reuseItems: true

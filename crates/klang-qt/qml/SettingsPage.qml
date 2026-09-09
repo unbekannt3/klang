@@ -98,6 +98,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             contentHeight: pane.implicitHeight + Theme.spaceXl * 2
+                           + Theme.contentBottomInset
             clip: true
             boundsBehavior: Flickable.StopAtBounds
 

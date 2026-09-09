@@ -107,6 +107,12 @@ QQC2.ApplicationWindow {
     LibraryController { id: collectionCtl }
     SettingsController { id: settingsCtl }
     ProfileController { id: profileCtl }
+    Binding {
+        target: Theme
+        property: "contentBottomInset"
+        value: bar.visible ? bar.height : 0
+    }
+
     SignalPathController { id: signalPathCtl }
 
     // Tray "Show" and "Quit", and MPRIS Raise/Quit, reach the window here.
@@ -196,6 +202,7 @@ QQC2.ApplicationWindow {
         }
 
         RowLayout {
+            id: pageArea
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
@@ -262,9 +269,17 @@ QQC2.ApplicationWindow {
             }
         }
 
+        // The bar floats over the page rather than sitting beside it, so its
+        // glass has something to blur. Scrollers keep Theme.contentBottomInset
+        // clear at the bottom so nothing ends up unreachable under it.
         PlayerBar {
             id: bar
-            Layout.fillWidth: true
+            parent: root.contentItem
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            z: 500
+            behind: pageArea
             visible: playerCtl.track_id !== 0
             player: playerCtl
             favorites: favoritesCtl

@@ -8,6 +8,8 @@ Rectangle {
     id: root
 
     required property var player
+    /// The page the bar floats over, for the glass to sample.
+    property Item behind: null
     signal openArtist(int artistId)
     /// FavoritesController; when unset the heart is hidden.
     property var favorites: null
@@ -27,7 +29,27 @@ Rectangle {
     signal miniPlayerRequested()
 
     implicitHeight: Theme.playerBarHeight
-    color: Theme.surface
+    // The glass below carries the surface; the bar itself only tints where
+    // there is nothing to sample.
+    color: "transparent"
+
+    // tidal.com's own fade above the bar, so content does not run into it.
+    Rectangle {
+        anchors.bottom: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 80
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: "transparent" }
+            GradientStop { position: 1.0; color: Qt.alpha(Theme.base, 0.15) }
+        }
+    }
+
+    Glass {
+        anchors.fill: parent
+        behind: root.behind
+        tint: Qt.alpha(Theme.surface, 0.75)
+    }
 
     // Hairline above, so the bar reads as a separate plane.
     Rectangle {

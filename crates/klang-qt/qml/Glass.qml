@@ -17,7 +17,13 @@ Item {
     /// feeds back into itself.
     property Item behind: null
     property color tint: Qt.rgba(40 / 255, 40 / 255, 40 / 255, 0.75)
+    /// What to fall back to where the blur cannot run. Without one, a 75%
+    /// tint over unblurred content is just content showing through.
+    property color solid: Theme.surface
     property real radius: 0
+
+    readonly property bool blurred: root.behind !== null
+                                    && GraphicsInfo.api !== GraphicsInfo.Software
 
     ShaderEffectSource {
         id: source
@@ -36,8 +42,7 @@ Item {
     MultiEffect {
         anchors.fill: parent
         source: source
-        visible: root.behind !== null
-                 && GraphicsInfo.api !== GraphicsInfo.Software
+        visible: root.blurred
         blurEnabled: true
         blur: 1.0
         blurMax: 48
@@ -46,7 +51,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: root.tint
+        color: root.blurred ? root.tint : root.solid
         radius: root.radius
     }
 }

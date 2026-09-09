@@ -62,6 +62,11 @@ QtObject {
     readonly property int radiusLg: 16
     readonly property int radiusFull: 1000
 
+    /// How much room the floating player bar needs at the bottom of a page.
+    /// Content scrolls under it — that is what the glass has to blur — so
+    /// every scroller adds this to its bottom margin. Main.qml sets it.
+    property int contentBottomInset: 0
+
     readonly property int sidebarWidth: 220
     readonly property int playerBarHeight: 88
     readonly property int cardSize: 174

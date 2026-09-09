@@ -371,6 +371,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
+        bottomMargin: Theme.contentBottomInset
         clip: true
         model: root.visibleRows()
         header: listHeader

@@ -88,6 +88,7 @@ Item {
                 anchors.fill: parent
                 anchors.leftMargin: Theme.spaceLg
                 anchors.rightMargin: Theme.spaceLg
+                bottomMargin: Theme.contentBottomInset
                 clip: true
                 model: root.rows()
                 reuseItems: true
