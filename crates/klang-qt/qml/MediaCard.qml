@@ -17,6 +17,12 @@ Rectangle {
     property string image: ""
     /// "album" | "playlist" | "mix" | "artist" | "track"
     property string kind: "album"
+    /// "TRACK_MIX" / "ARTIST_MIX" for a radio card, "" otherwise.
+    property string mixType: ""
+
+    /// Small label over the bottom-right of the artwork — a video's length.
+    property string cornerBadge: ""
+
     /// Drawn filled when the item is already in the library.
     property bool favorited: false
     /// Hides the hover overlay where an item cannot be played or saved.
@@ -124,6 +130,27 @@ Rectangle {
             opacity: hover.hovered ? 1 : 0
 
             Behavior on opacity { NumberAnimation { duration: Theme.duration } }
+        }
+
+        Rectangle {
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.margins: Theme.spaceSm
+            visible: root.cornerBadge.length > 0 && !hover.hovered
+            width: badgeText.implicitWidth + Theme.spaceSm
+            height: 18
+            radius: Theme.radiusXs
+            color: Theme.scrimStrong
+
+            Text {
+                id: badgeText
+                anchors.centerIn: parent
+                text: root.cornerBadge
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeSm - 2
+                font.weight: Font.DemiBold
+                color: Theme.textOnImage
+            }
         }
 
         // Artists have no bottom row: one large play button in the middle.
@@ -248,7 +275,9 @@ Rectangle {
             horizontalAlignment: root.circular ? Text.AlignHCenter : Text.AlignLeft
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeSm
-            color: Theme.textMuted
+            color: root.mixType === "TRACK_MIX" ? Theme.trackRadio
+                 : root.mixType.endsWith("ARTIST_MIX") ? Theme.artistRadio
+                 : Theme.textMuted
         }
     }
 }

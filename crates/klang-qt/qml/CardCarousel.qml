@@ -160,6 +160,9 @@ ColumnLayout {
             subtitle: modelData.subtitle || ""
             image: modelData.image || ""
             kind: modelData.kind || "album"
+            cornerBadge: modelData.kind === "video"
+            mixType: modelData.mixType || ""
+                         ? Format.minutes(modelData.duration) : ""
             favorited: inLibrary
             // Mixes and videos have no favourite endpoint in
             // FavoritesController, so their hearts would do nothing.

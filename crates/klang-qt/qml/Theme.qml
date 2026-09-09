@@ -101,6 +101,11 @@ QtObject {
     readonly property int fontSizeHeading: 22
     readonly property int fontSizeDisplay: 42
 
+    /// tidal.com colours a radio card's caption by what the radio is built
+    /// from. Fixed, like the Hi-Res gold: the coding is the point.
+    readonly property color trackRadio: "#E85AC4"
+    readonly property color artistRadio: "#F07A3C"
+
     /// TIDAL's Hi-Res gold. Fixed rather than theme-derived: it is a tier
     /// marker, and the same colour in every palette is the point.
     readonly property color hiRes: "#E8C87E"

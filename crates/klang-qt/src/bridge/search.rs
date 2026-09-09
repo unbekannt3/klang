@@ -133,6 +133,7 @@ fn video_row(video: &klang_core::tidal_api::TidalVideo) -> serde_json::Value {
         "subtitle": artist,
         "image": video.image_id.clone().unwrap_or_default(),
         "kind": "video",
+        "duration": video.duration,
     })
 }
 

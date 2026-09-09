@@ -425,6 +425,8 @@ Item {
             readonly property int position: modelData.position
 
             readonly property bool active: track.id === root.activeId
+            /// TIDAL keeps a track it cannot stream in the list, greyed out.
+            readonly property bool playable: row.track.playable !== false
 
             width: view.width
             height: Theme.rowHeight
@@ -438,8 +440,9 @@ Item {
                 color: hover.hovered ? Theme.hlFaint : "transparent"
             }
 
-            HoverHandler { id: hover }
+            HoverHandler { id: hover; enabled: row.playable }
             TapHandler {
+                enabled: row.playable
                 onSingleTapped: root.trackActivated(row.position)
             }
             TapHandler {
@@ -459,7 +462,9 @@ Item {
                 text: row.active ? "▶" : (row.position + 1)
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeSm
-                color: row.active ? Theme.accent : Theme.textFaint
+                color: !row.playable ? Theme.textDisabled
+                     : row.active ? Theme.accent
+                     : Theme.textFaint
             }
 
             CoverArt {
@@ -469,17 +474,81 @@ Item {
                 height: width
                 anchors.verticalCenter: parent.verticalCenter
                 uuid: row.track.cover || ""
+                opacity: row.playable ? 1 : 0.4
+
+                // The bars tidal.com puts on the thumbnail of whatever is
+                // playing, so the row reads as current at a glance.
+                Rectangle {
+                    anchors.fill: parent
+                    visible: row.active
+                    color: Theme.scrim
+
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 2
+
+                        Repeater {
+                            model: 3
+
+                            Rectangle {
+                                required property int index
+                                width: 2
+                                height: 12
+                                y: -height / 2
+                                radius: 1
+                                color: Theme.accent
+
+                                SequentialAnimation on height {
+                                    running: row.active && Theme.animated
+                                    loops: Animation.Infinite
+                                    PauseAnimation { duration: index * 130 }
+                                    NumberAnimation { to: 4; duration: 320 }
+                                    NumberAnimation { to: 12; duration: 320 }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
-            Text {
+            Row {
                 x: root.columnX("title")
                 width: root.columnWidth("title")
                 anchors.verticalCenter: parent.verticalCenter
-                text: row.track.title
-                elide: Text.ElideRight
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSize
-                color: row.active ? Theme.accent : Theme.textPrimary
+                spacing: Theme.spaceXs
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(implicitWidth,
+                                    parent.width - (badge.visible ? badge.width + Theme.spaceXs : 0))
+                    text: row.track.title
+                    elide: Text.ElideRight
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize
+                    color: !row.playable ? Theme.textDisabled
+                         : row.active ? Theme.accent
+                         : Theme.textPrimary
+                }
+
+                // TIDAL's own marker, right of the title.
+                Rectangle {
+                    id: badge
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: !!row.track.explicit
+                    width: 14
+                    height: 14
+                    radius: 3
+                    color: Theme.hlStrong
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "E"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSm - 2
+                        font.weight: Font.Bold
+                        color: Theme.textSecondary
+                    }
+                }
             }
 
             // Artist and album are their own columns, as on tidal.com,

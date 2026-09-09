@@ -122,6 +122,7 @@ QtObject {
         "Today": "Heute",
         "Yesterday": "Gestern",
         "MIX": "MIX",
+        "MIN.": "MIN.",
         "PLAYLIST": "PLAYLIST",
         "BPM": "BPM",
         "KEY": "TONART",
@@ -173,6 +174,9 @@ QtObject {
 
         // Empty and error states
         "Nothing here": "Nichts vorhanden",
+        "Tap the heart on a video to add it to your collection":
+            "Tippe auf das Herz eines Videos, um es zur Sammlung hinzuzufügen",
+        "Find videos": "Videos finden",
         "No playlists found": "Keine Playlists gefunden",
         "No playlists yet": "Noch keine Playlists",
         "Nothing here yet": "Noch nichts vorhanden",

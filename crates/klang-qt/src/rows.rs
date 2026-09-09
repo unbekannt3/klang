@@ -82,6 +82,9 @@ pub fn track(index: usize, t: &TidalTrack) -> Value {
         "bpm": t.bpm,
         "key": camelot::camelot(t.key.as_deref(), t.key_scale.as_deref()),
         "explicit": t.explicit.unwrap_or(false),
+        // TIDAL leaves a track it cannot stream in the list rather than
+        // dropping it, so the row has to say so.
+        "playable": t.stream_ready.unwrap_or(true) && t.allow_streaming.unwrap_or(true),
         "ai": t.ai.unwrap_or(false),
         "trackNumber": t.track_number,
         "volumeNumber": t.volume_number,

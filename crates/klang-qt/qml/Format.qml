@@ -42,6 +42,13 @@ QtObject {
     }
 
     /// Seconds to m:ss, or h:mm:ss past an hour.
+    /// tidal.com labels a video in whole minutes, not mm:ss.
+    function minutes(secs) {
+        if (!secs || secs < 0)
+            return ""
+        return Math.max(1, Math.round(secs / 60)) + " " + Tr.t("MIN.")
+    }
+
     /// When a track joined the collection. Recent days read as words, the
     /// rest as the locale's short date — the column is 96px wide.
     function added(iso) {

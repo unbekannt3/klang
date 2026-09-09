@@ -300,6 +300,8 @@ Item {
                     root.trackContextRequested(rows[index], x, y)
             }
             numbered: true
+            // Every row is from this album; the column would repeat it.
+            showAlbum: false
             showCovers: false
             showBpm: false
             showKey: false

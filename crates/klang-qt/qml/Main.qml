@@ -497,6 +497,9 @@ QQC2.ApplicationWindow {
             onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
             onOpenVideo: (id) => root.playVideo(id)
             onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
+            emptyHint: Tr.t("Tap the heart on a video to add it to your collection")
+            emptyAction: Tr.t("Find videos")
+            onEmptyActionRequested: root.go("search", { query: "music video" })
         }
     }
 
@@ -610,6 +613,9 @@ QQC2.ApplicationWindow {
             error: videoLibrary.error
             onOpenVideo: (id) => root.playVideo(id)
             onItemContextRequested: (item, x, y) => root.openMediaMenu(item, x, y)
+            emptyHint: Tr.t("Tap the heart on a video to add it to your collection")
+            emptyAction: Tr.t("Find videos")
+            onEmptyActionRequested: root.go("search", { query: "music video" })
 
             LibraryController { id: videoLibrary }
 

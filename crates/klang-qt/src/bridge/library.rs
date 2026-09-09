@@ -131,6 +131,7 @@ fn video_card_row(video: &TidalVideo) -> Value {
         "subtitle": video_artist_name(video),
         "image": video.image_id.clone().unwrap_or_default(),
         "kind": "video",
+        "duration": video.duration,
     })
 }
 

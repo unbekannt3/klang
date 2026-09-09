@@ -19,6 +19,11 @@ Item {
     property var favorites: null
     /// Scroll position is remembered per key across navigation.
     property string scrollKey: ""
+    /// Shown instead of the bare "Nothing here" when the grid is empty, with
+    /// the button below it — tidal.com tells you how to fill a collection.
+    property string emptyHint: ""
+    property string emptyAction: ""
+    signal emptyActionRequested()
 
     signal openAlbum(int albumId)
     signal openArtist(int artistId)
@@ -147,6 +152,9 @@ Item {
                         subtitle: cell.modelData.subtitle || ""
                         image: cell.modelData.image || ""
                         kind: cell.modelData.kind || "album"
+                        cornerBadge: cell.modelData.kind === "video"
+                        mixType: cell.modelData.mixType || ""
+                                     ? Format.minutes(cell.modelData.duration) : ""
                         favorited: inLibrary
                         // Mixes and videos have no favourite endpoint in
                         // FavoritesController, so their hearts would do nothing.
@@ -163,9 +171,57 @@ Item {
                 }
             }
 
+            ColumnLayout {
+                anchors.centerIn: parent
+                visible: grid.count === 0 && !root.loading
+                       && root.error.length === 0 && root.emptyHint.length > 0
+                spacing: Theme.space
+
+                Icon {
+                    Layout.alignment: Qt.AlignHCenter
+                    width: 48
+                    height: 48
+                    name: "play"
+                    color: Theme.textFaint
+                }
+
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.maximumWidth: 380
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    text: root.emptyHint
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize
+                    color: Theme.textMuted
+                }
+
+                Rectangle {
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: root.emptyAction.length > 0
+                    implicitWidth: emptyActionText.implicitWidth + Theme.spaceXl
+                    implicitHeight: 36
+                    radius: Theme.radiusFull
+                    color: emptyHover.hovered ? Theme.buttonHover : Theme.button
+
+                    Text {
+                        id: emptyActionText
+                        anchors.centerIn: parent
+                        text: root.emptyAction
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSm
+                        color: Theme.textPrimary
+                    }
+
+                    HoverHandler { id: emptyHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onSingleTapped: root.emptyActionRequested() }
+                }
+            }
+
             Text {
                 anchors.centerIn: parent
                 visible: grid.count === 0 && !root.loading
+                       && (root.error.length > 0 || root.emptyHint.length === 0)
                 text: root.error.length > 0 ? root.error : Tr.t("Nothing here")
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeLg

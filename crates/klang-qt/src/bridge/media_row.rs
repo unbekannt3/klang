@@ -199,6 +199,9 @@ pub fn item_row(item: &Value, section_type: &str) -> Value {
         "subtitle": subtitle,
         "image": image,
         "kind": kind,
+        // "TRACK_MIX" / "ARTIST_MIX" / ... — tidal.com colours a radio's
+        // label by which kind of radio it is.
+        "mixType": item.get("mixType").and_then(|v| v.as_str()),
     })
 }
 
