@@ -2,7 +2,9 @@
 
 A KDE-native TIDAL client for Linux. Private fork of
 [lullabyX/sone](https://github.com/lullabyX/sone), replacing Tauri and WebKitGTK
-with Qt Quick and Kirigami.
+with Qt Quick. The UI follows tidal.com rather than a desktop toolkit's own
+look — its proportions, its column layout, its badges — on sone's themeable
+palette.
 
 Built for one target: Fedora KDE on Wayland. No Flatpak, no cross-distro
 packaging, no Windows or macOS paths. Upstream's README is kept at
@@ -18,6 +20,21 @@ scene graph into one framebuffer, so that class of problem does not exist.
 
 The audio stack is the good part of sone and is kept intact: bit-perfect ALSA
 output, gapless playback, GStreamer pipeline probing, MPRIS, scrobbling.
+
+## Beyond sone
+
+Everything sone does, plus the gaps its issue tracker had open: BPM and musical
+key as sortable columns (Camelot notation, as tidal.com prints it), the release
+date a reissue hides ([#186](https://github.com/lullabyX/sone/issues/186)),
+blocking tracks and artists ([#182](https://github.com/lullabyX/sone/issues/182)),
+scroll position remembered per page
+([#187](https://github.com/lullabyX/sone/issues/187)), drag-to-reorder inside a
+playlist ([#142](https://github.com/lullabyX/sone/issues/142)), and animations
+that stop while the window is unfocused
+([#191](https://github.com/lullabyX/sone/issues/191)).
+
+Sign-in uses PKCE. TIDAL's device-code client is restricted and its tokens do
+not grant lossless or Hi-Res.
 
 ## Layout
 
@@ -61,8 +78,8 @@ Run the app:
 cargo run -p klang-qt
 ```
 
-Sign in with the device code it shows: open link.tidal.com in a browser and
-type the code. The session is then remembered.
+Sign in through the browser window it opens, then paste the URL it redirects
+to. The session is remembered afterwards.
 
 ## Configuration
 
