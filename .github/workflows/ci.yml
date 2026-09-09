@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # Fedora because that is what klang targets; the container also has the
+    # Qt 6.11 that cxx-qt's private-API linkage expects.
+    runs-on: ubuntu-latest
+    container: fedora:44
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          dnf install -y --setopt=install_weak_deps=False \
+            git cargo rust gcc-c++ pkgconf-pkg-config \
+            qt6-qtbase-devel qt6-qtdeclarative-devel \
+            alsa-lib-devel gstreamer1-devel gstreamer1-plugins-base-devel \
+            glib2-devel openssl-devel libsecret-devel
+
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: cargo build --locked --workspace
+
+      - name: Test
+        run: cargo test --locked --workspace

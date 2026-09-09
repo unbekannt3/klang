@@ -1,0 +1,7 @@
+[Flatpak Ref]
+Title=Klang
+Name=me.unbk.klang
+Branch=master
+Url=https://unbekannt3.github.io/klang/repo/
+IsRuntime=false
+RuntimeRepo=https://dl.flathub.org/repo/flathub.flatpakrepo

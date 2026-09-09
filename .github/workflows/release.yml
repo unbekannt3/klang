@@ -1,0 +1,170 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rpm:
+    runs-on: ubuntu-latest
+    container: fedora:44
+    steps:
+      - name: Install build dependencies
+        run: |
+          dnf install -y --setopt=install_weak_deps=False \
+            git rpm-build rpmdevtools cargo rust gcc-c++ pkgconf-pkg-config \
+            qt6-qtbase-devel qt6-qtdeclarative-devel \
+            alsa-lib-devel gstreamer1-devel gstreamer1-plugins-base-devel \
+            glib2-devel openssl-devel libsecret-devel \
+            desktop-file-utils libappstream-glib
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The build script archives HEAD, so the checkout has to be a real
+      # repository the container's git will touch.
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - run: scripts/build-rpm.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm
+          path: dist/*.rpm
+
+  deb:
+    runs-on: ubuntu-latest
+    # Debian 13 is the oldest release with Qt 6.8, which the QML needs
+    # (PathRectangle). Ubuntu 24.04 ships 6.4 and cannot build this.
+    container: debian:trixie
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ca-certificates cargo rustc g++ pkg-config \
+            qt6-base-dev qt6-declarative-dev \
+            libasound2-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            libglib2.0-dev libssl-dev libsecret-1-dev \
+            dpkg-dev lintian
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - run: scripts/build-deb.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: dist/*.deb
+
+  arch:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            git base-devel rust qt6-base qt6-declarative \
+            alsa-lib gstreamer gst-plugins-base libsecret sudo
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # makepkg refuses to run as root.
+      - name: Build as an unprivileged user
+        run: |
+          useradd -m builder
+          chown -R builder "$GITHUB_WORKSPACE"
+          su builder -c "cd '$GITHUB_WORKSPACE' && scripts/build-arch.sh"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch
+          path: dist/*.pkg.tar.*
+
+  flatpak:
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:kde-6.11
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          flatpak install --user -y flathub \
+            org.freedesktop.Sdk.Extension.rust-stable//25.08
+          flatpak-builder --user --force-clean --repo=repo build \
+            packaging/flatpak/me.unbk.klang.yml
+          flatpak build-bundle repo klang.flatpak me.unbk.klang
+
+      # The repo is what the .flatpakref installs from; the bundle is for
+      # anyone who would rather grab one file.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak
+          path: |
+            klang.flatpak
+            packaging/flatpak/me.unbk.klang.flatpakref
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-repo
+          path: repo
+
+  release:
+    needs: [rpm, deb, arch, flatpak]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/rpm/*.rpm
+            artifacts/deb/*.deb
+            artifacts/arch/*
+            artifacts/flatpak/*
+
+  pages:
+    # Serves the Flatpak repo so `flatpak install --from …flatpakref` works.
+    needs: [flatpak]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: flatpak-repo
+          path: site/repo
+
+      - name: Add the ref file next to the repo
+        run: cp packaging/flatpak/me.unbk.klang.flatpakref site/
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

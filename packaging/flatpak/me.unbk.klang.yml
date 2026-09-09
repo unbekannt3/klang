@@ -1,0 +1,70 @@
+# Flatpak build for klang.
+#
+# Flathub would reject this manifest: it lets cargo reach the network during
+# the build instead of vendoring every crate into a generated sources file.
+# klang is a private fork that nobody submits to Flathub, and the vendoring
+# step buys nothing here.
+#
+# The runtime is pinned to KDE 6.11 on purpose. cxx-qt links Qt's private API,
+# so the build and the runtime have to agree on the Qt minor version.
+id: me.unbk.klang
+runtime: org.kde.Platform
+runtime-version: '6.11'
+sdk: org.kde.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: klang
+
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --share=network
+  - --socket=pulseaudio
+  # Bit-perfect output talks to ALSA directly, which the PulseAudio socket
+  # does not cover.
+  - --device=all
+  # Tray icon, and the MPRIS name the desktop's media controls look for.
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --own-name=org.mpris.MediaPlayer2.me.unbk.klang
+  # The TIDAL tokens live in the session keyring.
+  - --talk-name=org.freedesktop.secrets
+  # Idle inhibition while a track plays.
+  - --talk-name=org.freedesktop.ScreenSaver
+  - --talk-name=org.freedesktop.PowerManagement.Inhibit
+  - --system-talk-name=org.freedesktop.login1
+  # Discord Rich Presence, if the user runs Discord.
+  - --filesystem=xdg-run/discord-ipc-0
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  build-args:
+    - --share=network
+  env:
+    CARGO_HOME: /run/build/klang/cargo
+
+modules:
+  - name: klang
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: ../..
+    build-commands:
+      - cargo build --release --locked -p klang-qt
+      - install -Dm755 target/release/klang /app/bin/klang
+      - install -Dm644 assets/me.unbk.klang.desktop
+        /app/share/applications/me.unbk.klang.desktop
+      - install -Dm644 assets/me.unbk.klang.metainfo.xml
+        /app/share/metainfo/me.unbk.klang.metainfo.xml
+      # Flatpak exports icons by app id, so the same artwork is installed
+      # under both names and the desktop entry points at the app-id one.
+      - |
+        for size in 16 22 32 48 64 128 256 512; do
+          install -Dm644 "assets/icons/klang-$size.png" \
+            "/app/share/icons/hicolor/${size}x${size}/apps/klang.png"
+          install -Dm644 "assets/icons/klang-$size.png" \
+            "/app/share/icons/hicolor/${size}x${size}/apps/me.unbk.klang.png"
+        done
+        sed -i 's/^Icon=klang$/Icon=me.unbk.klang/' \
+          /app/share/applications/me.unbk.klang.desktop

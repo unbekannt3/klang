@@ -43,9 +43,10 @@ docs/
 # local files
 nocommit
 
-# flatpak
+# flatpak build output — the manifest under packaging/flatpak is tracked
 .flatpak-builder
-flatpak*
+/flatpak-repo
+*.flatpak
 
 # workspace
 sone.code-workspace
