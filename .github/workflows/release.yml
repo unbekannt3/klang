@@ -29,31 +29,3 @@ jobs:
             artifacts/klang-deb/*.deb
             artifacts/klang-arch/*
             artifacts/klang-flatpak/*
-
-  pages:
-    # Serves the Flatpak repo, so `flatpak install --from …flatpakref` works.
-    needs: packages
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: klang-flatpak-repo
-          path: site/repo
-
-      - name: Put the ref file next to the repo
-        run: cp packaging/flatpak/me.unbk.klang.flatpakref site/
-
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-      - id: deploy
-        uses: actions/deploy-pages@v4

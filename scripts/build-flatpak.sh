@@ -4,8 +4,9 @@
 #     scripts/build-flatpak.sh           # build, leave both in dist/
 #     scripts/build-flatpak.sh --install # …and install the bundle for this user
 #
-# Nothing here goes near Flathub: the repo is ours, and the .flatpakref points
-# at wherever it ends up published.
+# Nothing here goes near Flathub. The bundle installs on its own; the OSTree
+# repo is only useful once it is served over HTTP somewhere, so the .flatpakref
+# that points at it is written only when $KLANG_FLATPAK_URL says where.
 
 set -euo pipefail
 
@@ -15,6 +16,9 @@ DIST="$REPO_ROOT/dist"
 REPO="$DIST/flatpak-repo"
 BUILD="$DIST/flatpak-build"
 BUNDLE="$DIST/klang.flatpak"
+REF="$DIST/me.unbk.klang.flatpakref"
+# Where the OSTree repo above is served from, if anywhere.
+REPO_URL="${KLANG_FLATPAK_URL:-}"
 
 install_after=false
 [[ "${1:-}" == "--install" ]] && install_after=true
@@ -39,13 +43,30 @@ mkdir -p "$DIST"
 
 flatpak-builder --user --force-clean --repo="$REPO" "$BUILD" "$MANIFEST"
 
-# Unsigned: the .flatpakref turns gpg verification off to match. Signing needs
-# a key we would have to distribute anyway.
 flatpak build-bundle "$REPO" "$BUNDLE" me.unbk.klang stable
+
+if [[ -n "$REPO_URL" ]]; then
+  # Unsigned, so gpg verification stays off: signing needs a key we would have
+  # to distribute alongside the repo anyway.
+  cat >"$REF" <<EOF
+[Flatpak Ref]
+Title=Klang
+Name=me.unbk.klang
+Branch=stable
+Url=${REPO_URL%/}/
+IsRuntime=false
+RuntimeRepo=https://dl.flathub.org/repo/flathub.flatpakrepo
+EOF
+fi
 
 echo
 echo "repo:   $REPO"
 echo "bundle: $BUNDLE"
+if [[ -n "$REPO_URL" ]]; then
+  echo "ref:    $REF"
+else
+  echo "ref:    not written — set \$KLANG_FLATPAK_URL to where $REPO will be served"
+fi
 
 if $install_after; then
   flatpak install --user --noninteractive --bundle "$BUNDLE"

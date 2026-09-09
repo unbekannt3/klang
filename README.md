@@ -70,8 +70,15 @@ sudo apt install ./klang_0.1.0_amd64.deb
 # Arch
 sudo pacman -U klang-0.1.0-1-x86_64.pkg.tar.zst
 
-# Flatpak, from klang's own repo — it is not on Flathub
-flatpak install --from https://unbekannt3.github.io/klang/me.unbk.klang.flatpakref
+# Flatpak — a single-file bundle, since klang is not on Flathub
+flatpak install --bundle klang.flatpak
+```
+
+Each build also produces an OSTree repo (`klang-flatpak-repo`). Serve it over
+HTTP and `scripts/build-flatpak.sh` will write a matching `.flatpakref`:
+
+```sh
+KLANG_FLATPAK_URL=https://example.com/klang/repo scripts/build-flatpak.sh
 ```
 
 Or build a package yourself:

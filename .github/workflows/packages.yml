@@ -99,10 +99,10 @@ jobs:
           name: klang-flatpak
           path: |
             dist/klang.flatpak
-            packaging/flatpak/me.unbk.klang.flatpakref
+            dist/me.unbk.klang.flatpakref
 
-      # The repo is what a .flatpakref installs from; the release workflow
-      # publishes it to Pages.
+      # The bundle installs on its own; this is the repo to serve if klang is
+      # ever to be installed from a .flatpakref instead.
       - uses: actions/upload-artifact@v4
         with:
           name: klang-flatpak-repo
