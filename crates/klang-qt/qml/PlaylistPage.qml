@@ -168,6 +168,13 @@ Item {
                 Layout.leftMargin: Theme.spaceLg
                 Layout.topMargin: Theme.space
                 Layout.bottomMargin: Theme.spaceSm
+                spacing: Theme.space
+
+                PlayActions {
+                    player: root.player
+                    tracks: playlists.tracks_json
+                    source: "playlist:" + root.playlistUuid
+                }
 
                 Rectangle {
                     implicitWidth: editLabel.implicitWidth + Theme.space

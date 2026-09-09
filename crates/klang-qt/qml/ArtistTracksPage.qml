@@ -36,18 +36,6 @@ Item {
         return 34 + Math.max(count, 1) * Theme.rowHeight
     }
 
-    function playAll() {
-        if (root.tracks().length > 0)
-            root.player.play_context(viewAll.tracks_json, 0, "artist-tracks:" + root.artistId)
-    }
-
-    // The queue already shuffles on `set_context` once shuffle mode is on
-    // (see Queue::set_context), so turning it on first is all Shuffle needs.
-    function shufflePlay() {
-        if (!root.player.shuffle)
-            root.player.toggle_shuffle()
-        root.playAll()
-    }
 
     Rectangle {
         anchors.fill: parent
@@ -108,66 +96,10 @@ Item {
                 Layout.rightMargin: Theme.spaceLg
                 spacing: Theme.space
 
-                Rectangle {
-                    implicitWidth: playRow.implicitWidth + Theme.spaceLg
-                    implicitHeight: 44
-                    radius: Theme.radiusFull
-                    color: playHover.hovered ? Theme.accentHover : Theme.accent
-
-                    HoverHandler { id: playHover }
-                    TapHandler { onSingleTapped: root.playAll() }
-
-                    RowLayout {
-                        id: playRow
-                        anchors.centerIn: parent
-                        spacing: Theme.spaceXs
-
-                        Icon {
-                            width: 16
-                            height: 16
-                            name: "play"
-                            color: Theme.onAccent
-                        }
-
-                        Text {
-                            text: "Play"
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            font.weight: Font.Bold
-                            color: Theme.onAccent
-                        }
-                    }
-                }
-
-                Rectangle {
-                    implicitWidth: shuffleRow.implicitWidth + Theme.spaceLg
-                    implicitHeight: 44
-                    radius: Theme.radiusFull
-                    color: shuffleHover.hovered ? Theme.buttonHover : Theme.button
-
-                    HoverHandler { id: shuffleHover }
-                    TapHandler { onSingleTapped: root.shufflePlay() }
-
-                    RowLayout {
-                        id: shuffleRow
-                        anchors.centerIn: parent
-                        spacing: Theme.spaceXs
-
-                        Icon {
-                            width: 16
-                            height: 16
-                            name: "shuffle"
-                            color: Theme.textPrimary
-                        }
-
-                        Text {
-                            text: "Shuffle"
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSize
-                            font.weight: Font.Bold
-                            color: Theme.textPrimary
-                        }
-                    }
+                PlayActions {
+                    player: root.player
+                    tracks: viewAll.tracks_json
+                    source: "artist-tracks:" + root.artistId
                 }
 
                 Item { Layout.fillWidth: true }

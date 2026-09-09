@@ -57,6 +57,7 @@ fn main() {
             QmlFile::from("qml/SettingsField.qml"),
             QmlFile::from("qml/SettingsButton.qml"),
             QmlFile::from("qml/MiniPlayerWindow.qml"),
+            QmlFile::from("qml/PlayActions.qml"),
             QmlFile::from("qml/ProfilePage.qml"),
             QmlFile::from("qml/ProfileEditDialog.qml"),
             QmlFile::from("qml/UserMenu.qml"),

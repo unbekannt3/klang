@@ -96,8 +96,10 @@ Item {
         onActivated: root.settings.apply_bit_perfect(!root.settings.bit_perfect)
     }
 
+    // Both spellings: a keyboard that produces "?" without Shift (or a
+    // synthetic key event) never matches "Shift+/".
     Shortcut {
-        sequence: "Shift+/"
+        sequences: ["Shift+/", "?"]
         onActivated: root.helpRequested()
     }
 }

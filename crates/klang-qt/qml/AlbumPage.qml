@@ -186,6 +186,15 @@ Item {
                 }
             }
 
+            PlayActions {
+                Layout.leftMargin: Theme.spaceLg
+                Layout.topMargin: Theme.space
+                Layout.bottomMargin: Theme.spaceSm
+                player: root.player
+                tracks: catalog.album_tracks_json
+                source: "album:" + root.albumId
+            }
+
             TrackList {
                 Layout.fillWidth: true
                 Layout.preferredHeight: root.trackListHeight(root.album().trackCount || 0)

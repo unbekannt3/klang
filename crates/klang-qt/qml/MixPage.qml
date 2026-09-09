@@ -104,6 +104,15 @@ Item {
             }
         }
 
+        PlayActions {
+            Layout.leftMargin: Theme.spaceLg
+            Layout.topMargin: Theme.space
+            Layout.bottomMargin: Theme.spaceSm
+            player: root.player
+            tracks: JSON.stringify(root.trackRows)
+            source: "mix:" + root.mixId
+        }
+
         TrackList {
             scrollKey: "mix:" + root.mixId
             Layout.fillWidth: true
