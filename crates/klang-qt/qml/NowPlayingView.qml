@@ -49,7 +49,13 @@ Item {
             panels.load(root.player.track_id)
     }
 
-    onOpenChanged: refreshPanels()
+    onOpenChanged: {
+        refreshPanels()
+        if (root.open)
+            Qt.callLater(root.anchorQueue)
+    }
+
+    onActiveTabChanged: if (root.activeTab === 0) Qt.callLater(root.anchorQueue)
 
     Connections {
         target: root.player
@@ -125,6 +131,42 @@ Item {
                 ids.push(t.id)
         return ids
     }
+
+    /// How much of the history stays in view above the current track.
+    readonly property int historyLead: 4
+
+    /// The row that should sit at the top of the queue: far enough back that
+    /// `historyLead` tracks of the history are still visible.
+    readonly property int queueAnchor: {
+        const rows = root.queueModel
+        let current = -1
+        for (let i = 0; i < rows.length; i++) {
+            if (rows[i].mode === "current") {
+                current = i
+                break
+            }
+        }
+        if (current < 0)
+            return 0
+        let seen = 0
+        for (let i = current - 1; i >= 0; i--) {
+            if (rows[i].type !== "track")
+                continue
+            seen += 1
+            if (seen === root.historyLead)
+                return i
+        }
+        return 0
+    }
+
+    /// Re-anchored whenever the anchor moves — a new track, or history that
+    /// grew — and never in between, so scrolling away stays put until then.
+    function anchorQueue() {
+        if (root.open && root.activeTab === 0)
+            queueList.positionViewAtIndex(root.queueAnchor, ListView.Beginning)
+    }
+
+    onQueueAnchorChanged: Qt.callLater(root.anchorQueue)
 
     function entryHeight(entry) {
         switch (entry.type) {
