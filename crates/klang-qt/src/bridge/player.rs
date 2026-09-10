@@ -818,6 +818,7 @@ impl qobject::PlayerController {
             queue.extend_context(entries)
         };
         if added > 0 {
+            self.as_mut().publish_queue();
             self.on_queue_changed();
         }
     }

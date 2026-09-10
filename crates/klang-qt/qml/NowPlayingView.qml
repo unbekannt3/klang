@@ -771,7 +771,15 @@ Item {
                                 favorites: root.favorites
                                 showBpm: false
                                 showKey: false
+                                // A suggestion list shows its controls at rest.
+                                showQueueAdd: true
+                                pinnedActions: true
                                 emptyText: Tr.t("No suggestions for this track")
+                                onQueueNextRequested: (index) => {
+                                    const rows = JSON.parse(panels.suggested_json || "[]")
+                                    if (rows[index])
+                                        root.player.play_next(JSON.stringify(rows[index]))
+                                }
                                 onTrackActivated: (index) =>
                                         root.player.play_context(panels.suggested_json, index,
                                                                  "radio:" + root.player.track_id)

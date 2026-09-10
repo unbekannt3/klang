@@ -33,6 +33,13 @@ Item {
     /// keeping a track out of future mixes is the point.
     property bool showBlock: false
 
+    /// A queue-next control in the row, and the row's controls shown at rest
+    /// rather than on hover — how tidal.com renders a suggestion list.
+    property bool showQueueAdd: false
+    property bool pinnedActions: false
+
+    signal queueNextRequested(int index)
+
     /// Collections know when a track was added; a catalogue listing does not.
     property bool showDateAdded: false
 
@@ -66,11 +73,44 @@ Item {
 
     /// One cell of a row that navigates somewhere. Plain text when it has
     /// nowhere to go, so a row without an id looks like what it is.
+    ///
+    /// `links` carries one entry per destination — a track credits several
+    /// artists and each is its own link, as on tidal.com. They render as one
+    /// elidable line, so only the hovered one underlines.
     component LinkCell: Item {
         id: cell
         property string text: ""
+        /// [{ id, name }]; takes precedence over `text` when non-empty.
+        property var links: []
+        property string scheme: "artist"
         property bool linked: false
-        signal activated()
+        /// Carries the id of whichever link was used.
+        signal activated(int id)
+        signal peeked(int id)
+        signal unpeeked()
+
+        readonly property bool multi: !!cell.links && cell.links.length > 0
+
+        function plain(text) {
+            return String(text).replace(/&/g, "&amp;")
+                               .replace(/</g, "&lt;")
+                               .replace(/>/g, "&gt;")
+        }
+
+        function idOf(link) {
+            return link ? parseInt(link.split(":")[1]) : 0
+        }
+
+        readonly property string markup: {
+            if (!cell.multi)
+                return cell.plain(cell.text)
+            return cell.links.map((entry) => {
+                const target = cell.scheme + ":" + entry.id
+                const name = cell.plain(entry.name)
+                const body = target === label.hoveredLink ? "<u>" + name + "</u>" : name
+                return entry.id ? '<a href="' + target + '">' + body + "</a>" : name
+            }).join(", ")
+        }
 
         implicitHeight: label.implicitHeight
 
@@ -78,34 +118,40 @@ Item {
             id: label
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width
-            text: cell.text
+            text: cell.markup
+            textFormat: Text.StyledText
             elide: Text.ElideRight
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSize
-            font.underline: cell.linked && cellHover.hovered
-            color: cell.linked && cellHover.hovered ? Theme.textPrimary : Theme.textMuted
-        }
+            font.underline: !cell.multi && cell.linked && cellHover.hovered
+            color: !cell.multi && cell.linked && cellHover.hovered
+                   ? Theme.textPrimary : Theme.textMuted
+            linkColor: Theme.textPrimary
 
-        signal peeked()
-        signal unpeeked()
+            onLinkActivated: (link) => cell.activated(cell.idOf(link))
+            onHoveredLinkChanged: hoveredLink.length > 0
+                                  ? cell.peeked(cell.idOf(hoveredLink))
+                                  : cell.unpeeked()
+        }
 
         HoverHandler {
             id: cellHover
-            enabled: cell.linked
-            cursorShape: Qt.PointingHandCursor
-            onHoveredChanged: hovered ? cell.peeked() : cell.unpeeked()
+            enabled: cell.linked || cell.multi
+            cursorShape: label.hoveredLink.length > 0 || (cell.linked && !cell.multi)
+                         ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onHoveredChanged: if (!hovered) cell.unpeeked()
         }
 
         TapHandler {
-            enabled: cell.linked
-            onSingleTapped: cell.activated()
+            enabled: cell.linked && !cell.multi
+            onSingleTapped: cell.activated(0)
         }
 
         QQC2.ToolTip {
             // The columns elide, so the tooltip is where the full name lives.
             visible: cellHover.hovered && label.truncated
             delay: 400
-            text: cell.text
+            text: cell.multi ? cell.links.map((e) => e.name).join(", ") : cell.text
         }
     }
 
@@ -169,44 +215,81 @@ Item {
 
     /// Fixed widths, and the flex bases tidal.com uses for the three
     /// columns that grow: its own table is `flex: 1 0 282px` for the title,
-    /// `1 1 170px` for the artist and `1 1 112px` for the album, with the
-    /// surplus split evenly between them.
+    /// `1 1 170px` for the artist and `1 1 112px` for the album.
+    ///
+    /// `min` is the width below which a column stops being worth showing and
+    /// `drop` orders what goes first when the list is too narrow for all of
+    /// them; drop 0 stays whatever happens.
     readonly property var columnSpec: [
-        { name: "number",  width: 42, basis: 0,   shown: root.numbered },
-        { name: "cover",   width: Theme.coverThumb, basis: 0, shown: root.showCovers },
-        { name: "title",   width: 0,  basis: 282, shown: true },
-        { name: "artist",  width: 0,  basis: 170, shown: root.showArtist },
-        { name: "album",   width: 0,  basis: 112, shown: root.showAlbum },
-        { name: "added",   width: 96, basis: 0,   shown: root.showDateAdded },
-        { name: "quality", width: 56, basis: 0,   shown: true },
-        { name: "length",  width: 66, basis: 0,   shown: true },
-        { name: "bpm",     width: 52, basis: 0,   shown: root.showBpm },
-        { name: "key",     width: 48, basis: 0,   shown: root.showKey },
-        { name: "block",   width: 24, basis: 0,   shown: root.showBlock },
-        { name: "heart",   width: 24, basis: 0,   shown: root.favorites !== null },
+        { name: "number",  width: 42, basis: 0,   min: 0,   shown: root.numbered, drop: 0 },
+        { name: "cover",   width: Theme.coverThumb, basis: 0, min: 0, shown: root.showCovers, drop: 0 },
+        { name: "title",   width: 0,  basis: 282, min: 150, shown: true, drop: 0 },
+        { name: "artist",  width: 0,  basis: 170, min: 100, shown: root.showArtist, drop: 0 },
+        { name: "album",   width: 0,  basis: 112, min: 96,  shown: root.showAlbum, drop: 2 },
+        { name: "added",   width: 96, basis: 0,   min: 0,   shown: root.showDateAdded, drop: 1 },
+        { name: "quality", width: 56, basis: 0,   min: 0,   shown: true, drop: 5 },
+        { name: "length",  width: 66, basis: 0,   min: 0,   shown: true, drop: 0 },
+        { name: "bpm",     width: 52, basis: 0,   min: 0,   shown: root.showBpm, drop: 3 },
+        { name: "key",     width: 48, basis: 0,   min: 0,   shown: root.showKey, drop: 4 },
+        { name: "queue",   width: 24, basis: 0,   min: 0,   shown: root.showQueueAdd, drop: 0 },
+        { name: "block",   width: 24, basis: 0,   min: 0,   shown: root.showBlock && root.favorites !== null, drop: 0 },
+        { name: "heart",   width: 24, basis: 0,   min: 0,   shown: root.favorites !== null, drop: 0 },
     ]
 
+    /// The last resort, once everything droppable is gone.
+    readonly property int columnFloor: 64
+
     /// Left edge and width of every shown column, in list-local coordinates.
+    /// A column a narrow list cannot fit is absent rather than squeezed, so
+    /// nothing ever runs off the right edge.
     readonly property var columns: {
-        const shown = root.columnSpec.filter((c) => c.shown)
-        const growing = shown.filter((c) => c.width === 0)
-        const reserved = shown.reduce((sum, c) => sum + (c.width || c.basis), 0)
-        const available = root.width - root.rowInset * 2 - Theme.spaceSm
-                        - root.columnGap * (shown.length - 1)
-        const surplus = available - reserved
-        // Growing columns share what is left over, and absorb the shortfall
-        // when the window is too narrow — down to a floor, so a column never
-        // collapses to nothing.
-        const grant = growing.length > 0 ? Math.floor(surplus / growing.length) : 0
+        const room = root.width - root.rowInset * 2 - Theme.spaceSm
+        const least = (c) => c.width > 0 ? c.width : c.min
+        const fits = (cols) => cols.reduce((sum, c) => sum + least(c), 0)
+                             + root.columnGap * (cols.length - 1) <= room
+
+        let shown = root.columnSpec.filter((c) => c.shown)
+        const droppable = shown.filter((c) => c.drop > 0)
+                               .sort((a, b) => a.drop - b.drop)
+        for (const column of droppable) {
+            if (fits(shown))
+                break
+            shown = shown.filter((c) => c !== column)
+        }
+
+        // What is left over for the columns that grow, after the fixed ones
+        // and the gaps. Surplus is split evenly, as tidal.com splits it; a
+        // shortfall is taken proportionally, so the widest column gives up
+        // the most instead of the narrowest collapsing.
+        let pool = shown.filter((c) => c.width === 0)
+        let space = room - root.columnGap * (shown.length - 1)
+                  - shown.reduce((sum, c) => sum + c.width, 0)
+        const width = {}
+        while (pool.length > 0) {
+            const basis = pool.reduce((sum, c) => sum + c.basis, 0)
+            const delta = space - basis
+            const share = (c) => delta >= 0
+                ? c.basis + Math.floor(delta / pool.length)
+                : c.basis + Math.floor(delta * c.basis / basis)
+            const starved = pool.filter((c) => share(c) < root.columnFloor)
+            if (starved.length === 0) {
+                for (const c of pool)
+                    width[c.name] = share(c)
+                break
+            }
+            for (const c of starved) {
+                width[c.name] = root.columnFloor
+                space -= root.columnFloor
+            }
+            pool = pool.filter((c) => starved.indexOf(c) < 0)
+        }
 
         const out = {}
         let x = root.rowInset
         for (const column of shown) {
-            const width = column.width > 0
-                ? column.width
-                : Math.max(64, column.basis + grant)
-            out[column.name] = { x: x, width: width }
-            x += width + root.columnGap
+            const w = column.width > 0 ? column.width : width[column.name]
+            out[column.name] = { x: x, width: w }
+            x += w + root.columnGap
         }
         return out
     }
@@ -223,6 +306,11 @@ Item {
 
     function columnWidth(name) {
         return root.columns[name] ? root.columns[name].width : 0
+    }
+
+    /// Whether a column survived the width fit.
+    function columnShown(name) {
+        return root.columns[name] !== undefined
     }
 
     function rows() {
@@ -285,7 +373,7 @@ Item {
                 height: 34
 
                 Text {
-                    visible: root.numbered
+                    visible: root.columnShown("number")
                     x: root.columnX("number")
                     width: root.columnWidth("number")
                     anchors.bottom: parent.bottom
@@ -308,7 +396,7 @@ Item {
                 }
 
                 SortableHeading {
-                    visible: root.showArtist
+                    visible: root.columnShown("artist")
                     x: root.columnX("artist")
                     width: root.columnWidth("artist")
                     anchors.bottom: parent.bottom
@@ -318,7 +406,7 @@ Item {
                 }
 
                 SortableHeading {
-                    visible: root.showAlbum
+                    visible: root.columnShown("album")
                     x: root.columnX("album")
                     width: root.columnWidth("album")
                     anchors.bottom: parent.bottom
@@ -328,7 +416,7 @@ Item {
                 }
 
                 SortableHeading {
-                    visible: root.showDateAdded
+                    visible: root.columnShown("added")
                     x: root.columnX("added")
                     width: root.columnWidth("added")
                     anchors.bottom: parent.bottom
@@ -338,7 +426,7 @@ Item {
                 }
 
                 Text {
-                    visible: root.showBpm
+                    visible: root.columnShown("bpm")
                     x: root.columnX("bpm")
                     width: root.columnWidth("bpm")
                     anchors.bottom: parent.bottom
@@ -352,7 +440,7 @@ Item {
                 }
 
                 Text {
-                    visible: root.showKey
+                    visible: root.columnShown("key")
                     x: root.columnX("key")
                     width: root.columnWidth("key")
                     anchors.bottom: parent.bottom
@@ -459,7 +547,7 @@ Item {
             }
 
             Text {
-                visible: root.numbered
+                visible: root.columnShown("number")
                 x: root.columnX("number")
                 width: root.columnWidth("number")
                 anchors.verticalCenter: parent.verticalCenter
@@ -473,7 +561,7 @@ Item {
             }
 
             CoverArt {
-                visible: root.showCovers
+                visible: root.columnShown("cover")
                 x: root.columnX("cover")
                 width: root.columnWidth("cover")
                 height: width
@@ -572,24 +660,25 @@ Item {
             // rather than one subtitle line under the title.
             LinkCell {
                 id: artistCell
-                visible: root.showArtist
+                visible: root.columnShown("artist")
                 x: root.columnX("artist")
                 width: root.columnWidth("artist")
                 anchors.verticalCenter: parent.verticalCenter
                 text: row.track.artist
+                links: row.track.artists || []
                 linked: !!row.track.artistId
-                onActivated: root.artistActivated(row.track.artistId)
+                onActivated: (id) => root.artistActivated(id || row.track.artistId)
                 // Resting on the name brings up the card, as on tidal.com.
-                onPeeked: {
+                onPeeked: (id) => {
                     const p = artistCell.mapToItem(null, artistCell.width / 2,
                                                    artistCell.height)
-                    ArtistPeek.open(row.track.artistId, p)
+                    ArtistPeek.open(id || row.track.artistId, p)
                 }
                 onUnpeeked: ArtistPeek.close()
             }
 
             Text {
-                visible: root.showDateAdded
+                visible: root.columnShown("added")
                 x: root.columnX("added")
                 width: root.columnWidth("added")
                 anchors.verticalCenter: parent.verticalCenter
@@ -601,11 +690,12 @@ Item {
             }
 
             LinkCell {
-                visible: root.showAlbum
+                visible: root.columnShown("album")
                 x: root.columnX("album")
                 width: root.columnWidth("album")
                 anchors.verticalCenter: parent.verticalCenter
                 text: row.track.album || ""
+                scheme: "album"
                 linked: !!row.track.albumId
                 onActivated: root.albumActivated(row.track.albumId)
             }
@@ -615,7 +705,7 @@ Item {
                 readonly property bool hiRes: row.track.quality === "HI_RES_LOSSLESS"
                                            || row.track.quality === "HI_RES"
 
-                visible: !!row.track.quality
+                visible: root.columnShown("quality") && !!row.track.quality
                 x: root.columnX("quality")
                      + (root.columnWidth("quality") - width) / 2
                 anchors.verticalCenter: parent.verticalCenter
@@ -640,7 +730,7 @@ Item {
             // TIDAL exposes bpm and key on the track payload; it prints a
             // dash where the catalogue has no analysis for a track.
             Text {
-                visible: root.showBpm
+                visible: root.columnShown("bpm")
                 x: root.columnX("bpm")
                 width: root.columnWidth("bpm")
                 anchors.verticalCenter: parent.verticalCenter
@@ -652,7 +742,7 @@ Item {
             }
 
             Item {
-                visible: root.showKey
+                visible: root.columnShown("key")
                 x: root.columnX("key")
                 width: root.columnWidth("key")
                 height: 20
@@ -689,11 +779,31 @@ Item {
                 }
             }
 
+            Item {
+                visible: root.columnShown("queue")
+                x: root.columnX("queue")
+                width: root.columnWidth("queue")
+                height: 24
+                anchors.verticalCenter: parent.verticalCenter
+
+                Icon {
+                    anchors.centerIn: parent
+                    width: 17
+                    height: 17
+                    visible: root.pinnedActions || hover.hovered
+                    name: "queue"
+                    color: queueHover.hovered ? Theme.textPrimary : Theme.textFaint
+                }
+
+                HoverHandler { id: queueHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler { onSingleTapped: root.queueNextRequested(row.position) }
+            }
+
             // Blocking keeps a track out of future mixes; on a mix page that
             // is a first-class action rather than a context-menu entry.
             Item {
                 id: blockCell
-                visible: root.showBlock && root.favorites !== null
+                visible: root.columnShown("block")
                 x: root.columnX("block")
                 width: root.columnWidth("block")
                 height: 24
@@ -723,7 +833,7 @@ Item {
             // The heart shows on hover, or always once favourited.
             Item {
                 id: heartCell
-                visible: root.favorites !== null
+                visible: root.columnShown("heart")
                 x: root.columnX("heart")
                 width: root.columnWidth("heart")
                 height: 24
@@ -737,7 +847,7 @@ Item {
                     anchors.centerIn: parent
                     width: 17
                     height: 17
-                    visible: heartCell.loved || hover.hovered
+                    visible: heartCell.loved || hover.hovered || root.pinnedActions
                     name: heartCell.loved ? "heart-filled" : "heart"
                     color: heartCell.loved ? Theme.accent
                          : heartHover.hovered ? Theme.textPrimary

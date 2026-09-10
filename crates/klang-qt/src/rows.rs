@@ -75,6 +75,23 @@ pub fn track(index: usize, t: &TidalTrack) -> Value {
         "title": t.title,
         "artist": artist_name(t),
         "artistId": artist_id(t),
+        // Every credited artist, each linkable on its own; `artist`
+        // stays the single name the player bar and MPRIS want.
+        "artists": t
+            .artists
+            .as_ref()
+            .map(|list| {
+                list.iter()
+                    .map(|a| serde_json::json!({ "id": a.id, "name": a.name }))
+                    .collect::<Vec<_>>()
+            })
+            .filter(|list| !list.is_empty())
+            .unwrap_or_else(|| {
+                t.artist
+                    .as_ref()
+                    .map(|a| vec![serde_json::json!({ "id": a.id, "name": a.name })])
+                    .unwrap_or_default()
+            }),
         "album": t.album.as_ref().map(|a| a.title.clone()).unwrap_or_default(),
         "albumId": t.album.as_ref().map(|a| a.id),
         "duration": t.duration,
