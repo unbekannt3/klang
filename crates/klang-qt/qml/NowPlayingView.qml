@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
+import QtQuick.Shapes
 import me.unbk.klang
 
 Item {
@@ -492,6 +493,43 @@ Item {
                                 NumberAnimation {
                                     duration: Theme.duration
                                     easing.type: Easing.OutCubic
+                                }
+                            }
+
+                            // The sheen tidal.com puts under the cursor while
+                            // the cover is tilted: white at the point, gone by
+                            // four fifths of the way out.
+                            Shape {
+                                anchors.fill: parent
+                                preferredRendererType: Shape.CurveRenderer
+                                opacity: tiltHover.hovered ? 1 : 0
+
+                                Behavior on opacity {
+                                    NumberAnimation { duration: Theme.duration }
+                                }
+
+                                ShapePath {
+                                    strokeWidth: -1
+                                    fillGradient: RadialGradient {
+                                        centerX: tiltHover.point.position.x
+                                        centerY: tiltHover.point.position.y
+                                        centerRadius: Math.max(cover.width, cover.height) * 0.8
+                                        focalX: centerX
+                                        focalY: centerY
+
+                                        GradientStop { position: 0.00; color: "#26ffffff" }
+                                        GradientStop { position: 0.10; color: "#1fffffff" }
+                                        GradientStop { position: 0.20; color: "#14ffffff" }
+                                        GradientStop { position: 0.35; color: "#0affffff" }
+                                        GradientStop { position: 0.50; color: "#05ffffff" }
+                                        GradientStop { position: 0.65; color: "#01ffffff" }
+                                        GradientStop { position: 0.80; color: "#00ffffff" }
+                                    }
+
+                                    PathRectangle {
+                                        width: cover.width
+                                        height: cover.height
+                                    }
                                 }
                             }
                         }

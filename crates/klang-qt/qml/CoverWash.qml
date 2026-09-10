@@ -21,6 +21,9 @@ Item {
     property color veilColor: Theme.base
     /// Covers are rarely as saturated as the wash wants to look.
     property real saturation: 0.6
+    /// One full turn, in ms. tidal.com drifts its blur round slowly enough
+    /// that the movement reads without ever drawing the eye.
+    property int turn: 150000
 
     /// MultiEffect draws nothing under the software renderer, so there the
     /// upscaled image is the blur; anywhere else it would double up with it.
@@ -33,43 +36,56 @@ Item {
         color: root.veilColor
     }
 
-    Image {
-        id: art
-        // Oversized and centred: bilinear upscaling softens the edges, and
-        // the overhang keeps the crop's borders off-screen. That upscale is
-        // the whole blur under the software renderer, where MultiEffect below
-        // draws nothing.
+    // Square and wide enough that no corner of the panel is ever uncovered
+    // as it turns, which is the whole reason it is not simply the panel size.
+    Item {
+        id: rotator
         anchors.centerIn: parent
-        width: parent.width * 1.6
-        height: parent.height * 1.6
-        asynchronous: true
-        cache: true
-        sourceSize.width: 160
-        sourceSize.height: 160
-        fillMode: Image.PreserveAspectCrop
-        smooth: true
-        source: root.uuid ? Theme.coverUrl(root.uuid, 160) : ""
-        opacity: status === Image.Ready ? 1 : 0
-        visible: !root.effects
-        layer.enabled: root.effects
-        layer.smooth: true
+        width: Math.round(Math.hypot(root.width, root.height) * 1.08)
+        height: width
 
-        Behavior on opacity {
-            NumberAnimation { duration: Theme.durationSlow }
+        NumberAnimation on rotation {
+            running: Theme.animated && root.uuid.length > 0
+            loops: Animation.Infinite
+            from: 0
+            to: 360
+            duration: root.turn
         }
-    }
 
-    // The colour a flat dark veil would otherwise wash out: pushing
-    // saturation up lets the veil stay dark enough for the text on top.
-    MultiEffect {
-        anchors.fill: art
-        source: art
-        visible: root.effects
-        blurEnabled: true
-        blur: 1.0
-        blurMax: 64
-        saturation: root.saturation
-        opacity: art.opacity
+        Image {
+            id: art
+            // Upscaling a 160px bracket is the whole blur under the software
+            // renderer, where the effect below draws nothing.
+            anchors.fill: parent
+            asynchronous: true
+            cache: true
+            sourceSize.width: 320
+            sourceSize.height: 320
+            fillMode: Image.PreserveAspectCrop
+            smooth: true
+            source: root.uuid ? Theme.coverUrl(root.uuid, 320) : ""
+            opacity: status === Image.Ready ? 1 : 0
+            visible: !root.effects
+            layer.enabled: root.effects
+            layer.smooth: true
+
+            Behavior on opacity {
+                NumberAnimation { duration: Theme.durationSlow }
+            }
+        }
+
+        // The colour a flat dark veil would otherwise wash out: pushing
+        // saturation up lets the veil stay dark enough for the text on top.
+        MultiEffect {
+            anchors.fill: art
+            source: art
+            visible: root.effects
+            blurEnabled: true
+            blur: 1.0
+            blurMax: 64
+            saturation: root.saturation
+            opacity: art.opacity
+        }
     }
 
     Rectangle {
