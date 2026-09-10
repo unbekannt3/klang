@@ -488,27 +488,39 @@ Item {
                     visible: row.active
                     color: Theme.scrim
 
-                    Row {
+                    // Not a Row: a positioner ignores vertical anchors on its
+                    // children, and these have to stay centred while they grow.
+                    Item {
                         anchors.centerIn: parent
-                        spacing: 2
+                        width: 10
+                        height: 14
 
                         Repeater {
                             model: 3
 
                             Rectangle {
                                 required property int index
+                                x: index * 4
+                                anchors.verticalCenter: parent.verticalCenter
                                 width: 2
-                                height: 12
-                                y: -height / 2
+                                height: 5
                                 radius: 1
                                 color: Theme.accent
 
                                 SequentialAnimation on height {
                                     running: row.active && Theme.animated
                                     loops: Animation.Infinite
-                                    PauseAnimation { duration: index * 130 }
-                                    NumberAnimation { to: 4; duration: 320 }
-                                    NumberAnimation { to: 12; duration: 320 }
+                                    PauseAnimation { duration: index * 110 }
+                                    NumberAnimation {
+                                        to: 14
+                                        duration: 240
+                                        easing.type: Easing.InOutSine
+                                    }
+                                    NumberAnimation {
+                                        to: 5
+                                        duration: 240
+                                        easing.type: Easing.InOutSine
+                                    }
                                 }
                             }
                         }

@@ -21,15 +21,18 @@ Item {
     Keys.onEscapePressed: root.closeRequested()
 
     // Also on completion: a caller that builds this on demand hands it `open`
-    // as an initial value, which is no property change to react to.
+    // as an initial value, which is no property change to react to. `path`
+    // may not be assigned yet when that first change arrives, so probing
+    // waits for both.
     function probe() {
-        if (!root.open)
+        if (!root.open || !root.path)
             return
         root.path.attach()
         root.path.refresh()
     }
 
     onOpenChanged: root.probe()
+    onPathChanged: root.probe()
     Component.onCompleted: root.probe()
 
     // Mirrors the 2 s heartbeat pipeline_probe.rs was designed for — cheap

@@ -23,8 +23,8 @@ Item {
     signal openArtistTracks(string artistName)
     signal openMix(string mixId, string title)
 
-    /// The full bio, in a dialog rather than expanded in place.
-    property bool bioOpen: false
+    /// The window shows the full bio; the page only asks for it.
+    signal bioRequested(string name, string bio)
     /// A carousel opened as a grid of the cards it already holds.
     signal openItemGrid(string title, var items)
     signal itemContextRequested(var item, real x, real y)
@@ -68,16 +68,6 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: Theme.base
-    }
-
-    ArtistBioDialog {
-        z: 300
-        open: root.bioOpen
-        artistName: root.artist().name || ""
-        bio: root.artist().bio || ""
-        onCloseRequested: root.bioOpen = false
-        onOpenArtist: (id) => root.openArtist(id)
-        onOpenAlbum: (id) => root.openAlbum(id)
     }
 
     /// One of the header's secondary actions: icon over a pill.
@@ -180,7 +170,7 @@ Item {
                 Text {
                     id: bioText
                     Layout.fillWidth: true
-                    text: root.artist().bio || ""
+                    text: Format.bioPlain(root.artist().bio || "")
                     wrapMode: Text.WordWrap
                     elide: Text.ElideRight
                     maximumLineCount: 4
@@ -198,7 +188,8 @@ Item {
                     color: toggleHover.hovered ? Theme.textPrimary : Theme.accent
 
                     HoverHandler { id: toggleHover }
-                    TapHandler { onSingleTapped: root.bioOpen = true }
+                    TapHandler { onSingleTapped: root.bioRequested(root.artist().name || "",
+                                                     root.artist().bio || "") }
                 }
             }
 

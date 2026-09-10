@@ -302,7 +302,7 @@ QQC2.ApplicationWindow {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            z: 500
+            z: Layers.player
             // Whatever is actually under the bar: the now-playing panel when
             // it is up, the page otherwise.
             behind: nowPlayingLayer.item ? nowPlayingLayer.item : pageArea
@@ -310,6 +310,10 @@ QQC2.ApplicationWindow {
             player: playerCtl
             favorites: favoritesCtl
             onOpenArtist: (id) => root.go("artist", { artistId: id })
+            onContextRequested: (track, x, y) => {
+                trackMenu.track = track
+                trackMenu.openAt(Qt.point(x, y), root.contentItem)
+            }
             shuffle: playerCtl.shuffle
             repeat: playerCtl.repeat
             volume: playerCtl.volume
@@ -425,6 +429,10 @@ QQC2.ApplicationWindow {
             artistId: root.page.params.artistId || 0
             onOpenAlbum: (id) => root.go("album", { albumId: id })
             onOpenMix: (mixId, title) => root.go("mix", { mixId: mixId, title: title })
+            onBioRequested: (name, bio) => {
+                root.bioName = name
+                root.bioText = bio
+            }
             onOpenArtistTracks: (artistName) => root.go("artist-tracks", {
                 artistId: root.page.params.artistId || 0,
                 artistName: artistName
@@ -695,6 +703,7 @@ QQC2.ApplicationWindow {
 
     Loader {
         anchors.fill: parent
+        z: Layers.modal
         active: root.playlistPickerOpen
 
         sourceComponent: AddToPlaylistDialog {
@@ -707,6 +716,7 @@ QQC2.ApplicationWindow {
 
     Loader {
         anchors.fill: parent
+        z: Layers.modal
         active: root.shortcutsOpen
 
         sourceComponent: ShortcutsHelp {
@@ -717,6 +727,7 @@ QQC2.ApplicationWindow {
 
     Loader {
         anchors.fill: parent
+        z: Layers.modal
         active: root.signalPathOpen
 
         sourceComponent: SignalPathPanel {
@@ -729,8 +740,7 @@ QQC2.ApplicationWindow {
 
     Loader {
         anchors.fill: parent
-        // Sit above everything else, including the player bar.
-        z: 1000
+        z: Layers.takeover
         active: videoCtl.video_id !== 0
 
         sourceComponent: VideoPlayerView {
@@ -768,13 +778,13 @@ QQC2.ApplicationWindow {
         id: nowPlayingLayer
         anchors.left: parent.left
         anchors.right: parent.right
+        z: Layers.panel
         // Below the titlebar, not over it: the panel's own close glyph would
         // otherwise sit on the window's close button, and a tap that misses
         // the panel by a pixel quits the app.
         y: titleBar.height
-        // Runs under the floating bar, like the page does — otherwise the
-        // bar's glass has the page behind it while the panel is open, and
-        // blurs a list nobody is looking at.
+        // Runs under the floating bar, like the page does, so the bar's
+        // glass has the panel behind it rather than the page.
         height: parent.height - titleBar.height
         active: root.nowPlayingLive
 
@@ -796,9 +806,21 @@ QQC2.ApplicationWindow {
         }
     }
 
-    // Above the pages, below the modals: the card is a peek, not a dialog.
+    property string bioName: ""
+    property string bioText: ""
+
+    ArtistBioDialog {
+        z: Layers.modal
+        open: root.bioText.length > 0
+        artistName: root.bioName
+        bio: root.bioText
+        onCloseRequested: root.bioText = ""
+        onOpenArtist: (id) => root.go("artist", { artistId: id })
+        onOpenAlbum: (id) => root.go("album", { albumId: id })
+    }
+
     ArtistHoverCard {
-        z: 400
+        z: Layers.peek
         favorites: favoritesCtl
         onOpenArtist: (id) => root.go("artist", { artistId: id })
     }
@@ -830,6 +852,7 @@ QQC2.ApplicationWindow {
     }
 
     Rectangle {
+        z: Layers.notice
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Theme.playerBarHeight + Theme.space

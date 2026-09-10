@@ -26,24 +26,6 @@ Item {
 
     Keys.onEscapePressed: root.closeRequested()
 
-    /// TIDAL's own markup, plus the paragraph breaks its plain text uses.
-    function richText(text) {
-        if (!text)
-            return ""
-        // Escaped first so the bio's own prose cannot inject markup, then the
-        // one tag TIDAL really does put in the text is let back through.
-        const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-        return escaped
-            .replace(/&lt;br\s*\/?&gt;/gi, "<br>")
-            .replace(/\[wimpLink artistId="(\d+)"\]([\s\S]*?)\[\/wimpLink\]/g,
-                     '<a href="artist:$1">$2</a>')
-            .replace(/\[wimpLink albumId="(\d+)"\]([\s\S]*?)\[\/wimpLink\]/g,
-                     '<a href="album:$1">$2</a>')
-            // Anything else in brackets is markup we do not render.
-            .replace(/\[\/?[a-zA-Z][^\]]*\]/g, "")
-            .replace(/\n/g, "<br>")
-    }
-
     ModalShield {
         blocksPage: true
         scrim: Qt.alpha(Theme.overlay, 0.55)
@@ -108,7 +90,7 @@ Item {
                     // A ScrollView's content sizes itself, so `parent.width`
                     // here is the flickable's content width, not the view's.
                     width: bioScroll.availableWidth
-                    text: root.richText(root.bio)
+                    text: Format.bioRich(root.bio)
                     textFormat: Text.RichText
                     wrapMode: Text.WordWrap
                     font.family: Theme.fontFamily

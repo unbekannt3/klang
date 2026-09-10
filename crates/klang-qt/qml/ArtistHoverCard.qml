@@ -110,7 +110,7 @@ Item {
             Text {
                 Layout.fillWidth: true
                 visible: artist.bio.length > 0
-                text: artist.bio
+                text: Format.bioPlain(artist.bio)
                 wrapMode: Text.WordWrap
                 maximumLineCount: 3
                 elide: Text.ElideRight

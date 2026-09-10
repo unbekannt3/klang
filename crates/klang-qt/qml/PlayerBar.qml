@@ -11,6 +11,8 @@ Rectangle {
     /// The page the bar floats over, for the glass to sample.
     property Item behind: null
     signal openArtist(int artistId)
+    /// The bar's own "…", carrying the playing track as a row-shaped object.
+    signal contextRequested(var track, real x, real y)
     /// FavoritesController; when unset the heart is hidden.
     property var favorites: null
     property bool shuffle: false
@@ -28,28 +30,34 @@ Rectangle {
     signal signalPathRequested()
     signal miniPlayerRequested()
 
+    /// The playing track in the shape a track row has, for the shared menu.
+    function playingTrack() {
+        return {
+            id: root.player.track_id,
+            title: root.player.title,
+            artist: root.player.artist,
+            artistId: root.player.artist_id,
+            albumId: root.player.album_id,
+            album: "",
+            cover: root.player.cover,
+            duration: root.player.duration_secs,
+        }
+    }
+
     implicitHeight: Theme.playerBarHeight
     // The glass below carries the surface; the bar itself only tints where
     // there is nothing to sample.
     color: "transparent"
-
-    // tidal.com's own fade above the bar, so content does not run into it.
-    Rectangle {
-        anchors.bottom: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        height: 80
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "transparent" }
-            GradientStop { position: 1.0; color: Qt.alpha(Theme.base, 0.15) }
-        }
-    }
 
     Glass {
         anchors.fill: parent
         behind: root.behind
         tint: Qt.alpha(Theme.surface, 0.75)
     }
+
+    // Floating over the page means the gaps between controls would otherwise
+    // hand clicks, hover and the wheel to the rows underneath.
+    ModalShield {}
 
     // Hairline above, so the bar reads as a separate plane.
     Rectangle {
@@ -115,6 +123,7 @@ Rectangle {
 
             ColumnLayout {
                 Layout.fillWidth: true
+                Layout.rightMargin: Theme.spaceXs
                 spacing: 2
 
                 // The title opens the full view; the artist line below goes
@@ -149,12 +158,41 @@ Rectangle {
                         id: barArtistHover
                         enabled: barArtist.linked
                         cursorShape: Qt.PointingHandCursor
+                        onHoveredChanged: {
+                            if (!hovered) {
+                                ArtistPeek.close()
+                                return
+                            }
+                            // Above the line: the bar is at the bottom edge.
+                            const p = barArtist.mapToItem(null, barArtist.width / 2, 0)
+                            ArtistPeek.open(root.player.artist_id, p)
+                        }
                     }
 
                     TapHandler {
                         enabled: barArtist.linked
                         onSingleTapped: root.openArtist(root.player.artist_id)
                     }
+                }
+            }
+
+            IconButton {
+                readonly property bool loved: !!root.favorites
+                    && root.favorites.revision >= 0
+                    && root.favorites.is_track(root.player.track_id)
+                iconName: loved ? "heart-filled" : "heart"
+                iconSize: 17
+                on: loved
+                onClicked: if (root.favorites)
+                    root.favorites.toggle_track(root.player.track_id)
+            }
+
+            IconButton {
+                iconName: "more"
+                iconSize: 17
+                onClicked: {
+                    const p = mapToItem(null, width / 2, 0)
+                    root.contextRequested(root.playingTrack(), p.x, p.y)
                 }
             }
         }

@@ -41,6 +41,7 @@ fn main() {
             QmlFile::from("qml/ArtistBioDialog.qml"),
             QmlFile::from("qml/ArtistPeek.qml").singleton(true),
             QmlFile::from("qml/OverlayStack.qml").singleton(true),
+            QmlFile::from("qml/Layers.qml").singleton(true),
             QmlFile::from("qml/CardCarousel.qml"),
             QmlFile::from("qml/SectionList.qml"),
             QmlFile::from("qml/ThemePicker.qml"),

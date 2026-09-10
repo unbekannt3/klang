@@ -42,6 +42,34 @@ QtObject {
     }
 
     /// Seconds to m:ss, or h:mm:ss past an hour.
+    /// TIDAL writes an artist bio with its own link markup and literal
+    /// <br/> tags: [wimpLink artistId="123"]Name[/wimpLink].
+
+    /// The bio as prose — link labels kept, markup dropped.
+    function bioPlain(text) {
+        if (!text)
+            return ""
+        return text
+            .replace(/\[wimpLink[^\]]*\]([\s\S]*?)\[\/wimpLink\]/g, "$1")
+            .replace(/\[\/?[a-zA-Z][^\]]*\]/g, "")
+            .replace(/<br\s*\/?>/gi, "\n")
+    }
+
+    /// The bio as rich text, with those links routable by the caller.
+    function bioRich(text) {
+        if (!text)
+            return ""
+        return text
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/&lt;br\s*\/?&gt;/gi, "<br>")
+            .replace(/\[wimpLink artistId="(\d+)"\]([\s\S]*?)\[\/wimpLink\]/g,
+                     '<a href="artist:$1">$2</a>')
+            .replace(/\[wimpLink albumId="(\d+)"\]([\s\S]*?)\[\/wimpLink\]/g,
+                     '<a href="album:$1">$2</a>')
+            .replace(/\[\/?[a-zA-Z][^\]]*\]/g, "")
+            .replace(/\n/g, "<br>")
+    }
+
     /// tidal.com labels a video in whole minutes, not mm:ss.
     function minutes(secs) {
         if (!secs || secs < 0)

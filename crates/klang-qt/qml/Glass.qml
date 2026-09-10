@@ -13,6 +13,9 @@ import me.unbk.klang
 Item {
     id: root
 
+    // The blur must not paint outside the pane it belongs to.
+    clip: true
+
     /// What to sample. Must not be an ancestor of this item, or the copy
     /// feeds back into itself.
     property Item behind: null
@@ -47,6 +50,9 @@ Item {
         blur: 1.0
         blurMax: 48
         saturation: 0.8
+        // Padding would grow the item past its bounds and offset what it
+        // draws, so the copy stays exactly where the pane is.
+        autoPaddingEnabled: false
     }
 
     Rectangle {
